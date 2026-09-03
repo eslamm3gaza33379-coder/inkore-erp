@@ -49,6 +49,13 @@ window.inkoreSupabase = window.supabase && window.supabase.createClient
 window.inkoreOnline = !!window.inkoreSupabase;
 
 window.inkoreCloud = {
+  client: window.inkoreSupabase,
+  ready: !!window.inkoreSupabase,
+  async init() {
+    this.client = window.inkoreSupabase;
+    this.ready = !!this.client;
+    return this.ready;
+  },
   async signIn(email, password) {
     if (!window.inkoreSupabase) throw new Error('Supabase غير متاح');
     const {data,error}=await window.inkoreSupabase.auth.signInWithPassword({email,password});
@@ -93,6 +100,8 @@ window.inkoreCloud = {
 
 // Keep the existing local UI usable while the cloud connection is being rolled out.
 // Cloud-first auth can be enabled by calling window.inkoreEnableCloudAuth().
+window.dispatchEvent(new CustomEvent('inkore:supabase-ready', {detail:{client:window.inkoreSupabase}}));
+
 window.inkoreEnableCloudAuth = function(){
   if(!window.inkoreSupabase) return false;
   window.__INKORE_CLOUD_AUTH_ENABLED__=true;
@@ -130,6 +139,20 @@ window.addEventListener('DOMContentLoaded', async () => {
 })();
 </script>
 
+
+<script id="inkore-cloud-diagnostic">
+window.addEventListener('load', () => {
+  window.inkoreCloudDiagnostic = function(){
+    return {
+      supabaseGlobal: !!window.supabase,
+      client: !!window.inkoreSupabase,
+      cloudClient: !!window.inkoreCloud?.client,
+      cloudReady: !!window.inkoreCloud?.ready,
+      url: window.INKORE_SUPABASE?.url || null
+    };
+  };
+});
+</script>
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col justify-between text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
 
@@ -400,7 +423,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 <input type="checkbox" id="inv_need_protect_paper" onchange="calcLinearJobInvoice()" checked class="w-4 h-4 text-indigo-600 rounded">
                 <span>استهلاك ورق حماية</span>
               </label>
-              <span id="protect_paper_display" class="text-[11px] text-teal-700 font-bold mt-1">مطابق للسحب: 150 متر طولي</span><span id="inv_cost_preview" class="text-[11px] text-indigo-700 font-bold mt-1 block"></span>
+              <span id="protect_paper_display" class="text-[11px] text-teal-700 font-bold mt-1">150 متر</span>
             </div>
           </div>
 
@@ -1519,7 +1542,7 @@ function todayStr() {
       const totalSale = Math.round(meters * rate);
 
       const needProtect = document.getElementById('inv_need_protect_paper').checked;
-      document.getElementById('protect_paper_display').innerText = needProtect ? `مطابق للسحب: ${meters} متر طولي` : 'غير مستهلك';
+      document.getElementById('protect_paper_display').innerText = needProtect ? `${meters} متر` : '0 متر';
 
       const cash = parseFloat(document.getElementById('inv_pay_cash').value) || 0;
       const insta = parseFloat(document.getElementById('inv_pay_insta').value) || 0;
@@ -2904,7 +2927,7 @@ function todayStr() {
       const inkTotalCost = (inkMl / 1000) * inkCost;
       const totalCost = Math.round(paperTotalCost + inkTotalCost);
       const profit = totalSale - totalCost;
-      document.getElementById('protect_paper_display').innerText = needProtect ? `عرض ${width} سم — ${meters} م × ${fmt(paperCost)} = ${fmt(paperTotalCost)} ج.م تكلفة ورق` : 'غير مستهلك';
+      document.getElementById('protect_paper_display').innerText = needProtect ? `${fmt(meters)} متر` : '0 متر';
       const cash = parseFloat(document.getElementById('inv_pay_cash').value) || 0;
       const insta = parseFloat(document.getElementById('inv_pay_insta').value) || 0;
       const voda = parseFloat(document.getElementById('inv_pay_voda').value) || 0;
@@ -2913,8 +2936,7 @@ function todayStr() {
       document.getElementById('inv_disp_total').innerText = fmt(totalSale) + ' ج.م';
       document.getElementById('inv_disp_paid').innerText = fmt(paid) + ' ج.م';
       document.getElementById('inv_disp_due').innerText = fmt(due) + ' ج.م';
-      const old = document.getElementById('inv_cost_preview');
-      if (old) old.innerText = `تكلفة الورق: ${fmt(paperTotalCost)} ج.م | الحبر: ${fmt(inkTotalCost)} ج.م | الربح التقديري: ${fmt(profit)} ج.م`;
+      
     }
 
     function commitLinearInvoice() {
@@ -3155,7 +3177,7 @@ function todayStr() {
     const wasteM=Math.max(0,+document.getElementById('inv_waste_paper_m')?.value||0),wasteRate=Math.max(0,+((get('company')||{}).wastePaperCostPerMeter)||0),inkMl=Math.max(0,+document.getElementById('inv_ink_ml').value||0),inkRate=Math.max(0,+((get('company')||{}).inkCostPerLiter)||0),materialCost=(wasteM*wasteRate)+(inkMl/1000*inkRate);
     document.getElementById('inv_disp_total').innerText=money(final);document.getElementById('inv_disp_paid').innerText=money(paid);document.getElementById('inv_disp_due').innerText=money(due);
     const pp=document.getElementById('protect_paper_display');if(pp)pp.innerText=document.getElementById('inv_need_protect_paper').checked?`سيتم خصم ${fmt(meters)} متر من مخزون ورق الحماية فقط`:'غير مستخدم';
-    const old=document.getElementById('inv_cost_preview');if(old)old.innerText=`تكلفة خامات محسوبة: ${money(materialCost)} (حبر + هالك ورق) — ورق الحماية خصم مخزون فقط`;
+    
   }
   window.calcLinearJobInvoice=invoiceCalc;
   window.resetInvoiceForm=function(){document.getElementById('edit_order_id').value='';document.getElementById('inv_discount').value=0;document.getElementById('inv_service_desc').value='طباعة وكبس ميلتون بوليستر';document.getElementById('inv_linear_meters').value=0;document.getElementById('inv_ink_ml').value=0;document.getElementById('inv_waste_paper_m').value=0;document.getElementById('inv_pay_cash').value=0;document.getElementById('inv_pay_insta').value=0;document.getElementById('inv_pay_voda').value=0;document.getElementById('inv_need_protect_paper').checked=false;document.getElementById('btn_save_order').innerText='اعتماد وحفظ الفاتورة';invoiceCalc();setInvoiceSeqDisplay();};
@@ -3601,8 +3623,8 @@ function todayStr() {
     const waste=wasteM*num(c.wastePaperCostPerMeter);
     const materialCost=Math.round(ink+waste); const profit=total-materialCost;
     const need=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const pr=document.getElementById('protect_paper_display');if(pr)pr.textContent=need?`تفعيل: سيتم خصم ${fmtF(meters)} م من مخزون ورق الحماية فقط`:'غير مستخدم — لا يوجد خصم من المخزون';
-    const preview=document.getElementById('inv_cost_preview');if(preview)preview.textContent=`تكلفة الحبر: ${moneyF(ink)} | تكلفة الورق الهالك: ${moneyF(waste)} | الربح بعد الخصم: ${moneyF(profit)} | ورق الحماية: خارج التكلفة والربح`;
+    const pr=document.getElementById('protect_paper_display');if(pr)pr.textContent=need?`${fmtF(meters)} متر`:'0 متر';
+    
     ['inv_disp_total','inv_disp_paid','inv_disp_due'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=moneyF([total,paid,due][i]);});
     return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,ink,wasteM,waste,materialCost,profit,need};
   };
