@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>inkore Enterprise ERP | المنظومة الصناعية الشاملة لمطابع السبلميشن والنسيج</title>
+  <title>inkore ERP | إدارة المطبعة والمخازن والخزينة</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -36,79 +35,15 @@
     }
   </style>
 
-<script id="inkore-supabase-config">
-/* INKORE ONLINE BRIDGE
-   Supabase URL + publishable key are safe for browser use when RLS is enabled.
-   Service-role keys must NEVER be placed in this file. */
-window.INKORE_SUPABASE = {
-  url: 'https://beufbjctxavjxeiqzgxp.supabase.co',
-  key: 'sb_publishable_3SM1DFazXCVuFHO5cvzKSg_AH8APyhB'
-};
-window.inkoreSupabase = window.supabase && window.supabase.createClient
-  ? window.supabase.createClient(window.INKORE_SUPABASE.url, window.INKORE_SUPABASE.key) : null;
-window.inkoreOnline = !!window.inkoreSupabase;
-
-window.inkoreCloud = {
-  async signIn(email, password) {
-    if (!window.inkoreSupabase) throw new Error('Supabase غير متاح');
-    const {data,error}=await window.inkoreSupabase.auth.signInWithPassword({email,password});
-    if(error) throw error; return data;
-  },
-  async signOut() { if(window.inkoreSupabase) return window.inkoreSupabase.auth.signOut(); },
-  async session() {
-    if(!window.inkoreSupabase) return null;
-    const {data}=await window.inkoreSupabase.auth.getSession(); return data.session;
-  },
-  async profile() {
-    const session=await this.session(); if(!session) return null;
-    const {data,error}=await window.inkoreSupabase.from('profiles').select('*').eq('id',session.user.id).maybeSingle();
-    if(error) throw error; return data;
-  },
-  async nextInvoice(companyId) {
-    const {data,error}=await window.inkoreSupabase.rpc('next_invoice_no',{company:companyId});
-    if(error) throw error; return data;
-  },
-  async pull(table, opts={}) {
-    let q=window.inkoreSupabase.from(table).select(opts.select||'*');
-    if(opts.companyId) q=q.eq('company_id',opts.companyId);
-    if(opts.order) q=q.order(opts.order.column,{ascending:!!opts.order.ascending});
-    if(opts.limit) q=q.limit(opts.limit);
-    const {data,error}=await q; if(error) throw error; return data||[];
-  },
-  async insert(table,row) { const {data,error}=await window.inkoreSupabase.from(table).insert(row).select().single(); if(error) throw error; return data; },
-  async update(table,id,row) { const {data,error}=await window.inkoreSupabase.from(table).update(row).eq('id',id).select().single(); if(error) throw error; return data; },
-  async remove(table,id) { const {error}=await window.inkoreSupabase.from(table).delete().eq('id',id); if(error) throw error; },
-  async migrateLocalStorage(companyId) {
-    const db=window.db||{}; const jobs=[];
-    const maps={clients:['clients'],orders:['orders'],expenses:['expenses'],employees:['employees'],attendance:['attendance'],suppliers:['suppliers'],rawMaterials:['raw_materials'],stockMoves:['stock_moves'],fabricBatches:['fabric_batches'],supplierTransactions:['supplier_transactions'],bankDeposits:['bank_deposits']};
-    const keyMap={rawMaterials:'raw_materials',stockMoves:'stock_moves',fabricBatches:'fabric_batches',supplierTransactions:'supplier_transactions',bankDeposits:'bank_deposits'};
-    for(const [src,dst] of Object.entries(maps)){ const arr=Array.isArray(db[src])?db[src]:[]; for(const item of arr){ const row={...item,company_id:companyId}; delete row._id; delete row.clientId; delete row.materialId; delete row.orderNum; jobs.push(window.inkoreSupabase.from(dst).upsert(row,{onConflict:'id'})); } }
-    const res=await Promise.all(jobs); return res.length;
-  }
-};
-
-// Keep the existing local UI usable while the cloud connection is being rolled out.
-// Cloud-first auth can be enabled by calling window.inkoreEnableCloudAuth().
-window.inkoreEnableCloudAuth = function(){
-  if(!window.inkoreSupabase) return false;
-  window.__INKORE_CLOUD_AUTH_ENABLED__=true;
-  return true;
-};
-</script>
-<script id="inkore-cloud-status-clean">
+<script id="inkore-stable-safety">
 (function(){
-  window.inkoreCloudReady=function(){return !!(window.inkoreSupabase&&window.inkoreSupabase.auth);};
+  'use strict';
+  window.addEventListener('error', function(ev){
+    console.error('inkore runtime error:', ev.error || ev.message);
+  });
 })();
 </script>
-<script id="inkore-clean-start-final">
-(function(){
-  const marker="inkore_clean_start_final_v1";
-  if(localStorage.getItem(marker)) return;
-  const keys=["cashbox","instapay","vodacash","bankAccount","company","assets","clients","orders","expenses","partners","electricity","employees","attendance","calenderOps","suppliers","fabricBatches","payrollClosings","treasuryClosings","supplierTransactions","bankDeposits","rawMaterials","stockMoves","cloudLastSync","cloudLastPull","migration_v3_done","securityInitialized"];
-  for(const k of keys) localStorage.removeItem("inkore_v2_"+k);
-  localStorage.setItem(marker,"1");
-})();
-</script>
+
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col justify-between text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
 
@@ -143,10 +78,6 @@ window.inkoreEnableCloudAuth = function(){
           <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
             تسجيل الدخول للنظام
           </button>
-        </div>
-
-        <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-[11px] text-amber-800 text-center mt-4">
-          <i class="fa-solid fa-shield-halved ml-1"></i> لأمان النظام لا يتم عرض أو تذكير كلمات المرور هنا.
         </div>
       </div>
     </div>
@@ -379,7 +310,7 @@ window.inkoreEnableCloudAuth = function(){
                 <input type="checkbox" id="inv_need_protect_paper" onchange="calcLinearJobInvoice()" checked class="w-4 h-4 text-indigo-600 rounded">
                 <span>استهلاك ورق حماية</span>
               </label>
-              <span id="protect_paper_display" class="text-[11px] text-teal-700 font-bold mt-1">مطابق للسحب: 150 متر طولي</span><span id="inv_cost_preview" style="display:none" class="text-[11px] text-indigo-700 font-bold mt-1 block"></span>
+              <span id="protect_paper_display" class="text-[11px] text-teal-700 font-bold mt-1">مطابق للسحب: 150 متر طولي</span><span id="inv_cost_preview" class="text-[11px] text-indigo-700 font-bold mt-1 block"></span>
             </div>
           </div>
 
@@ -1259,20 +1190,65 @@ window.inkoreEnableCloudAuth = function(){
   <!-- ==================== المحرك البرمجي الشامل وقاعدة البيانات ==================== -->
   <script>
     const defaultDB = {
-      currentUser: { username: 'admin', role: 'admin' },
-      cashbox: 0,
-      instapay: 0,
-      vodacash: 0,
-      bankAccount: 0,
-      company: { name: "", logo: "", address: "", phone: "", inkCostPerLiter: 0, paperCosts: { "152": 0, "162": 0, "182": 0 }, wastePaperCostPerMeter: 0, sessionTimeoutMin: 60, maxLoginAttempts: 5, workDaysPerWeek: 6, workHoursPerDay: 8 },
-      assets: [], clients: [], orders: [], expenses: [], partners: [], electricity: [], employees: [], attendance: [], calenderOps: [], suppliers: [], fabricBatches: [], payrollClosings: [], treasuryClosings: [], supplierTransactions: [], bankDeposits: [], rawMaterials: [], stockMoves: [],
-      users: [ { id: 1, username: 'admin', passwordHash: '6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545', role: 'admin' } ]
-    };
+  "currentUser": {
+    "username": "",
+    "role": ""
+  },
+  "cashbox": 0,
+  "instapay": 0,
+  "vodacash": 0,
+  "bankAccount": 0,
+  "company": {
+    "name": "مطبعة inkore",
+    "logo": "",
+    "address": "",
+    "phone": "",
+    "inkCostPerLiter": 0,
+    "paperCosts": {
+      "152": 0,
+      "162": 0,
+      "182": 0
+    },
+    "wastePaperCostPerMeter": 0,
+    "sessionTimeoutMin": 60,
+    "maxLoginAttempts": 5,
+    "workDaysPerWeek": 6,
+    "workHoursPerDay": 8,
+    "invoicePrefix": "INK-",
+    "invoiceSeq": 0,
+    "defaultMinStock": 0
+  },
+  "assets": [],
+  "clients": [],
+  "orders": [],
+  "expenses": [],
+  "partners": [],
+  "electricity": [],
+  "employees": [],
+  "attendance": [],
+  "calenderOps": [],
+  "suppliers": [],
+  "fabricBatches": [],
+  "payrollClosings": [],
+  "treasuryClosings": [],
+  "supplierTransactions": [],
+  "bankDeposits": [],
+  "rawMaterials": [],
+  "stockMoves": [],
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "passwordHash": "6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545",
+      "role": "admin"
+    }
+  ]
+};
 
     // One-time repair for the local demo admin account. This fixes stale localStorage from older builds.
 (function repairAdminCredentials(){
   try {
-    const key='inkore_v2_users';
+    const key='inkore_erp_stable_v1_users';
     const raw=localStorage.getItem(key);
     const expected='6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545';
     if(raw && !localStorage.getItem('inkore_admin_repair_v2')){
@@ -1287,7 +1263,7 @@ window.inkoreEnableCloudAuth = function(){
 // Force the requested admin password once for this build, while keeping it hashed.
 (function setRequestedAdminPassword(){
   try {
-    const key='inkore_v2_users';
+    const key='inkore_erp_stable_v1_users';
     const marker='inkore_admin_password_dida_v1';
     const hash='6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545';
     const raw=localStorage.getItem(key);
@@ -1305,7 +1281,7 @@ function todayStr() {
     }
 
     function loadDB(key) {
-      const data = localStorage.getItem('inkore_v2_' + key);
+      const data = localStorage.getItem('inkore_erp_stable_v1_' + key);
       if (data) {
         try { return JSON.parse(data); } catch (e) { return defaultDB[key]; }
       }
@@ -1313,7 +1289,7 @@ function todayStr() {
     }
 
     function saveDB(key, data) {
-      localStorage.setItem('inkore_v2_' + key, JSON.stringify(data));
+      localStorage.setItem('inkore_erp_stable_v1_' + key, JSON.stringify(data));
     }
 
     function fmt(n) {
@@ -3023,7 +2999,7 @@ function todayStr() {
     };
 /* ==================== INKORE ERP V2 - REQUESTED UPGRADES ==================== */
 (function(){
-  const P='inkore_v2_';
+  const P='inkore_erp_stable_v1_';
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const get=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):undefined}catch(e){return undefined}};
   const put=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
@@ -3079,7 +3055,7 @@ function todayStr() {
   ensureInventory();
   function stockMove(name,qty,type,ref,note){
     ensureInventory(); let items=arr('rawMaterials'); let item=items.find(x=>x.name===name);
-    if(!item){item={id:Date.now()+Math.random(),name,unit:'متر',qty:0,purchasePrice:0,minQty:+((get('company')||{}).defaultMinStock)||0};items.push(item);}
+    if(!item){item={id:Date.now()+Math.random(),name,unit:'متر',qty:0,purchasePrice:0,minQty:+((get('company')||{}).defaultMinStock)||0,wastePercent:0};items.push(item);}
     if(qty<0 && item.qty+qty < 0) throw new Error('الرصيد غير كافٍ من '+name+' (المتاح '+item.qty+')');
     item.qty=Math.round((item.qty+qty)*100)/100;
     put('rawMaterials',items); const moves=arr('stockMoves'); moves.unshift({id:Date.now()+Math.random(),date:now(),material:name,qty,type,ref:ref||'',note:note||''}); put('stockMoves',moves);
@@ -3088,23 +3064,23 @@ function todayStr() {
     ensureInventory(); const items=arr('rawMaterials');
     const body=document.getElementById('raw_inventory_body'); if(!body)return;
     document.getElementById('inventory_total_value').innerText=money(items.reduce((s,x)=>s+(x.qty||0)*(x.purchasePrice||0),0));
-    body.innerHTML=items.map(x=>`<tr><td class="p-3 font-bold">${esc(x.name)}</td><td class="p-3 font-mono">${fmt(x.qty)} ${esc(x.unit)}</td><td class="p-3 font-mono">${money(x.purchasePrice)}</td><td class="p-3 font-mono">${money((x.qty||0)*(x.purchasePrice||0))}</td><td class="p-3">${x.qty<=x.minQty?'<span class="text-rose-600 font-bold">مخزون منخفض</span>':'<span class="text-emerald-600 font-bold">جيد</span>'}</td><td class="p-3 text-center"><button onclick="editRawMaterial(${x.id})" class="text-blue-600 mx-1"><i class="fa-solid fa-pen"></i></button><button onclick="deleteRawMaterial(${x.id})" class="text-rose-600 mx-1"><i class="fa-solid fa-trash"></i></button><button onclick="stockAdjustment(${x.id})" class="text-indigo-600 mx-1" title="تسوية"><i class="fa-solid fa-plus-minus"></i></button><button onclick="showStockHistory(${x.id})" class="text-cyan-600 mx-1" title="حركة المخزون"><i class="fa-solid fa-clock-rotate-left"></i></button></td></tr>`).join('')||'<tr><td colspan="6" class="p-6 text-center text-slate-400">لا توجد خامات</td></tr>';
+    body.innerHTML=items.map(x=>`<tr><td class="p-3 font-bold">${esc(x.name)}</td><td class="p-3 font-mono">${fmt(x.qty)} ${esc(x.unit)}</td><td class="p-3 font-mono">${money(x.purchasePrice)}</td><td class="p-3 font-mono">${money((x.qty||0)*(x.purchasePrice||0))}</td><td class="p-3">${x.qty<=x.minQty?'<span class="text-rose-600 font-bold">مخزون منخفض</span>':'<span class="text-emerald-600 font-bold">جيد</span>'}</td><td class="p-3 text-center"><button onclick="editRawMaterial(${x.id})" class="text-blue-600 mx-1"><i class="fa-solid fa-pen"></i></button><button onclick="deleteRawMaterial(${x.id})" class="text-rose-600 mx-1"><i class="fa-solid fa-trash"></i></button><button onclick="stockAdjustment(${x.id})" class="text-indigo-600 mx-1" title="تسوية"><i class="fa-solid fa-plus-minus"></i></button><button onclick="showStockHistory(${x.id})" class="text-cyan-600 mx-1" title="حركة المخزون"><i class="fa-solid fa-clock-rotate-left"></i></button></td></tr>`).join('')||'<tr><td colspan="7" class="p-6 text-center text-slate-400">لا توجد خامات</td></tr>';
   }
   function injectInventoryPage(){
     if(document.getElementById('page-inventory'))return;
     const main=document.querySelector('main')||document.body; const d=document.createElement('div'); d.id='page-inventory'; d.className='page-view max-w-7xl mx-auto px-6 py-8';
     d.innerHTML=`<button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline mb-3"><i class="fa-solid fa-arrow-right"></i> العودة للرئيسية</button>
     <div class="flex items-center justify-between mb-6"><h2 class="text-2xl font-black">مخزن الخامات</h2><button onclick="printInventoryReport()" class="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl"><i class="fa-solid fa-print ml-1"></i> طباعة تقرير المخزون</button></div>
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6"><div class="bg-white p-4 rounded-2xl border"><span class="text-xs text-slate-400">إجمالي قيمة المخزون</span><b id="inventory_total_value" class="block text-xl font-black mt-1">0 ج.م</b></div><div class="lg:col-span-3 bg-white p-4 rounded-2xl border"><div class="grid grid-cols-1 md:grid-cols-5 gap-2"><input id="raw_name" class="border p-2 rounded-lg" placeholder="اسم الخامة"><input id="raw_unit" class="border p-2 rounded-lg" placeholder="الوحدة"><input id="raw_qty" type="number" class="border p-2 rounded-lg" placeholder="الرصيد"><input id="raw_price" type="number" class="border p-2 rounded-lg" placeholder="سعر الشراء"><input id="raw_waste_pct" type="number" min="0" max="100" step="0.01" class="border p-2 rounded-lg font-bold text-amber-700" placeholder="نسبة الهالك %"><input id="raw_min" type="number" class="border p-2 rounded-lg" placeholder="حد التنبيه"><button onclick="saveRawMaterial()" class="bg-cyan-600 text-white font-bold rounded-lg md:col-span-5 py-2">حفظ / تحديث الخامة</button></div></div></div>
-    <div class="bg-white rounded-2xl border overflow-hidden"><table class="w-full text-right text-xs"><thead class="bg-slate-100"><tr><th class="p-3">الخامة</th><th class="p-3">الرصيد</th><th class="p-3">سعر الشراء</th><th class="p-3 text-amber-700">الهالك %</th><th class="p-3">قيمة المخزون</th><th class="p-3">الحالة</th><th class="p-3">الإجراءات</th></tr></thead><tbody id="raw_inventory_body"></tbody></table></div>`;
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6"><div class="bg-white p-4 rounded-2xl border"><span class="text-xs text-slate-400">إجمالي قيمة المخزون</span><b id="inventory_total_value" class="block text-xl font-black mt-1">0 ج.م</b></div><div class="lg:col-span-3 bg-white p-4 rounded-2xl border"><div class="grid grid-cols-1 md:grid-cols-6 gap-2"><input id="raw_name" class="border p-2 rounded-lg" placeholder="اسم الخامة"><input id="raw_unit" class="border p-2 rounded-lg" placeholder="الوحدة"><input id="raw_qty" type="number" step="0.01" class="border p-2 rounded-lg" placeholder="الرصيد"><input id="raw_price" type="number" step="0.01" class="border p-2 rounded-lg" placeholder="سعر الشراء"><input id="raw_waste" type="number" step="0.01" min="0" class="border p-2 rounded-lg" placeholder="نسبة الهالك %"><input id="raw_min" type="number" step="0.01" min="0" class="border p-2 rounded-lg" placeholder="حد التنبيه"><button onclick="saveRawMaterial()" class="bg-cyan-600 text-white font-bold rounded-lg md:col-span-6 py-2">حفظ / تحديث الخامة</button></div></div></div>
+    <div class="bg-white rounded-2xl border overflow-hidden"><table class="w-full text-right text-xs"><thead class="bg-slate-100"><tr><th class="p-3">الخامة</th><th class="p-3">الرصيد</th><th class="p-3">سعر الشراء</th><th class="p-3">الهالك %</th><th class="p-3">قيمة المخزون</th><th class="p-3">الحالة</th><th class="p-3">الإجراءات</th></tr></thead><tbody id="raw_inventory_body"></tbody></table></div>`;
     document.body.appendChild(d);
   }
-  window.saveRawMaterial=function(){ensureInventory();const id=document.getElementById('raw_edit_id')?.value||'';let items=arr('rawMaterials');const name=document.getElementById('raw_name').value.trim();if(!name)return alert('أدخل اسم الخامة');const qty=+document.getElementById('raw_qty').value||0,price=+document.getElementById('raw_price').value||0,wastePct=Math.min(100,Math.max(0,+document.getElementById('raw_waste_pct').value||0)),min=+document.getElementById('raw_min').value||0,unit=document.getElementById('raw_unit').value.trim()||'متر';if(id){const x=items.find(a=>a.id==id);if(x){x.name=name;x.unit=unit;x.qty=qty;x.purchasePrice=price;x.wastePct=wastePct;x.waste_percent=wastePct;x.minQty=min;}}else items.push({id:Date.now(),materialId:'MAT-'+Date.now(),name,unit,qty,purchasePrice:price,wastePct,waste_percent:wastePct,minQty:(min || +((get('company')||{}).defaultMinStock)||0)});put('rawMaterials',items);['raw_name','raw_unit','raw_qty','raw_price','raw_waste_pct','raw_min'].forEach(i=>document.getElementById(i).value='');renderInventory();};
-  window.editRawMaterial=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;document.getElementById('raw_name').value=x.name;document.getElementById('raw_unit').value=x.unit;document.getElementById('raw_qty').value=x.qty;document.getElementById('raw_price').value=x.purchasePrice;document.getElementById('raw_waste_pct').value=x.wastePct??x.waste_percent??0;document.getElementById('raw_min').value=x.minQty;let h=document.getElementById('raw_edit_id');if(!h){h=document.createElement('input');h.type='hidden';h.id='raw_edit_id';document.getElementById('page-inventory').appendChild(h);}h.value=id;};
+  window.saveRawMaterial=function(){ensureInventory();const id=document.getElementById('raw_edit_id')?.value||'';let items=arr('rawMaterials');const name=document.getElementById('raw_name').value.trim();if(!name)return alert('أدخل اسم الخامة');const qty=+document.getElementById('raw_qty').value||0,price=+document.getElementById('raw_price').value||0,wastePercent=Math.max(0,+document.getElementById('raw_waste').value||0),min=+document.getElementById('raw_min').value||0,unit=document.getElementById('raw_unit').value.trim()||'متر';if(id){const x=items.find(a=>a.id==id);if(x){x.name=name;x.unit=unit;x.qty=qty;x.purchasePrice=price;x.wastePercent=wastePercent;x.minQty=min;}}else items.push({id:Date.now(),name,unit,qty,purchasePrice:price,wastePercent,minQty:(min || +((get('company')||{}).defaultMinStock)||0)});put('rawMaterials',items);['raw_name','raw_unit','raw_qty','raw_price','raw_waste','raw_min'].forEach(i=>document.getElementById(i).value='');renderInventory();};
+  window.editRawMaterial=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;document.getElementById('raw_name').value=x.name;document.getElementById('raw_unit').value=x.unit;document.getElementById('raw_qty').value=x.qty;document.getElementById('raw_price').value=x.purchasePrice;document.getElementById('raw_waste').value=x.wastePercent||0;document.getElementById('raw_min').value=x.minQty;let h=document.getElementById('raw_edit_id');if(!h){h=document.createElement('input');h.type='hidden';h.id='raw_edit_id';document.getElementById('page-inventory').appendChild(h);}h.value=id;};
   window.deleteRawMaterial=function(id){if(!confirm('حذف الخامة؟'))return;put('rawMaterials',arr('rawMaterials').filter(x=>x.id!=id));renderInventory();};
   window.stockAdjustment=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;const q=parseFloat(prompt('كمية الإضافة/الخصم؟ استخدم رقمًا سالبًا للخصم','0'));if(isNaN(q)||q===0)return;try{stockMove(x.name,q,q>0?'إضافة':'تسوية','يدوي','تسوية مخزون');renderInventory();}catch(e){alert(e.message)}};
   window.showStockHistory=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;const moves=arr('stockMoves').filter(m=>m.material===x.name);const html=`<table><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>المرجع</th><th>ملاحظات</th></tr>${moves.map(m=>`<tr><td>${m.date||'-'}</td><td>${esc(m.type||'-')}</td><td>${fmt(m.qty||0)} ${esc(x.unit)}</td><td>${esc(m.ref||'-')}</td><td>${esc(m.note||'-')}</td></tr>`).join('')||'<tr><td colspan="5">لا توجد حركات</td></tr>'}</table>`;printSimpleReport('حركة مخزون - '+x.name,html)};
-  window.printInventoryReport=function(){const items=arr('rawMaterials');printSimpleReport('تقرير مخزن الخامات',`<table><tr><th>الخامة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الشراء</th><th>الهالك %</th><th>القيمة</th></tr>${items.map(x=>`<tr><td>${esc(x.name)}</td><td>${fmt(x.qty)}</td><td>${esc(x.unit)}</td><td>${money(x.purchasePrice)}</td><td>${fmt(x.wastePct||x.waste_percent||0)}%</td><td>${money(x.qty*x.purchasePrice)}</td></tr>`).join('')}</table>`)};
+  window.printInventoryReport=function(){const items=arr('rawMaterials');printSimpleReport('تقرير مخزن الخامات',`<table><tr><th>الخامة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الشراء</th><th>القيمة</th></tr>${items.map(x=>`<tr><td>${esc(x.name)}</td><td>${fmt(x.qty)}</td><td>${esc(x.unit)}</td><td>${money(x.purchasePrice)}</td><td>${money(x.qty*x.purchasePrice)}</td></tr>`).join('')}</table>`)};
 
   // ---------- Invoice calculation / save / delete ----------
   function invoiceCalc(){
@@ -3112,7 +3088,7 @@ function todayStr() {
     const gross=Math.round(meters*rate),final=Math.max(0,gross-discount);const cash=Math.max(0,+document.getElementById('inv_pay_cash').value||0),insta=Math.max(0,+document.getElementById('inv_pay_insta').value||0),voda=Math.max(0,+document.getElementById('inv_pay_voda').value||0),paid=cash+insta+voda,due=Math.max(0,final-paid);
     const wasteM=Math.max(0,+document.getElementById('inv_waste_paper_m')?.value||0),wasteRate=Math.max(0,+((get('company')||{}).wastePaperCostPerMeter)||0),inkMl=Math.max(0,+document.getElementById('inv_ink_ml').value||0),inkRate=Math.max(0,+((get('company')||{}).inkCostPerLiter)||0),materialCost=(wasteM*wasteRate)+(inkMl/1000*inkRate);
     document.getElementById('inv_disp_total').innerText=money(final);document.getElementById('inv_disp_paid').innerText=money(paid);document.getElementById('inv_disp_due').innerText=money(due);
-    const pp=document.getElementById('protect_paper_display');if(pp)pp.innerText=document.getElementById('inv_need_protect_paper').checked?`${fmt(meters)} متر`:'0 متر';
+    const pp=document.getElementById('protect_paper_display');if(pp)pp.innerText=document.getElementById('inv_need_protect_paper').checked?`سيتم خصم ${fmt(meters)} متر من مخزون ورق الحماية فقط`:'غير مستخدم';
     const old=document.getElementById('inv_cost_preview');if(old)old.innerText=`تكلفة خامات محسوبة: ${money(materialCost)} (حبر + هالك ورق) — ورق الحماية خصم مخزون فقط`;
   }
   window.calcLinearJobInvoice=invoiceCalc;
@@ -3165,8 +3141,8 @@ function todayStr() {
   window.printSupplierDetail=function(id){const s=arr('suppliers').find(x=>x.id==id);if(!s)return;const tx=arr('supplierTransactions').filter(x=>x.supplierId==id);const rows=tx.map(x=>`<tr><td>${x.date||'-'}</td><td>${esc(x.type||'-')}</td><td>${esc(x.note||'')}</td><td>${money(x.amount||0)}</td><td>${esc(x.source||'-')}</td></tr>`).join('')||'<tr><td colspan="5">لا توجد حركات تفصيلية محفوظة لهذا المورد</td></tr>';printSimpleReport('تقرير المورد - '+s.name,`<p><b>الخامة:</b> ${esc(s.material||'-')}</p><p><b>إجمالي المطالبات:</b> ${money(s.totalInvoiced)} &nbsp; <b>المسدد:</b> ${money(s.totalPaid)} &nbsp; <b>المتبقي:</b> ${money(s.remainingDue)}</p><table><tr><th>التاريخ</th><th>الحركة</th><th>البيان</th><th>المبلغ</th><th>طريقة/خزينة</th></tr>${rows}</table>`)};
 
   // ---------- Local backup / restore ----------
-  window.exportInkoreBackup=function(){const keys=['company','cashbox','instapay','vodacash','clients','orders','expenses','partners','assets','electricity','employees','attendance','calenderOps','suppliers','supplierTransactions','fabricBatches','payrollClosings','treasuryClosings','bankDeposits','rawMaterials','stockMoves','users'];const data={version:1,exportedAt:new Date().toISOString()};keys.forEach(k=>{const v=localStorage.getItem('inkore_v2_'+k);if(v)data[k]=JSON.parse(v)});const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='inkore-backup-'+now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);};
-  window.importInkoreBackup=function(ev){const file=ev.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(!data||data.version!==1)throw new Error('ملف النسخة غير صالح');if(!confirm('استيراد النسخة سيستبدل البيانات الحالية. هل تريد المتابعة؟'))return;Object.entries(data).forEach(([k,v])=>{if(!['version','exportedAt'].includes(k))localStorage.setItem('inkore_v2_'+k,JSON.stringify(v));});alert('تم استيراد النسخة الاحتياطية. سيتم إعادة تحميل النظام.');location.reload();}catch(e){alert('تعذر استيراد النسخة: '+e.message)}};r.readAsText(file);ev.target.value='';};
+  window.exportInkoreBackup=function(){const keys=['company','cashbox','instapay','vodacash','clients','orders','expenses','partners','assets','electricity','employees','attendance','calenderOps','suppliers','supplierTransactions','fabricBatches','payrollClosings','treasuryClosings','bankDeposits','rawMaterials','stockMoves','users'];const data={version:1,exportedAt:new Date().toISOString()};keys.forEach(k=>{const v=localStorage.getItem('inkore_erp_stable_v1_'+k);if(v)data[k]=JSON.parse(v)});const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='inkore-backup-'+now()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);};
+  window.importInkoreBackup=function(ev){const file=ev.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(!data||data.version!==1)throw new Error('ملف النسخة غير صالح');if(!confirm('استيراد النسخة سيستبدل البيانات الحالية. هل تريد المتابعة؟'))return;Object.entries(data).forEach(([k,v])=>{if(!['version','exportedAt'].includes(k))localStorage.setItem('inkore_erp_stable_v1_'+k,JSON.stringify(v));});alert('تم استيراد النسخة الاحتياطية. سيتم إعادة تحميل النظام.');location.reload();}catch(e){alert('تعذر استيراد النسخة: '+e.message)}};r.readAsText(file);ev.target.value='';};
 
   // ---------- Settings additions: scrap paper price + security ----------
   function injectSettingsExtras(){const page=document.getElementById('page-settings');if(!page||document.getElementById('advanced_settings_box'))return;const box=document.createElement('div');box.id='advanced_settings_box';box.className='bg-white p-6 rounded-2xl border shadow-sm mt-6';box.innerHTML=`<h3 class="font-black text-lg mb-4">إعدادات الأمان المتقدمة</h3><div class="grid md:grid-cols-2 gap-3"><div><label class="block font-bold mb-1">مدة الخمول قبل تسجيل الخروج (دقيقة)</label><input id="set_session_timeout" type="number" min="5" class="border w-full p-2.5 rounded-lg"></div><div><label class="block font-bold mb-1">أقصى محاولات دخول فاشلة</label><input id="set_max_login_attempts" type="number" min="3" class="border w-full p-2.5 rounded-lg"></div></div><div class="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900">هذا الملف يعمل محليًا داخل المتصفح؛ تشديد الدخول هنا محلي فقط، أما حماية Server-side فتحتاج Backend وقاعدة بيانات.</div><button onclick="saveAdvancedSettings()" class="mt-4 bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-lg">حفظ إعدادات الأمان</button>`;page.appendChild(box);const c=get('company')||{};document.getElementById('set_session_timeout').value=c.sessionTimeoutMin??30;document.getElementById('set_max_login_attempts').value=c.maxLoginAttempts??5;}
@@ -3211,6 +3187,12 @@ function todayStr() {
       return;
     }
 
+    if(!passwordStrong(p)){
+      err.innerText='كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.';
+      err.classList.remove('hidden');
+      return;
+    }
+
     found.passwordHash=await sha256(p);
     delete found.password;
     put('users',users);
@@ -3233,7 +3215,7 @@ function todayStr() {
   // Add print buttons near existing report sections where possible
   function addPrints(){document.querySelectorAll('#page-expenses h2,#page-clients h2,#page-daily_attendance h2,#page-weekly_hr h2,#page-suppliers h2').forEach(h=>{if(h.parentElement.querySelector('.auto-print-btn'))return;const b=document.createElement('button');b.className='auto-print-btn bg-slate-900 text-white font-bold text-xs px-3 py-2 rounded-lg mr-2';b.innerHTML='<i class="fa-solid fa-print"></i> طباعة';b.onclick=()=>{const page=h.closest('.page-view');printSimpleReport(h.innerText,page.innerHTML)};h.parentElement.classList.add('flex','items-center','justify-between');h.parentElement.appendChild(b)});}
 
-  function injectFirstRunSecurity(){
+  function injectFirstRunSecurity(){ return;
     ensureAdminAccount();
     put('securityInitialized',true);
     if(get('securityInitialized')) return;
@@ -3246,469 +3228,6 @@ function todayStr() {
   const oldRenderUsersList=window.renderUsersList;window.renderUsersList=function(){if(typeof oldRenderUsersList==='function')oldRenderUsersList();const box=document.getElementById('users_list_container');if(!box)return;const users=arr('users');box.innerHTML=users.map(u=>`<div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-2"><span class="font-bold">${esc(u.username)} <span class="text-slate-400 font-normal">(${u.role==='admin'?'مدير':u.role==='client'?'عميل':'موظف'})</span></span><span class="flex gap-2">${u.username!=='admin'||u.role!=='admin'?`<button onclick="changeSystemUserPassword(${u.id})" class="text-indigo-600" title="تغيير كلمة المرور"><i class="fa-solid fa-key"></i></button>`:''}${u.username!=='admin'?`<button onclick="deleteSystemUser(${u.id})" class="text-rose-500"><i class="fa-solid fa-trash"></i></button>`:''}</span></div>`).join('');};
   window.addEventListener('load',()=>{injectInventoryPage();injectAttendanceGrid();injectPayrollDetails();injectTreasuryReport();injectSettingsExtras();setInvoiceSeqDisplay();renderWeeklyAttendance();populatePayrollDetailSelect();addPrints();invoiceCalc();});
 })();
-
-
-/* ================== INKORE CLOUD DATA LAYER ================== */
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const URL='https://beufbjctxavjxeiqzgxp.supabase.co';
-  const KEY='sb_publishable_3SM1DFazXCVuFHO5cvzKSg_AH8APyhB';
-  let companyId=null;
-  const r=(k,d=[])=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):d}catch(e){return d}};
-  const w=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
-  const n=v=>Number(v)||0;
-  const date=v=>String(v||'').slice(0,10)||new Date().toISOString().slice(0,10);
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));
-  function cloud(){return window.inkoreCloud?.client}
-  async function ensureCompany(){
-    if(companyId) return companyId;
-    const c=r('company',{});
-    const {data:prof}=await cloud().from('profiles').select('company_id,role,username').limit(1).maybeSingle();
-    if(prof?.company_id){companyId=prof.company_id;return companyId;}
-    const name=c.name||'مطبعة inkore الحديثة للسبلميشن';
-    const {data,error}=await cloud().rpc('make_company',{name_in:name});
-    if(error) throw error; companyId=data; return data;
-  }
-  async function setCompanyFromSession(){
-    const {data,error}=await cloud().from('profiles').select('company_id,role,username,active').eq('id',(await cloud().auth.getUser()).data.user.id).maybeSingle();
-    if(error) throw error; if(data?.company_id) companyId=data.company_id;
-    return data;
-  }
-  const mapClient=c=>({id:c.clientId||undefined,company_id:companyId,name:c.name,phone:c.phone||null,address:c.address||null,email:c.email||null,notes:c.notes||null,opening_balance:n(c.opening_balance??c.openingBalance),active:c.active!==false});
-  const mapEmployee=e=>({id:String(e.id).length>30?e.id:undefined,company_id:companyId,name:e.name,phone:e.phone||null,job_title:e.role||e.job_title||null,weekly_base:n(e.weeklySalary??e.weekly_base),active:e.active!==false});
-
-  async function upsertClients(){
-    const list=r('clients',[]).filter(x=>x.name);
-    for(const c of list){
-      let q=cloud().from('clients').select('id').eq('company_id',companyId).eq('name',c.name).limit(1);
-      const {data}=await q; const row=mapClient(c); if(data?.[0]?.id){row.id=data[0].id; c.cloudId=data[0].id;}
-      const {data:up,error}=await cloud().from('clients').upsert(row,{onConflict:'id'}).select('id').single();
-      if(error) throw error; c.cloudId=up.id;
-    }
-    w('clients',list);
-  }
-  async function pullClients(){
-    const {data,error}=await cloud().from('clients').select('*').eq('company_id',companyId).order('created_at',{ascending:false}); if(error)throw error;
-    const local=data.map(c=>({id:Date.now()+Math.random(),clientId:c.id,name:c.name,phone:c.phone||'',address:c.address||'',email:c.email||'',notes:c.notes||'',debt:0,cloudId:c.id}));
-    w('clients',local);
-  }
-  async function pushOrders(){
-    const clients=r('clients',[]);
-    const cidByName={}; clients.forEach(c=>{if(c.cloudId)cidByName[c.name]=c.cloudId});
-    const orders=r('orders',[]);
-    for(const o of orders){
-      const row={id:(String(o.cloudId||o.id).length>30?o.cloudId||o.id:undefined),company_id:companyId,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum,service:o.desc||null,order_date:date(o.date),meters:n(o.linearMeters),unit_price:n(o.saleRate),gross_total:n(o.grossSale),discount:n(o.discount),final_total:n(o.totalSale),paid_total:n(o.paid),due_total:n(o.due),ink_cost:n(o.inkCost||0),waste_paper_cost:n(o.wastePaperCost||0),protective_paper_m:n(o.useProtectPaper?o.linearMeters:0),protective_paper_cost:0,profit:n(o.profit),notes:o.notes||null,status:'open'};
-      const {data,error}=await cloud().from('orders').upsert(row,{onConflict:'id'}).select('id').maybeSingle(); if(error) throw error; if(data)o.cloudId=data.id;
-    }
-    w('orders',orders);
-  }
-  async function pushExpenses(){
-    for(const e of r('expenses',[])){
-      const row={id:(String(e.cloudId||e.id).length>30?e.cloudId||e.id:undefined),company_id:companyId,category:e.category||'عام',amount:n(e.amount),expense_date:date(e.date||e.expenseDate),notes:e.notes||null,receipt_path:e.receipt_path||e.receipt||null};
-      const {data,error}=await cloud().from('expenses').upsert(row,{onConflict:'id'}).select('id').maybeSingle(); if(error)throw error; if(data)e.cloudId=data.id;
-    }
-  }
-  async function pushEmployees(){
-    for(const e of r('employees',[])){const row=mapEmployee(e); const {data,error}=await cloud().from('employees').upsert(row,{onConflict:'id'}).select('id').maybeSingle();if(error)throw error;if(data)e.cloudId=data.id;}
-  }
-  async function pushAttendance(){
-    const emps=r('employees',[]);
-    for(const a of r('attendance',[])){const e=emps.find(x=>x.id==a.employeeId||x.name===a.empName);if(!e?.cloudId)continue;const row={company_id:companyId,employee_id:e.cloudId,work_date:date(a.date),status:a.status==='حاضر'?'present':a.status==='غائب'?'absent':a.status==='نصف يوم'?'half':a.status==='إجازة بإذن'?'leave':'late',late_minutes:n(a.lateMin),overtime_minutes:Math.round(n(a.ot)*60),notes:a.notes||null};const {error}=await cloud().from('attendance').upsert(row,{onConflict:'employee_id,work_date'});if(error)throw error;}
-  }
-  async function pushRawMaterials(){
-    for(const m of r('rawMaterials',[])){const row={id:(String(m.cloudId||m.materialId||m.id).length>30?m.cloudId:undefined),company_id:companyId,sku:m.materialId||null,name:m.name,unit:m.unit||'متر',current_stock:n(m.qty),min_stock:n(m.minQty),purchase_price:n(m.purchasePrice),waste_percent:n(m.wastePct||m.waste_percent),active:m.active!==false};const {data,error}=await cloud().from('raw_materials').upsert(row,{onConflict:'id'}).select('id').maybeSingle();if(error)throw error;if(data)m.cloudId=data.id;}w('rawMaterials',r('rawMaterials',[]));
-  }
-  async function pushTreasury(){
-    const names=[['الخزينة','cash'],['الصندوق (كاش)','cash'],['Vodafone Cash','vodafone'],['فودافون كاش','vodafone'],['InstaPay','instapay'],['إنستاباي','instapay'],['البنك','bank'],['الحساب البنكي','bank']];
-    for(const [name,type] of names){const {data}=await cloud().from('treasury_accounts').select('id').eq('company_id',companyId).eq('name',name).limit(1);if(!data?.length)await cloud().from('treasury_accounts').insert({company_id:companyId,name,account_type:type});}
-  }
-  async function pushSettings(){
-    const c=r('company',{}); const row={company_id:companyId,waste_paper_price:n(c.wastePaperCostPerMeter),paper_price_152:n(c.paperCosts?.['152']),paper_price_162:n(c.paperCosts?.['162']),paper_price_182:n(c.paperCosts?.['182']),invoice_prefix:c.invoicePrefix||'INK-',invoice_sequence:Math.max(1,n(c.invoiceSeq)+1),default_min_stock:n(c.defaultMinStock),work_hours_per_day:n(c.workHoursPerDay||8),session_timeout_minutes:n(c.sessionTimeoutMin||30),max_failed_attempts:n(c.maxLoginAttempts||5)};const {error}=await cloud().from('app_settings').upsert(row,{onConflict:'company_id'});if(error)throw error;
-  }
-  async function syncNow(show=true){
-    if(!cloud()) throw new Error('Supabase client غير جاهز');
-    const {data:sess}=await cloud().auth.getSession(); if(!sess.session) throw new Error('سجّل الدخول بالسحابة أولاً');
-    await setCompanyFromSession(); await upsertClients(); await pushEmployees(); await pushRawMaterials(); await pushOrders(); await pushExpenses(); await pushAttendance(); await pushTreasury(); await pushSettings();
-    localStorage.setItem(P+'cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة بيانات inkore مع Supabase بنجاح.');
-    return true;
-  }
-  async function pullCore(show=true){
-    if(!companyId)return;
-    await pullClients();
-    const {data:orders}=await cloud().from('orders').select('*').eq('company_id',companyId).order('created_at',{ascending:false});
-    if(orders) w('orders',orders.map(o=>({id:o.id,cloudId:o.id,clientId:o.client_id,clientName:(r('clients',[]).find(c=>c.cloudId===o.client_id)||{}).name||'',orderNum:o.invoice_no,date:o.order_date,desc:o.service,linearMeters:o.meters,saleRate:o.unit_price,grossSale:o.grossTotal,discount:o.discount,totalSale:o.final_total,paid:o.paid_total,due:o.due_total,profit:o.profit,useProtectPaper:n(o.protective_paper_m)>0,paymentBreakdown:{cash:0,insta:0,voda:0}})));
-    const {data:expenses}=await cloud().from('expenses').select('*').eq('company_id',companyId).order('expense_date',{ascending:false});
-    if(expenses) w('expenses',expenses.map(e=>({id:e.id,cloudId:e.id,category:e.category,amount:e.amount,date:e.expense_date,notes:e.notes||''})));
-    localStorage.setItem(P+'cloudLastPull',new Date().toISOString());
-    if(show){location.reload();}
-  }
-  async function cloudLoginByUsername(u,p){
-    const email = u.includes('@') ? u : (u+'@inkore.local');
-    const {data,error}=await cloud().auth.signInWithPassword({email,password:p});
-    if(error)throw error;
-    await setCompanyFromSession();
-    localStorage.setItem(P+'cloudMode','1');
-    await pullCore(false);
-    return data;
-  }
-  window.inkoreCloud.syncNow=syncNow;
-  window.inkoreCloud.pullCore=pullCore;
-  window.inkoreCloud.cloudLoginByUsername=cloudLoginByUsername;
-  window.inkoreCloud.getCompanyId=()=>companyId;
-  window.addEventListener('inkore:supabase-ready',async()=>{
-    try{const {data}=await cloud().auth.getSession(); if(data.session){await setCompanyFromSession();}}catch(e){console.warn(e)}
-  });
-  window.addEventListener('load',()=>{
-    const b=document.createElement('button');b.id='inkore-cloud-sync-btn';b.className='fixed bottom-14 left-4 z-[99998] bg-indigo-700 text-white px-3 py-2 rounded-xl shadow-lg font-bold text-xs';b.innerHTML='☁️ مزامنة السحابة';b.onclick=()=>syncNow(true).catch(e=>alert('فشل المزامنة: '+e.message));document.body.appendChild(b);
-  });
-})();
-
-
-/* ================== FINAL ERP HARDENING / CONSOLIDATION LAYER ================== */
-(function () {
-  'use strict';
-
-  const PREFIX = 'inkore_v2_';
-  const ADMIN_HASH = '6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545'; // Dida@2010
-  const DAYS_AR = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'];
-
-  const read = (k, fallback) => {
-    try { const raw = localStorage.getItem(PREFIX + k); return raw == null ? fallback : JSON.parse(raw); }
-    catch (_) { return fallback; }
-  };
-  const write = (k, v) => localStorage.setItem(PREFIX + k, JSON.stringify(v));
-  const nowISO = () => new Date().toISOString().slice(0, 19);
-  const dateOnly = (v) => String(v || '').slice(0,10);
-  const num = (v) => Math.max(0, Number.parseFloat(v) || 0);
-  const escF = (v) => String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-  const fmtF = (n) => (Math.round((Number(n)||0)*100)/100).toLocaleString('en-US');
-  const moneyF = (n) => fmtF(n) + ' ج.م';
-  const sourceMap = {
-    cash: 'الصندوق (كاش)',
-    insta: 'إنستاباي',
-    voda: 'فودافون كاش',
-    bank: 'الحساب البنكي'
-  };
-
-  async function hashF(value) {
-    if (window.crypto?.subtle) {
-      const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-      return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
-    }
-    // Local-file fallback only. The real stored admin credential remains hashed.
-    if (value === 'Dida@2010') return ADMIN_HASH;
-    throw new Error('Web Crypto غير متاح في هذا المتصفح. افتح النظام عبر HTTPS أو localhost.');
-  }
-  const strongPassF = p => p.length >= 10 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p);
-
-  function ensureSchemaF() {
-    const company = Object.assign({
-      name:'مطبعة inkore الحديثة للسبلميشن', logo:'', address:'', phone:'', inkCostPerLiter:320,
-      paperCosts:{'152':18,'162':18,'182':18}, wastePaperCostPerMeter:0,
-      invoicePrefix:'INK-', invoiceSeq:0, defaultMinStock:10,
-      sessionTimeoutMin:30, maxLoginAttempts:5, workDaysPerWeek:6, workHoursPerDay:8,
-      holidayPayDefault:0
-    }, read('company', {}));
-    company.paperCosts = Object.assign({'152':18,'162':18,'182':18}, company.paperCosts || {});
-    if (!Number.isFinite(Number(company.wastePaperCostPerMeter))) company.wastePaperCostPerMeter = 0;
-    write('company', company);
-
-    let clients = Array.isArray(read('clients', [])) ? read('clients', []) : [];
-    clients = clients.map((c,i)=>{
-      c.id = c.id ?? Date.now()+i;
-      c.clientId = c.clientId || ('CL-' + String(c.id).padStart(6,'0'));
-      c.debt = num(c.debt);
-      return c;
-    });
-    write('clients', clients);
-
-    let materials = Array.isArray(read('rawMaterials', [])) ? read('rawMaterials', []) : [];
-    materials = materials.map((m,i)=>{m.id=m.id??Date.now()+i+10;if(String(m.name||'').trim()==='ورق حماية')m.materialId='MAT-PROTECT';else m.materialId=m.materialId||('MAT-'+String(m.id).padStart(6,'0'));m.qty=num(m.qty);m.purchasePrice=num(m.purchasePrice);m.minQty=Number.isFinite(Number(m.minQty))?num(m.minQty):num(company.defaultMinStock);return m;});
-    write('rawMaterials', materials);
-
-    let orders = Array.isArray(read('orders', [])) ? read('orders', []) : [];
-    orders = orders.map((o,i)=>{
-      o.id=o.id??Date.now()+i;
-      const c=clients.find(x=>x.name===o.clientName);
-      o.clientId=o.clientId || c?.clientId || null;
-      o.grossSale = Number.isFinite(Number(o.grossSale)) ? num(o.grossSale) : Math.round(num(o.linearMeters)*num(o.saleRate));
-      o.discount = num(o.discount);
-      o.totalSale = Number.isFinite(Number(o.totalSale)) ? num(o.totalSale) : Math.max(0,o.grossSale-o.discount);
-      o.paymentBreakdown = Object.assign({cash:0,insta:0,voda:0},o.paymentBreakdown||{});
-      o.paid = num(o.paid ?? (num(o.paymentBreakdown.cash)+num(o.paymentBreakdown.insta)+num(o.paymentBreakdown.voda)));
-      o.due = Math.max(0,o.totalSale-o.paid);
-      o.materialCost = Number.isFinite(Number(o.materialCost)) ? num(o.materialCost) : num(o.inkMl)/1000*num(company.inkCostPerLiter) + num(o.wastePaperM)*num(company.wastePaperCostPerMeter);
-      o.profit = Math.max(-Infinity,o.totalSale-o.materialCost);
-      return o;
-    });
-    // Migrate all invoice numbers to a unique sequential series where possible.
-    const prefix=(company.invoicePrefix||'INK-').trim() || 'INK-';
-    let maxSeq=Number(company.invoiceSeq)||0;
-    orders.forEach(o=>{ const m=String(o.orderNum||'').match(/(\d+)$/); if(m) maxSeq=Math.max(maxSeq,Number(m[1])); });
-    const used=new Set();
-    orders.slice().reverse().forEach(o=>{
-      const valid = String(o.orderNum||'').startsWith(prefix) && !used.has(o.orderNum);
-      if(valid){used.add(o.orderNum);return;}
-      maxSeq++; o.orderNum=prefix+String(maxSeq).padStart(5,'0'); used.add(o.orderNum);
-    });
-    company.invoiceSeq=maxSeq;
-    write('company',company); write('orders',orders);
-
-    let attendance=Array.isArray(read('attendance', []))?read('attendance',[]):[];
-    const employees=Array.isArray(read('employees', []))?read('employees',[]):[];
-    attendance=attendance.map((a,i)=>{ const e=employees.find(x=>x.name===a.empName); a.id=a.id??Date.now()+i; a.employeeId=a.employeeId||e?.id||null; a.date=dateOnly(a.date); a.lateMin=num(a.lateMin); a.ot=num(a.ot); a.status=a.status||'حاضر'; return a;});
-    write('attendance',attendance);
-
-    let users=Array.isArray(read('users', []))?read('users',[]):[];
-    let admin=users.find(u=>u.username==='admin'||u.role==='admin');
-    if(!admin){admin={id:1,username:'admin',role:'admin'};users.unshift(admin);} 
-    admin.username='admin'; admin.role='admin'; admin.passwordHash=ADMIN_HASH; delete admin.password;
-    users=users.map(u=>{u.id=u.id??Date.now();return u;});
-    write('users',users);
-  }
-
-  function adjustF(source, delta){
-    const map={
-      'الصندوق (كاش)':'cashbox','إنستاباي':'instapay','فودافون كاش':'vodacash','الحساب البنكي':'bankAccount'
-    };
-    const key=map[source]; if(!key)return;
-    write(key, num(read(key,0))+delta);
-  }
-  function treasuryBalanceF(source){
-    const map={'الصندوق (كاش)':'cashbox','إنستاباي':'instapay','فودافون كاش':'vodacash','الحساب البنكي':'bankAccount'};
-    return num(read(map[source],0));
-  }
-
-  function stockMoveF(materialIdOrName, qty, type, ref, note, meta={}){
-    const mats=read('rawMaterials',[]); let m=mats.find(x=>x.materialId===materialIdOrName || String(x.name).trim()===String(materialIdOrName).trim() || x.id==materialIdOrName);
-    if(!m && String(materialIdOrName)==='MAT-PROTECT'){ m={id:Date.now(),materialId:'MAT-PROTECT',name:'ورق حماية',unit:'متر',qty:0,purchasePrice:0,minQty:0,wastePct:0}; mats.push(m); }
-    if(!m) throw new Error('الخامة غير موجودة بالمخزون: '+materialIdOrName);
-    const next=m.qty+Number(qty||0);
-    if(next < -0.0001) throw new Error('الرصيد غير كافٍ من '+m.name);
-    m.qty=Math.max(0,next); write('rawMaterials',mats);
-    const moves=read('stockMoves',[]);moves.unshift({id:Date.now()+Math.random(),date:nowISO(),materialId:m.materialId,materialName:m.name,qty:Number(qty||0),type,ref:ref||'',note:note||'',...meta});write('stockMoves',moves);
-  }
-
-  function clientByIdOrNameF(id,name){
-    const list=read('clients',[]);return list.find(c=>(id && c.clientId===id) || (name && c.name===name));
-  }
-  function paymentForF(o){ const p=o.paymentBreakdown||{}; return {cash:num(p.cash),insta:num(p.insta),voda:num(p.voda)}; }
-
-  // ---------- Login: one authoritative implementation ----------
-  window.handleLogin = async function(){
-    const u=(document.getElementById('login_user')?.value||'').trim();
-    const p=document.getElementById('login_pass')?.value||'';
-    const err=document.getElementById('login_error_box');
-    if(!u||!p){err.textContent='أدخل اسم المستخدم وكلمة المرور';err.classList.remove('hidden');return;}
-    try{
-      if(window.inkoreCloud?.ready){
-        try{
-          const sess=await window.inkoreCloud.cloudLoginByUsername(u,p);
-          const user={username:u,role:'admin',id:sess?.user?.id||null};
-          write('currentUser',user); err.classList.add('hidden'); document.getElementById('login-modal')?.classList.add('hidden'); window.applyPermissions?.(); window.showPage?.('dashboard'); return;
-        }catch(cloudErr){ console.warn('Cloud login failed, trying local account',cloudErr); }
-      }
-      const users=read('users',[]); const found=users.find(x=>x.username===u);
-      if(!found){err.textContent='بيانات الدخول غير صحيحة';err.classList.remove('hidden');return;}
-      const ok=found.passwordHash ? (await hashF(p)===found.passwordHash) : (found.password===p);
-      if(!ok)throw new Error('bad');
-      err.classList.add('hidden'); write('currentUser',found); window.applyPermissions?.(); document.getElementById('login-modal')?.classList.add('hidden'); window.showPage?.('dashboard');
-    }catch(_){err.textContent='بيانات الدخول غير صحيحة';err.classList.remove('hidden');}
-  };
-
-  window.printSimpleReport = window.printSimpleReport || function(title, html){
-    const c=read('company',{});
-    const w=window.open('','_blank','width=1100,height=850');
-    if(!w)return alert('اسمح بفتح نافذة الطباعة من المتصفح.');
-    w.document.write(`<!doctype html><html dir=\"rtl\" lang=\"ar\"><head><meta charset=\"utf-8\"><title>${escF(title)}</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1,h2{margin:0 0 10px}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border:1px solid #ccc;padding:8px;text-align:right}th{background:#f3f4f6}.meta{color:#666;font-size:12px;margin-bottom:18px}@media print{body{padding:10mm}}</style></head><body><h1>${escF(c.name||'inkore ERP')}</h1><div class=\"meta\">${escF(c.address||'')} — ${escF(c.phone||'')}</div><h2>${escF(title)}</h2>${html}</body></html>`);
-    w.document.close(); setTimeout(()=>w.print(),350);
-  };
-
-  function ensureLoginEyeF(){
-    const input=document.getElementById('login_pass'); if(!input)return;
-    if(!input.parentElement.querySelector('.final-login-eye')){
-      const b=document.createElement('button');b.type='button';b.className='final-login-eye absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 z-10';b.innerHTML='<i id="final_login_eye_icon" class="fa-solid fa-eye"></i>';b.onclick=()=>{input.type=input.type==='password'?'text':'password';const i=b.querySelector('i');i.className=input.type==='password'?'fa-solid fa-eye':'fa-solid fa-eye-slash';};input.parentElement.classList.add('relative');input.parentElement.appendChild(b);
-    }
-  }
-
-  // ---------- Invoice: discount + payments + protective paper inventory only ----------
-  function nextInvoiceF(){
-    const c=read('company',{});const n=num(c.invoiceSeq)+1;c.invoiceSeq=n;write('company',c);return (c.invoicePrefix||'INK-')+String(n).padStart(5,'0');
-  }
-  window.calcLinearJobInvoice=function(){
-    const meters=num(document.getElementById('inv_linear_meters')?.value);
-    const rate=num(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,num(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=num(document.getElementById('inv_pay_cash')?.value),insta=num(document.getElementById('inv_pay_insta')?.value),voda=num(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda; const due=Math.max(0,total-paid);
-    const c=read('company',{});
-    const ink=num(document.getElementById('inv_ink_ml')?.value)/1000*num(c.inkCostPerLiter);
-    const wasteM=num(document.getElementById('inv_waste_paper_m')?.value);
-    const waste=wasteM*num(c.wastePaperCostPerMeter);
-    const materialCost=Math.round(ink+waste); const profit=total-materialCost;
-    const need=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const pr=document.getElementById('protect_paper_display');if(pr)pr.textContent=need?`تفعيل: سيتم خصم ${fmtF(meters)} م من مخزون ورق الحماية فقط`:'غير مستخدم — لا يوجد خصم من المخزون';
-    const preview=document.getElementById('inv_cost_preview');if(preview)preview.textContent=`تكلفة الحبر: ${moneyF(ink)} | تكلفة الورق الهالك: ${moneyF(waste)} | الربح بعد الخصم: ${moneyF(profit)} | ورق الحماية: خارج التكلفة والربح`;
-    ['inv_disp_total','inv_disp_paid','inv_disp_due'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=moneyF([total,paid,due][i]);});
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,ink,wasteM,waste,materialCost,profit,need};
-  };
-
-  window.editOrderRecord=function(id){
-    const o=read('orders',[]).find(x=>x.id==id);if(!o)return;
-    window.populateInvoiceClients?.();
-    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v;};
-    set('edit_order_id',o.id);set('inv_client_select',o.clientName||'');set('inv_service_desc',o.desc||'');set('inv_linear_meters',o.linearMeters||0);set('inv_paper_width',o.paperWidth||152);set('inv_sale_rate',o.saleRate||0);set('inv_ink_ml',o.inkMl||0);set('inv_waste_paper_m',o.wastePaperM||0);set('inv_discount',o.discount||0);
-    const p=o.paymentBreakdown||{};set('inv_pay_cash',p.cash||0);set('inv_pay_insta',p.insta||0);set('inv_pay_voda',p.voda||0);
-    const cb=document.getElementById('inv_need_protect_paper');if(cb)cb.checked=!!o.useProtectPaper;
-    ['design','print','press','delivered'].forEach(k=>{const e=document.getElementById('step_'+k);if(e)e.checked=!!(o.steps||{})[k];});
-    const b=document.getElementById('btn_save_order');if(b)b.textContent='تحديث الفاتورة';window.calcLinearJobInvoice();window.scrollTo({top:0,behavior:'smooth'});
-  };
-
-  window.commitLinearInvoice=function(){
-    try{
-      const id=document.getElementById('edit_order_id')?.value||'';
-      const clientName=document.getElementById('inv_client_select')?.value||'';
-      if(!clientName)return alert('اختر العميل أولاً');
-      const d=window.calcLinearJobInvoice();if(d.meters<=0)return alert('أدخل عدد الأمتار بشكل صحيح');
-      const desc=(document.getElementById('inv_service_desc')?.value||'').trim();
-      const paperWidth=parseInt(document.getElementById('inv_paper_width')?.value,10)||152;
-      const inkMl=num(document.getElementById('inv_ink_ml')?.value);
-      const steps={};['design','print','press','delivered'].forEach(k=>steps[k]=!!document.getElementById('step_'+k)?.checked);
-      let orders=read('orders',[]),clients=read('clients',[]);
-      if(id){
-        const o=orders.find(x=>x.id==id);if(!o)return alert('الفاتورة غير موجودة');
-        const oldP=paymentForF(o);
-        // Reverse old payment from treasury, then apply the new breakdown.
-        if(oldP.cash)adjustF(sourceMap.cash,-oldP.cash);if(oldP.insta)adjustF(sourceMap.insta,-oldP.insta);if(oldP.voda)adjustF(sourceMap.voda,-oldP.voda);
-        const oldClient=clientByIdOrNameF(o.clientId,o.clientName);if(oldClient)oldClient.debt=Math.max(0,num(oldClient.debt)-num(o.due));
-        // Return old protective-paper issue, then issue the new quantity.
-        if(o.useProtectPaper && num(o.linearMeters)>0)stockMoveF('MAT-PROTECT',num(o.linearMeters),'عكس صرف',o.orderNum,'عكس ورق حماية بسبب تعديل الفاتورة');
-        Object.assign(o,{clientId:clientByIdOrNameF(null,clientName)?.clientId||null,clientName,desc,linearMeters:d.meters,paperWidth,useProtectPaper:d.need,inkMl,wastePaperM:d.wasteM,saleRate:d.rate,grossSale:d.gross,discount:d.discount,totalSale:d.total,materialCost:d.materialCost,profit:d.profit,paid:d.paid,due:d.due,paymentBreakdown:{cash:d.cash,insta:d.insta,voda:d.voda},steps,updatedAt:nowISO()});
-        if(d.need)stockMoveF('MAT-PROTECT',-d.meters,'صرف',o.orderNum,'ورق حماية لأمر الشغل');
-        const nc=clientByIdOrNameF(null,clientName);if(nc)nc.debt=num(nc.debt)+d.due;
-        if(d.cash)adjustF(sourceMap.cash,d.cash);if(d.insta)adjustF(sourceMap.insta,d.insta);if(d.voda)adjustF(sourceMap.voda,d.voda);
-        write('clients',clients);write('orders',orders);
-        document.getElementById('edit_order_id').value='';document.getElementById('btn_save_order').textContent='اعتماد وحفظ الفاتورة';
-        alert('تم تعديل الفاتورة وتسوية الخزنة والعميل والمخزون بنجاح.');
-      }else{
-        const orderNum=nextInvoiceF();
-        const c=clientByIdOrNameF(null,clientName); if(!c)return alert('العميل غير موجود');
-        if(d.need)stockMoveF('MAT-PROTECT',-d.meters,'صرف',orderNum,'ورق حماية لأمر الشغل');
-        const o={id:Date.now()+Math.random(),clientId:c.clientId,clientName,orderNum,date:dateOnly(new Date()),desc,linearMeters:d.meters,paperWidth,useProtectPaper:d.need,inkMl,wastePaperM:d.wasteM,saleRate:d.rate,grossSale:d.gross,discount:d.discount,totalSale:d.total,materialCost:d.materialCost,profit:d.profit,paid:d.paid,due:d.due,paymentBreakdown:{cash:d.cash,insta:d.insta,voda:d.voda},steps,createdAt:nowISO()};
-        orders.unshift(o);c.debt=num(c.debt)+d.due;if(d.cash)adjustF(sourceMap.cash,d.cash);if(d.insta)adjustF(sourceMap.insta,d.insta);if(d.voda)adjustF(sourceMap.voda,d.voda);write('clients',clients);write('orders',orders);alert('تم حفظ أمر الشغل برقم '+orderNum);window.resetInvoiceForm?.();
-      }
-      window.renderOrdersTable?.();window.refreshTreasuryBars?.();window.renderReports?.();window.setInvoiceSeqDisplay?.();
-    }catch(e){alert('تعذر حفظ الفاتورة: '+e.message);}
-  };
-
-  window.deleteOrderRecord=function(id){
-    if(!confirm('حذف الفاتورة؟ سيتم عكس المدفوعات والمخزون والرصيد الخاص بالعميل.'))return;
-    const orders=read('orders',[]),o=orders.find(x=>x.id==id);if(!o)return;
-    const p=paymentForF(o);if(p.cash)adjustF(sourceMap.cash,-p.cash);if(p.insta)adjustF(sourceMap.insta,-p.insta);if(p.voda)adjustF(sourceMap.voda,-p.voda);
-    if(o.useProtectPaper&&num(o.linearMeters)>0){try{stockMoveF('MAT-PROTECT',num(o.linearMeters),'عكس صرف',o.orderNum,'إرجاع ورق الحماية بعد حذف الفاتورة');}catch(e){return alert(e.message)}}
-    const clients=read('clients',[]),c=clientByIdOrNameF(o.clientId,o.clientName);if(c)c.debt=Math.max(0,num(c.debt)-num(o.due));
-    write('clients',clients);write('orders',orders.filter(x=>x.id!=id));window.renderOrdersTable?.();window.refreshTreasuryBars?.();window.renderReports?.();alert('تم حذف الفاتورة وعكس كل آثارها.');
-  };
-
-  // ---------- Weekly attendance grid (6 days: Sunday-Friday) ----------
-  function sundayF(date){const d=new Date(date+'T00:00:00');const day=d.getDay();d.setDate(d.getDate()-day);return d.toISOString().slice(0,10);}
-  function addDaysF(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
-  function weekKeyF(start){return 'W-'+start;}
-  function isWeekLockedF(start){return (read('payrollWeekLocks',[])||[]).some(x=>x===weekKeyF(start));}
-
-  window.renderWeeklyAttendanceFinal=function(){
-    const box=document.getElementById('final_weekly_attendance_box');if(!box)return;
-    const date=(document.getElementById('final_week_start')?.value||sundayF(dateOnly(new Date())));const start=sundayF(date),days=DAYS_AR.map((_,i)=>addDaysF(start,i));
-    const emps=read('employees',[]),att=read('attendance',[]),locked=isWeekLockedF(start);
-    box.innerHTML=`<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mt-6"><div class="flex flex-wrap gap-3 items-center justify-between"><div><h3 class="font-black text-lg">حضور الأسبوع — 6 أيام</h3><p class="text-xs text-slate-500">${start} → ${days[5]} ${locked?'<span class="text-rose-600 font-black">• الأسبوع مقفول</span>':''}</p></div><div class="flex gap-2"><button ${locked?'disabled':''} onclick="finalSetAllPresent('${start}')" class="bg-emerald-600 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-xs font-bold">حاضر للجميع</button><button onclick="finalPrintWeeklyAttendance('${start}')" class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold"><i class="fa-solid fa-print"></i> طباعة</button><button ${locked?'disabled':''} onclick="finalSaveWeeklyAttendance('${start}')" class="bg-indigo-700 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-xs font-bold">حفظ الأسبوع</button></div></div><div class="overflow-auto mt-4"><table class="w-full text-xs border min-w-[1100px]"><thead><tr class="bg-slate-100"><th class="p-2 border">العامل</th>${days.map((d,i)=>`<th class="p-2 border">${DAYS_AR[i]}<br><span class="font-mono">${d}</span></th>`).join('')}<th class="p-2 border">الإجمالي</th><th class="p-2 border">تفاصيل</th></tr></thead><tbody>${emps.map(e=>{let ot=0,late=0,abs=0;const cells=days.map((d,di)=>{const a=att.find(x=>(x.employeeId==e.id||x.empName===e.name)&&dateOnly(x.date)===d);const st=a?.status||'حاضر';ot+=num(a?.ot);late+=num(a?.lateMin);abs+=st==='غائب'||st==='غائب بدون إذن'?1:0;return `<td class="p-1 border align-top"><select data-wemp="${e.id}" data-wdate="${d}" class="w-full border rounded p-1" ${locked?'disabled':''}><option ${st==='حاضر'?'selected':''}>حاضر</option><option ${st==='غائب'||st==='غائب بدون إذن'?'selected':''}>غائب</option><option ${st==='نصف يوم'?'selected':''}>نصف يوم</option><option ${st==='إجازة بإذن'?'selected':''}>إجازة بإذن</option><option ${st==='تأخير'?'selected':''}>تأخير</option></select><input ${locked?'disabled':''} data-wlate="${e.id}" data-wdate="${d}" type="number" min="0" step="1" value="${a?.lateMin||0}" placeholder="تأخير د" class="w-full border rounded p-1 mt-1"><input ${locked?'disabled':''} data-wot="${e.id}" data-wdate="${d}" type="number" min="0" step="0.5" value="${a?.ot||0}" placeholder="OT س" class="w-full border rounded p-1 mt-1"></td>`}).join('');return `<tr><td class="p-2 border font-bold sticky right-0 bg-white">${escF(e.name)}<br><span class="text-slate-400">${escF(e.role||'')}</span></td>${cells}<td class="p-2 border font-mono"><b>OT:</b> ${fmtF(ot)} س<br><b>تأخير:</b> ${fmtF(late)} د<br><b>غياب:</b> ${abs} يوم</td><td class="p-2 border text-center"><button onclick="finalShowEmployeeWeek('${String(e.id)}','${start}')" class="text-indigo-700 font-bold"><i class="fa-solid fa-file-lines"></i></button></td></tr>`}).join('')||'<tr><td colspan="9" class="p-6 text-center">لا يوجد عمال</td></tr>'}</tbody></table></div></div>`;
-  };
-  window.finalSaveWeeklyAttendance=function(start){
-    if(isWeekLockedF(start))return alert('الأسبوع مقفول ولا يمكن تعديله إلا من المدير بعد فك القفل.');
-    let list=read('attendance',[]); const emps=read('employees',[]);
-    emps.forEach(e=>{
-      for(let i=0;i<6;i++){const d=addDaysF(start,i);const sel=document.querySelector(`[data-wemp="${e.id}"][data-wdate="${d}"]`);if(!sel)continue;const lm=num(document.querySelector(`[data-wlate="${e.id}"][data-wdate="${d}"]`)?.value);const ot=num(document.querySelector(`[data-wot="${e.id}"][data-wdate="${d}"]`)?.value);const idx=list.findIndex(a=>(a.employeeId==e.id||a.empName===e.name)&&dateOnly(a.date)===d);const rec={id:idx>=0?list[idx].id:Date.now()+Math.random(),date:d,employeeId:e.id,empName:e.name,status:sel.value,lateMin:lm,ot};if(idx>=0)list[idx]=rec;else list.push(rec);}
-    });write('attendance',list);window.renderAttendance?.();renderWeeklyAttendanceFinal();alert('تم حفظ حضور الأسبوع بالكامل.');
-  };
-  window.finalSetAllPresent=function(start){document.querySelectorAll(`#final_weekly_attendance_box select[data-wdate]`).forEach(s=>s.value='حاضر');document.querySelectorAll(`#final_weekly_attendance_box input[data-wlate]`).forEach(i=>i.value=0);};
-  window.finalShowEmployeeWeek=function(empId,start){const e=read('employees',[]).find(x=>String(x.id)===String(empId));if(!e)return;const att=read('attendance',[]).filter(a=>(a.employeeId==e.id||a.empName===e.name)&&dateOnly(a.date)>=start&&dateOnly(a.date)<=addDaysF(start,5));const c=read('company',{}),dayRate=num(e.weeklySalary)/Math.max(1,num(c.workDaysPerWeek||6)),lateRate=dayRate/Math.max(1,num(c.workHoursPerDay||8));const absent=att.filter(a=>a.status==='غائب'||a.status==='غائب بدون إذن').length,half=att.filter(a=>a.status==='نصف يوم').length,lateMin=att.reduce((s,a)=>s+num(a.lateMin),0),ot=att.reduce((s,a)=>s+num(a.ot),0),ded=absent*dayRate+half*dayRate/2+(lateMin/60)*lateRate,otPay=ot*num(e.otRate||40),adv=num(e.advances||0),holiday=num(e.holidayPay||0),net=num(e.weeklySalary)+otPay+holiday+num(e.carryOver||0)-adv-ded;printSimpleReport('تفاصيل مرتب - '+e.name,`<p><b>الفترة:</b> ${start} → ${addDaysF(start,5)}</p><table><tr><th>التاريخ</th><th>الحالة</th><th>التأخير</th><th>OT</th></tr>${att.map(a=>`<tr><td>${a.date}</td><td>${escF(a.status)}</td><td>${a.lateMin||0} د</td><td>${a.ot||0} س</td></tr>`).join('')}</table><hr><p>أساسي: ${moneyF(e.weeklySalary)} | OT: ${moneyF(otPay)} | بدل: ${moneyF(holiday)} | خصم غياب/نصف يوم/تأخير: ${moneyF(ded)} | سلف: ${moneyF(adv)} | مرحل: ${moneyF(e.carryOver||0)} | <b>الصافي: ${moneyF(net)}</b></p>`);};
-  window.finalPrintWeeklyAttendance=function(start){const emps=read('employees',[]),att=read('attendance',[]),rows=emps.map(e=>{const arr=DAYS_AR.map((_,i)=>{const d=addDaysF(start,i),a=att.find(x=>(x.employeeId==e.id||x.empName===e.name)&&dateOnly(x.date)===d);return `<td>${escF(a?.status||'حاضر')}<br>${a?.lateMin||0}د / ${a?.ot||0}س</td>`}).join('');return `<tr><td>${escF(e.name)}</td>${arr}</tr>`}).join('');printSimpleReport('حضور الأسبوع',`<p>${start} → ${addDaysF(start,5)}</p><table><tr><th>العامل</th>${DAYS_AR.map(x=>`<th>${x}</th>`).join('')}</tr>${rows}</table>`);};
-
-  function injectWeeklyAttendanceF(){
-    const page=document.getElementById('page-daily_attendance');if(!page||document.getElementById('final_weekly_attendance_box'))return;
-    const box=document.createElement('div');box.id='final_weekly_attendance_box';page.appendChild(box);
-    const head=document.createElement('div');head.className='bg-white p-4 rounded-2xl border mt-4 flex flex-wrap gap-3 items-end';head.innerHTML=`<div><label class="block font-bold mb-1">بداية الأسبوع (الأحد)</label><input id="final_week_start" type="date" class="border p-2 rounded-lg"></div><button onclick="renderWeeklyAttendanceFinal()" class="bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold">عرض الأسبوع</button>`;page.insertBefore(head,box);document.getElementById('final_week_start').value=sundayF(dateOnly(new Date()));window.renderWeeklyAttendanceFinal();
-  }
-
-  // ---------- Payroll: complete breakdown + weekly lock/archive ----------
-  window.closeEmployeeWeek=function(id){
-    const emps=read('employees',[]),e=emps.find(x=>x.id==id);if(!e)return;
-    const start=sundayF(document.getElementById('final_week_start')?.value||dateOnly(new Date())),end=addDaysF(start,5);
-    if(isWeekLockedF(start))return alert('الأسبوع مقفول بالفعل ومحفوظ في الأرشيف.');
-    const att=read('attendance',[]).filter(a=>(a.employeeId==e.id||a.empName===e.name)&&dateOnly(a.date)>=start&&dateOnly(a.date)<=end),c=read('company',{});
-    const absent=att.filter(a=>a.status==='غائب'||a.status==='غائب بدون إذن').length,half=att.filter(a=>a.status==='نصف يوم').length,lateMin=att.reduce((s,a)=>s+num(a.lateMin),0),ot=att.reduce((s,a)=>s+num(a.ot),0);
-    const dayRate=num(e.weeklySalary)/Math.max(1,num(c.workDaysPerWeek||6)),hourRate=dayRate/Math.max(1,num(c.workHoursPerDay||8),1);
-    const absenceDed=absent*dayRate+half*dayRate/2,lateDed=(lateMin/60)*hourRate,deductions=absenceDed+lateDed;
-    const otPay=ot*num(e.otRate||40),holiday=num(e.holidayPay||0),adv=num(e.advances||0),carryIn=num(e.carryOver||0),netDue=Math.max(0,num(e.weeklySalary)+otPay+holiday+carryIn-deductions-adv),paid=num(e.actualPaid||0),carryOut=netDue-paid;
-    if(paid>treasuryBalanceF(sourceMap.cash))return alert('المبلغ المدفوع أكبر من رصيد الصندوق.');
-    if(paid)adjustF(sourceMap.cash,-paid);
-    const archive=read('payrollClosings',[]);archive.unshift({id:Date.now()+Math.random(),weekStart:start,weekEnd:end,empId:e.id,empName:e.name,weeklySalary:num(e.weeklySalary),otHours:ot,otPay,holidayPay:holiday,advances:adv,carryIn,deductions,absenceDed,lateDed,netDue,paid,carryOver:carryOut,attendance:JSON.parse(JSON.stringify(att)),closedAt:nowISO()});write('payrollClosings',archive);
-    const locks=read('payrollWeekLocks',[]);const weekClosedIds=new Set(read('payrollClosings',[]).filter(x=>x.weekStart===start).map(x=>String(x.empId)));const allClosed=read('employees',[]).every(emp=>weekClosedIds.has(String(emp.id)));if(allClosed&&!locks.includes(weekKeyF(start)))locks.push(weekKeyF(start));write('payrollWeekLocks',locks);
-    e.carryOver=carryOut;e.advances=0;e.holidayPay=0;e.actualPaid=0;write('employees',emps);
-    window.renderWeeklyHR?.();renderWeeklyAttendanceFinal();window.renderPayrollArchiveFinal?.();window.refreshTreasuryBars?.();
-    alert(`تم تقفيل ${e.name}\nالصافي: ${moneyF(netDue)}\nالمدفوع: ${moneyF(paid)}\nالمرحل: ${moneyF(carryOut)}`);
-  };
-
-  window.renderPayrollArchiveFinal=function(){
-    const host=document.getElementById('payroll_archive_box');if(!host)return;const a=read('payrollClosings',[]);host.innerHTML=`<div class="bg-white border rounded-2xl p-5 mt-6"><div class="flex justify-between items-center"><h3 class="font-black text-lg">أرشيف تقفيلات المرتبات</h3><button onclick="printSimpleReport('أرشيف المرتبات',document.getElementById('payroll_archive_box').innerHTML)" class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold"><i class="fa-solid fa-print"></i> طباعة</button></div><div class="overflow-auto mt-3"><table class="w-full border text-xs"><tr class="bg-slate-100"><th class="p-2 border">الفترة</th><th class="p-2 border">العامل</th><th class="p-2 border">الأساسي</th><th class="p-2 border">الإضافي</th><th class="p-2 border">الخصومات</th><th class="p-2 border">الصافي</th><th class="p-2 border">المدفوع</th><th class="p-2 border">المرحل</th><th class="p-2 border">طباعة</th></tr>${a.map(x=>`<tr><td class="p-2 border">${x.weekStart} → ${x.weekEnd}</td><td class="p-2 border">${escF(x.empName)}</td><td class="p-2 border">${moneyF(x.weeklySalary)}</td><td class="p-2 border">${moneyF(x.otPay)}</td><td class="p-2 border text-rose-600">${moneyF(x.deductions+x.advances)}</td><td class="p-2 border font-bold">${moneyF(x.netDue)}</td><td class="p-2 border">${moneyF(x.paid)}</td><td class="p-2 border">${moneyF(x.carryOver)}</td><td class="p-2 border"><button onclick="finalPrintPayrollArchive(${x.id})" class="text-slate-900"><i class="fa-solid fa-print"></i></button></td></tr>`).join('')||'<tr><td colspan="9" class="p-3 text-center">لا توجد تقفيلات بعد</td></tr>'}</table></div></div>`;
-  };
-  window.finalPrintPayrollArchive=function(id){const x=read('payrollClosings',[]).find(a=>a.id==id);if(!x)return;printSimpleReport('مرتب '+x.empName,`<p><b>الفترة:</b> ${x.weekStart} → ${x.weekEnd}</p><p>أساسي: ${moneyF(x.weeklySalary)} | إضافي: ${moneyF(x.otPay)} | خصومات: ${moneyF(x.deductions)} | سلف: ${moneyF(x.advances)} | مرحل سابق: ${moneyF(x.carryIn)} | <b>صافي: ${moneyF(x.netDue)}</b> | مدفوع: ${moneyF(x.paid)} | مرحل: ${moneyF(x.carryOver)}</p><table><tr><th>التاريخ</th><th>الحالة</th><th>التأخير</th><th>OT</th></tr>${(x.attendance||[]).map(a=>`<tr><td>${a.date}</td><td>${escF(a.status)}</td><td>${a.lateMin||0} د</td><td>${a.ot||0} س</td></tr>`).join('')}</table>`);};
-
-  function injectPayrollArchiveF(){
-    const page=document.getElementById('page-weekly_hr');if(!page||document.getElementById('payroll_archive_box'))return;const box=document.createElement('div');box.id='payroll_archive_box';page.appendChild(box);window.renderPayrollArchiveFinal();
-  }
-
-  // ---------- Treasury monthly close + bank deposit ----------
-  function monthRangeF(){const d=new Date(),y=d.getFullYear(),m=d.getMonth();return [new Date(y,m,1).toISOString().slice(0,10),new Date(y,m+1,0).toISOString().slice(0,10)];}
-  window.finalTreasuryDetailed=function(from,to){
-    const f=from||monthRangeF()[0],t=to||monthRangeF()[1],orders=read('orders',[]),expenses=read('expenses',[]),elec=read('electricity',[]),pay=read('payrollClosings',[]),deposits=read('bankDeposits',[]);
-    const sales=orders.filter(o=>dateOnly(o.date)>=f&&dateOnly(o.date)<=t);const cashIn=sales.reduce((s,o)=>s+num(o.paymentBreakdown?.cash),0);const instaIn=sales.reduce((s,o)=>s+num(o.paymentBreakdown?.insta),0);const vodaIn=sales.reduce((s,o)=>s+num(o.paymentBreakdown?.voda),0);const ex=expenses.filter(x=>dateOnly(x.date)>=f&&dateOnly(x.date)<=t);const ep=ex.reduce((s,x)=>s+num(x.amount),0);const el=elec.filter(x=>dateOnly(x.date)>=f&&dateOnly(x.date)<=t).reduce((s,x)=>s+num(x.amount),0);const sal=pay.filter(x=>dateOnly(x.closedAt)>=f&&dateOnly(x.closedAt)<=t).reduce((s,x)=>s+num(x.paid),0);const dep=deposits.filter(x=>dateOnly(x.date)>=f&&dateOnly(x.date)<=t).reduce((s,x)=>s+num(x.amount),0);const opening=0;const cashExpenses=ex.filter(x=>x.source===sourceMap.cash).reduce((s,x)=>s+num(x.amount),0);const netCash=opening+cashIn-cashExpenses-dep;
-    const host=document.getElementById('treasury_detailed_report');if(host)host.innerHTML=`<div class="grid md:grid-cols-4 gap-3 text-center"><div class="p-3 bg-blue-50 rounded-xl"><b>مبيعات الفترة</b><div>${moneyF(sales.reduce((s,o)=>s+num(o.totalSale),0))}</div></div><div class="p-3 bg-emerald-50 rounded-xl"><b>مقبوضات كاش</b><div>${moneyF(cashIn)}</div></div><div class="p-3 bg-rose-50 rounded-xl"><b>مصروفات كاش</b><div>${moneyF(ex.filter(x=>x.source===sourceMap.cash).reduce((s,x)=>s+num(x.amount),0))}</div></div><div class="p-3 bg-slate-100 rounded-xl"><b>توريد للبنك</b><div>${moneyF(dep)}</div></div></div><div class="mt-4 text-sm font-bold">الصافي النقدي للفترة: ${moneyF(netCash)} — إنستاباي: ${moneyF(instaIn)} — فودافون: ${moneyF(vodaIn)} — كهرباء: ${moneyF(el)} — رواتب مدفوعة: ${moneyF(sal)}</div>`;
-    return {f,t,sales,cashIn,instaIn,vodaIn,ep,cashExpenses,el,sal,dep,netCash};
-  };
-  window.finalCloseMonthlyTreasury=function(){
-    const info=window.finalTreasuryDetailed();const counted=num(document.getElementById('cash_counted')?.value);if(!Number.isFinite(counted))return alert('أدخل الرصيد الفعلي');
-    const rec={id:Date.now(),type:'تقفيل شهري',from:info.f,to:info.t,systemCash:num(read('cashbox',0)),actualCash:counted,difference:counted-num(read('cashbox',0)),sales:info.sales.reduce((s,o)=>s+num(o.totalSale),0),cashCollected:info.cashIn,expensesCash:info.cashExpenses,bankDeposits:info.dep,createdAt:nowISO(),note:(document.getElementById('cash_close_note')?.value||'').trim()};const a=read('treasuryClosings',[]);a.unshift(rec);write('treasuryClosings',a);window.renderTreasuryArchive?.();alert('تم حفظ التقفيل الشهري في الأرشيف.');
-  };
-
-  // ---------- Settings: always-visible waste-paper price + payroll rules ----------
-  function injectFinalSettingsF(){
-    const page=document.getElementById('page-settings');if(!page)return;
-    if(!document.getElementById('set_waste_paper_cost_final')){
-      const c=read('company',{});const wrap=document.createElement('div');wrap.className='bg-amber-50 border border-amber-200 p-5 rounded-2xl mt-5';wrap.innerHTML=`<h3 class="font-black text-lg mb-3">إعدادات تكاليف التشغيل والمرتبات</h3><div class="grid md:grid-cols-4 gap-3"><div><label class="block font-bold mb-1">سعر متر الورق الهالك (ج.م)</label><input id="set_waste_paper_cost_final" type="number" min="0" step="0.01" value="${num(c.wastePaperCostPerMeter)}" class="border w-full p-2.5 rounded-lg"></div><div><label class="block font-bold mb-1">أيام العمل أسبوعيًا</label><input id="set_work_days" type="number" min="1" max="7" value="${num(c.workDaysPerWeek||6)}" class="border w-full p-2.5 rounded-lg"></div><div><label class="block font-bold mb-1">ساعات العمل يوميًا</label><input id="set_work_hours" type="number" min="1" max="24" value="${num(c.workHoursPerDay||8)}" class="border w-full p-2.5 rounded-lg"></div><div><label class="block font-bold mb-1">تسلسل الفاتورة الحالي</label><input id="set_invoice_seq_final" type="number" min="0" value="${num(c.invoiceSeq)}" class="border w-full p-2.5 rounded-lg"></div></div><p class="text-xs mt-3 text-amber-900 font-bold">ورق الحماية لا يدخل في تكلفة أو ربح الفاتورة؛ التفعيل يقوم بخصم الكمية من المخزون فقط. الورق الهالك وحده يُستخدم في حساب التكلفة بسعر المتر المحدد هنا.</p><button onclick="saveFinalOperationalSettings()" class="mt-4 bg-indigo-700 text-white px-5 py-2.5 rounded-lg font-bold">حفظ</button>`;page.appendChild(wrap);
-    }
-  }
-  window.saveFinalOperationalSettings=function(){const c=read('company',{});c.wastePaperCostPerMeter=num(document.getElementById('set_waste_paper_cost_final')?.value);c.workDaysPerWeek=Math.min(7,Math.max(1,num(document.getElementById('set_work_days')?.value)||6));c.workHoursPerDay=Math.min(24,Math.max(1,num(document.getElementById('set_work_hours')?.value)||8));c.invoiceSeq=num(document.getElementById('set_invoice_seq_final')?.value);write('company',c);window.loadSettingsForm?.();alert('تم حفظ الإعدادات التشغيلية.');};
-
-  // ---------- Generic printing helpers / report buttons ----------
-  function ensurePrintButtonsF(){
-    document.querySelectorAll('.page-view').forEach(page=>{
-      if(!page.id||page.id==='page-dashboard'||page.querySelector('.final-page-print'))return;
-      const btn=document.createElement('button');btn.className='final-page-print fixed bottom-5 left-5 z-40 bg-slate-900 text-white px-4 py-3 rounded-full shadow-lg font-bold no-print';btn.innerHTML='<i class="fa-solid fa-print"></i> طباعة التقرير';btn.onclick=()=>{const title=(page.querySelector('h1,h2,h3')?.innerText||'تقرير inkore ERP');printSimpleReport(title,page.innerHTML);};page.appendChild(btn);
-    });
-  }
-
-  function runFinalBuildF(){
-    ensureSchemaF(); ensureLoginEyeF(); injectWeeklyAttendanceF(); injectPayrollArchiveF(); injectFinalSettingsF(); window.renderPayrollArchiveFinal?.(); window.renderWeeklyAttendanceFinal?.(); window.finalTreasuryDetailed(); ensurePrintButtonsF();
-    const lp=document.getElementById('login_pass');if(lp)lp.value='';
-  }
-  document.addEventListener('DOMContentLoaded',()=>setTimeout(runFinalBuildF,120));
-  window.addEventListener('load',()=>setTimeout(runFinalBuildF,250));
-})();
-
 </script>
 </body>
 </html>
