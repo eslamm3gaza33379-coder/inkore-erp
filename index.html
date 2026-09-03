@@ -3609,16 +3609,16 @@ function todayStr() {
     const main=document.querySelector('main')||document.body; const d=document.createElement('div'); d.id='page-inventory'; d.className='page-view max-w-7xl mx-auto px-6 py-8';
     d.innerHTML=`<button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline mb-3"><i class="fa-solid fa-arrow-right"></i> العودة للرئيسية</button>
     <div class="flex items-center justify-between mb-6"><h2 class="text-2xl font-black">مخزن الخامات</h2><button onclick="printInventoryReport()" class="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl"><i class="fa-solid fa-print ml-1"></i> طباعة تقرير المخزون</button></div>
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6"><div class="bg-white p-4 rounded-2xl border"><span class="text-xs text-slate-400">إجمالي قيمة المخزون</span><b id="inventory_total_value" class="block text-xl font-black mt-1">0 ج.م</b></div><div class="lg:col-span-3 bg-white p-4 rounded-2xl border"><div class="grid grid-cols-1 md:grid-cols-5 gap-2"><input id="raw_name" class="border p-2 rounded-lg" placeholder="اسم الخامة"><input id="raw_unit" class="border p-2 rounded-lg" placeholder="الوحدة"><input id="raw_qty" type="number" class="border p-2 rounded-lg" placeholder="الرصيد"><input id="raw_price" type="number" class="border p-2 rounded-lg" placeholder="سعر الشراء"><input id="raw_min" type="number" class="border p-2 rounded-lg" placeholder="حد التنبيه"><button onclick="saveRawMaterial()" class="bg-cyan-600 text-white font-bold rounded-lg md:col-span-5 py-2">حفظ / تحديث الخامة</button></div></div></div>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6"><div class="bg-white p-4 rounded-2xl border"><span class="text-xs text-slate-400">إجمالي قيمة المخزون</span><b id="inventory_total_value" class="block text-xl font-black mt-1">0 ج.م</b></div><div class="lg:col-span-3 bg-white p-4 rounded-2xl border"><div class="grid grid-cols-1 md:grid-cols-6 gap-2"><input id="raw_name" class="border p-2 rounded-lg" placeholder="اسم الخامة"><input id="raw_unit" class="border p-2 rounded-lg" placeholder="الوحدة"><input id="raw_qty" type="number" class="border p-2 rounded-lg" placeholder="الرصيد"><input id="raw_price" type="number" class="border p-2 rounded-lg" placeholder="سعر الشراء"><input id="raw_waste_pct" type="number" min="0" max="100" step="0.01" class="border p-2 rounded-lg font-bold text-amber-700" placeholder="نسبة الهالك %"><input id="raw_min" type="number" class="border p-2 rounded-lg" placeholder="حد التنبيه"><div class="md:col-span-6 text-[11px] bg-amber-50 border border-amber-200 rounded-lg p-2 text-amber-800 font-bold">نسبة الهالك تخص الخامة وتُستخدم عند حساب الكمية المطلوبة للإنتاج والتكلفة الفعلية للوحدة.</div><button onclick="saveRawMaterial()" class="bg-cyan-600 text-white font-bold rounded-lg md:col-span-6 py-2">حفظ / تحديث الخامة</button></div></div></div>
     <div class="bg-white rounded-2xl border overflow-hidden"><table class="w-full text-right text-xs"><thead class="bg-slate-100"><tr><th class="p-3">الخامة</th><th class="p-3">الرصيد</th><th class="p-3">سعر الشراء</th><th class="p-3">قيمة المخزون</th><th class="p-3">الحالة</th><th class="p-3">الإجراءات</th></tr></thead><tbody id="raw_inventory_body"></tbody></table></div>`;
     document.body.appendChild(d);
   }
-  window.saveRawMaterial=function(){ensureInventory();const id=document.getElementById('raw_edit_id')?.value||'';let items=arr('rawMaterials');const name=document.getElementById('raw_name').value.trim();if(!name)return alert('أدخل اسم الخامة');const qty=+document.getElementById('raw_qty').value||0,price=+document.getElementById('raw_price').value||0,min=+document.getElementById('raw_min').value||0,unit=document.getElementById('raw_unit').value.trim()||'متر';if(id){const x=items.find(a=>a.id==id);if(x){x.name=name;x.unit=unit;x.qty=qty;x.purchasePrice=price;x.minQty=min;}}else items.push({id:Date.now(),name,unit,qty,purchasePrice:price,minQty:(min || +((get('company')||{}).defaultMinStock)||0)});put('rawMaterials',items);['raw_name','raw_unit','raw_qty','raw_price','raw_min'].forEach(i=>document.getElementById(i).value='');renderInventory();};
-  window.editRawMaterial=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;document.getElementById('raw_name').value=x.name;document.getElementById('raw_unit').value=x.unit;document.getElementById('raw_qty').value=x.qty;document.getElementById('raw_price').value=x.purchasePrice;document.getElementById('raw_min').value=x.minQty;let h=document.getElementById('raw_edit_id');if(!h){h=document.createElement('input');h.type='hidden';h.id='raw_edit_id';document.getElementById('page-inventory').appendChild(h);}h.value=id;};
+  window.saveRawMaterial=function(){ensureInventory();const id=document.getElementById('raw_edit_id')?.value||'';let items=arr('rawMaterials');const name=document.getElementById('raw_name').value.trim();if(!name)return alert('أدخل اسم الخامة');const qty=+document.getElementById('raw_qty').value||0,price=+document.getElementById('raw_price').value||0,wastePct=Math.min(100,Math.max(0,+document.getElementById('raw_waste_pct').value||0)),min=+document.getElementById('raw_min').value||0,unit=document.getElementById('raw_unit').value.trim()||'متر';if(id){const x=items.find(a=>a.id==id);if(x){x.name=name;x.unit=unit;x.qty=qty;x.purchasePrice=price;x.wastePct=wastePct;x.minQty=min;}}else items.push({id:Date.now(),name,unit,qty,purchasePrice:price,wastePct,minQty:(min || +((get('company')||{}).defaultMinStock)||0)});put('rawMaterials',items);['raw_name','raw_unit','raw_qty','raw_price','raw_waste_pct','raw_min'].forEach(i=>document.getElementById(i).value='');renderInventory();};
+  window.editRawMaterial=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;document.getElementById('raw_name').value=x.name;document.getElementById('raw_unit').value=x.unit;document.getElementById('raw_qty').value=x.qty;document.getElementById('raw_price').value=x.purchasePrice;document.getElementById('raw_waste_pct').value=x.wastePct||0;document.getElementById('raw_min').value=x.minQty;let h=document.getElementById('raw_edit_id');if(!h){h=document.createElement('input');h.type='hidden';h.id='raw_edit_id';document.getElementById('page-inventory').appendChild(h);}h.value=id;};
   window.deleteRawMaterial=function(id){if(!confirm('حذف الخامة؟'))return;put('rawMaterials',arr('rawMaterials').filter(x=>x.id!=id));renderInventory();};
   window.stockAdjustment=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;const q=parseFloat(prompt('كمية الإضافة/الخصم؟ استخدم رقمًا سالبًا للخصم','0'));if(isNaN(q)||q===0)return;try{stockMove(x.name,q,q>0?'إضافة':'تسوية','يدوي','تسوية مخزون');renderInventory();}catch(e){alert(e.message)}};
   window.showStockHistory=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;const moves=arr('stockMoves').filter(m=>m.material===x.name);const html=`<table><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>المرجع</th><th>ملاحظات</th></tr>${moves.map(m=>`<tr><td>${m.date||'-'}</td><td>${esc(m.type||'-')}</td><td>${fmt(m.qty||0)} ${esc(x.unit)}</td><td>${esc(m.ref||'-')}</td><td>${esc(m.note||'-')}</td></tr>`).join('')||'<tr><td colspan="5">لا توجد حركات</td></tr>'}</table>`;printSimpleReport('حركة مخزون - '+x.name,html)};
-  window.printInventoryReport=function(){const items=arr('rawMaterials');printSimpleReport('تقرير مخزن الخامات',`<table><tr><th>الخامة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الشراء</th><th>القيمة</th></tr>${items.map(x=>`<tr><td>${esc(x.name)}</td><td>${fmt(x.qty)}</td><td>${esc(x.unit)}</td><td>${money(x.purchasePrice)}</td><td>${money(x.qty*x.purchasePrice)}</td></tr>`).join('')}</table>`)};
+  window.printInventoryReport=function(){const items=arr('rawMaterials');printSimpleReport('تقرير مخزن الخامات',`<table><tr><th>الخامة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الشراء</th><th>الهالك %</th><th>التكلفة الفعلية/وحدة</th><th>القيمة</th></tr>${items.map(x=>`<tr><td>${esc(x.name)}</td><td>${fmt(x.qty)}</td><td>${esc(x.unit)}</td><td>${money(x.purchasePrice)}</td><td>${fmt(x.wastePct||0)}%</td><td>${money((+x.purchasePrice||0)*(1+(+x.wastePct||0)/100))}</td><td>${money((+x.qty||0)*(+x.purchasePrice||0)}</td></tr>`).join('')}</table>`)};
 
   // ---------- Invoice calculation / save / delete ----------
   function invoiceCalc(){
@@ -4869,239 +4869,102 @@ function todayStr() {
 </script>
 
 
-<script id="inkore-raw-waste-percent-v1">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const arr=k=>{try{const v=localStorage.getItem(P+k);return v?JSON.parse(v):[];}catch(_){return[];}};
-  const put=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
-  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-  const money=v=>(N(v)).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:2})+' ج.م';
-  const fmt=v=>(N(v)).toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:2});
 
-  function normalize(m){
-    m.wastePct=Math.min(100,Math.max(0,N(m.wastePct??m.waste_percent)));
-    return m;
-  }
-
-  function effectiveUnitCost(m){
-    return N(m.purchasePrice) * (1 + N(m.wastePct)/100);
-  }
-
-  function requiredQty(qty,m){
-    // Used when a raw material is consumed for production:
-    // required stock = net production quantity + configured waste percentage.
-    return N(qty) * (1 + N(m?.wastePct)/100);
-  }
-
-  // Keep the field available to other ERP modules.
-  window.inkoreMaterialCost = effectiveUnitCost;
-  window.inkoreMaterialRequiredQty = requiredQty;
-
-  // Normalize current local materials.
-  let mats=arr('rawMaterials').map(normalize);
-  put('rawMaterials',mats);
-
-  // Replace the inventory page so waste % is a first-class field.
-  window.injectInventoryPage=function(){
-    if(document.getElementById('page-inventory')) document.getElementById('page-inventory').remove();
-    const d=document.createElement('div');
-    d.id='page-inventory';
-    d.className='page-view max-w-7xl mx-auto px-6 py-8';
-    d.innerHTML=`
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline mb-3"><i class="fa-solid fa-arrow-right"></i> العودة للرئيسية</button>
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-black">مخزن الخامات</h2>
-        <button onclick="printInventoryReport()" class="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl"><i class="fa-solid fa-print ml-1"></i> طباعة تقرير المخزون</button>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white p-4 rounded-2xl border">
-          <span class="text-xs text-slate-400">إجمالي قيمة المخزون</span>
-          <b id="inventory_total_value" class="block text-xl font-black mt-1">0 ج.م</b>
-          <div class="text-[11px] text-slate-500 mt-2">القيمة الأساسية حسب سعر الشراء.</div>
-        </div>
-        <div class="lg:col-span-3 bg-white p-4 rounded-2xl border">
-          <div class="grid grid-cols-1 md:grid-cols-6 gap-2">
-            <input id="raw_name" class="border p-2 rounded-lg" placeholder="اسم الخامة">
-            <input id="raw_unit" class="border p-2 rounded-lg" placeholder="الوحدة">
-            <input id="raw_qty" type="number" min="0" step="0.01" class="border p-2 rounded-lg" placeholder="الرصيد">
-            <input id="raw_price" type="number" min="0" step="0.01" class="border p-2 rounded-lg" placeholder="سعر الشراء">
-            <input id="raw_waste_pct" type="number" min="0" max="100" step="0.01" class="border p-2 rounded-lg font-bold text-amber-700" placeholder="نسبة الهالك %">
-            <input id="raw_min" type="number" min="0" step="0.01" class="border p-2 rounded-lg" placeholder="حد التنبيه">
-            <div class="md:col-span-6 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-800 font-bold">
-              نسبة الهالك تُحفظ على مستوى كل خامة، وتُستخدم لحساب التكلفة الفعلية للوحدة = سعر الشراء × (1 + الهالك٪)،
-              وكـمية السحب المطلوبة عند ربط الخامة بالإنتاج.
-            </div>
-            <button onclick="saveRawMaterial()" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg md:col-span-6 py-2">حفظ / تحديث الخامة</button>
-          </div>
-        </div>
-      </div>
-      <div class="bg-white rounded-2xl border overflow-hidden">
-        <table class="w-full text-right text-xs">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3">الخامة</th>
-              <th class="p-3">الرصيد</th>
-              <th class="p-3">سعر الشراء</th>
-              <th class="p-3 text-amber-700">الهالك %</th>
-              <th class="p-3">التكلفة الفعلية/وحدة</th>
-              <th class="p-3">قيمة المخزون</th>
-              <th class="p-3">الحالة</th>
-              <th class="p-3">الإجراءات</th>
-            </tr>
-          </thead>
-          <tbody id="raw_inventory_body"></tbody>
-        </table>
-      </div>`;
-    document.body.appendChild(d);
-  };
-
-  window.renderInventory=function(){
-    if(!document.getElementById('page-inventory')) return;
-    const items=arr('rawMaterials').map(normalize);
-    put('rawMaterials',items);
-    const total=items.reduce((sum,x)=>sum+N(x.qty)*N(x.purchasePrice),0);
-    const tv=document.getElementById('inventory_total_value'); if(tv) tv.textContent=money(total);
-    const body=document.getElementById('raw_inventory_body'); if(!body)return;
-    body.innerHTML=items.map(x=>{
-      const pct=N(x.wastePct);
-      const eff=effectiveUnitCost(x);
-      return `<tr>
-        <td class="p-3 font-bold">${esc(x.name)}</td>
-        <td class="p-3 font-mono">${fmt(x.qty)} ${esc(x.unit)}</td>
-        <td class="p-3 font-mono">${money(x.purchasePrice)}</td>
-        <td class="p-3 font-mono font-black text-amber-700">${fmt(pct)}%</td>
-        <td class="p-3 font-mono text-indigo-700">${money(eff)}</td>
-        <td class="p-3 font-mono">${money(N(x.qty)*N(x.purchasePrice))}</td>
-        <td class="p-3">${N(x.qty)<=N(x.minQty)?'<span class="text-rose-600 font-bold">مخزون منخفض</span>':'<span class="text-emerald-600 font-bold">جيد</span>'}</td>
-        <td class="p-3 text-center">
-          <button onclick="editRawMaterial(${x.id})" class="text-blue-600 mx-1"><i class="fa-solid fa-pen"></i></button>
-          <button onclick="deleteRawMaterial(${x.id})" class="text-rose-600 mx-1"><i class="fa-solid fa-trash"></i></button>
-          <button onclick="stockAdjustment(${x.id})" class="text-indigo-600 mx-1" title="تسوية"><i class="fa-solid fa-plus-minus"></i></button>
-          <button onclick="showStockHistory(${x.id})" class="text-cyan-600 mx-1" title="حركة المخزون"><i class="fa-solid fa-clock-rotate-left"></i></button>
-        </td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="8" class="p-6 text-center text-slate-400">لا توجد خامات</td></tr>';
-  };
-
-  window.saveRawMaterial=function(){
-    let items=arr('rawMaterials').map(normalize);
-    const id=document.getElementById('raw_edit_id')?.value||'';
-    const name=document.getElementById('raw_name')?.value.trim()||'';
-    if(!name) return alert('أدخل اسم الخامة');
-    const qty=N(document.getElementById('raw_qty')?.value);
-    const price=N(document.getElementById('raw_price')?.value);
-    const wastePct=Math.min(100,Math.max(0,N(document.getElementById('raw_waste_pct')?.value)));
-    const min=N(document.getElementById('raw_min')?.value);
-    const unit=document.getElementById('raw_unit')?.value.trim()||'متر';
-    if(id){
-      const x=items.find(a=>a.id==id);
-      if(x) Object.assign(x,{name,unit,qty,purchasePrice:price,wastePct,minQty:min});
-    }else{
-      items.push({id:Date.now(),materialId:'MAT-'+Date.now(),name,unit,qty,purchasePrice:price,wastePct,minQty:min});
-    }
-    put('rawMaterials',items);
-    ['raw_name','raw_unit','raw_qty','raw_price','raw_waste_pct','raw_min'].forEach(i=>{const e=document.getElementById(i);if(e)e.value='';});
-    const h=document.getElementById('raw_edit_id'); if(h)h.remove();
-    window.renderInventory();
-  };
-
-  window.editRawMaterial=function(id){
-    const x=arr('rawMaterials').map(normalize).find(a=>a.id==id);
-    if(!x)return;
-    document.getElementById('raw_name').value=x.name||'';
-    document.getElementById('raw_unit').value=x.unit||'متر';
-    document.getElementById('raw_qty').value=N(x.qty);
-    document.getElementById('raw_price').value=N(x.purchasePrice);
-    document.getElementById('raw_waste_pct').value=N(x.wastePct);
-    document.getElementById('raw_min').value=N(x.minQty);
-    let h=document.getElementById('raw_edit_id');
-    if(!h){h=document.createElement('input');h.type='hidden';h.id='raw_edit_id';document.getElementById('page-inventory').appendChild(h);}
-    h.value=id;
-    window.scrollTo({top:0,behavior:'smooth'});
-  };
-
-  window.printInventoryReport=function(){
-    const items=arr('rawMaterials').map(normalize);
-    const rows=items.map(x=>`<tr>
-      <td>${esc(x.name)}</td><td>${fmt(x.qty)}</td><td>${esc(x.unit)}</td>
-      <td>${money(x.purchasePrice)}</td><td>${fmt(x.wastePct)}%</td>
-      <td>${money(effectiveUnitCost(x))}</td><td>${money(x.qty*x.purchasePrice)}</td>
-    </tr>`).join('');
-    if(window.printSimpleReport){
-      window.printSimpleReport('تقرير مخزن الخامات',
-        `<table><tr><th>الخامة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الشراء</th><th>الهالك %</th><th>التكلفة الفعلية/وحدة</th><th>القيمة</th></tr>${rows}</table>`);
-    }
-  };
-
-  // Keep Supabase in sync with the new field.
-  const oldSync=window.inkoreCloud?.syncNow;
-  if(oldSync && !window.inkoreCloud.__wastePctWrapped){
-    window.inkoreCloud.__wastePctWrapped=true;
-    window.inkoreCloud.syncNow=async function(show){
-      const result=await oldSync.call(window.inkoreCloud, false);
-      const c=window.inkoreSupabase||window.inkoreCloud.client;
-      if(!c)return result;
-      const {data:{session}}=await c.auth.getSession();
-      if(!session)return result;
-      const {data:profile}=await c.from('profiles').select('company_id').eq('id',session.user.id).maybeSingle();
-      const cid=profile?.company_id; if(!cid)return result;
-      const materials=arr('rawMaterials').map(normalize);
-      for(const m of materials){
-        let q=c.from('raw_materials').select('id').eq('company_id',cid).eq('name',m.name).limit(1);
-        const {data:found,error:qerr}=await q; if(qerr)throw qerr;
-        const row={company_id:cid,sku:m.materialId||null,name:m.name,category:m.category||null,unit:m.unit||'متر',
-          current_stock:N(m.qty),min_stock:N(m.minQty),purchase_price:N(m.purchasePrice),waste_percent:N(m.wastePct),active:m.active!==false};
-        if(found?.[0]?.id)row.id=found[0].id;
-        const {error}=await c.from('raw_materials').upsert(row,{onConflict:'id'});
-        if(error)throw error;
-      }
-      put('rawMaterials',materials);
-      if(show)alert('تمت المزامنة مع Supabase بنجاح ✅');
-      return true;
-    };
-    window.inkoreCloud.pushAll=window.inkoreCloud.syncNow;
-  }
-
-  const oldPull=window.inkoreCloud?.pullAll;
-  if(oldPull && !window.inkoreCloud.__wastePctPullWrapped){
-    window.inkoreCloud.__wastePctPullWrapped=true;
-    window.inkoreCloud.pullAll=async function(show){
-      const result=await oldPull.call(window.inkoreCloud,false);
-      const c=window.inkoreSupabase||window.inkoreCloud.client;
-      if(c){
-        const {data:{session}}=await c.auth.getSession();
-        if(session){
-          const {data:profile}=await c.from('profiles').select('company_id').eq('id',session.user.id).maybeSingle();
-          const cid=profile?.company_id;
-          if(cid){
-            const {data,error}=await c.from('raw_materials').select('id,name,waste_percent').eq('company_id',cid);
-            if(!error){
-              const local=arr('rawMaterials');
-              for(const m of local){
-                const cloud=data?.find(x=>x.id===m.cloudId || x.name===m.name);
-                if(cloud)m.wastePct=N(cloud.waste_percent);
-              }
-              put('rawMaterials',local.map(normalize));
-            }
-          }
-        }
-      }
-      if(show)location.reload();
-      return result;
-    };
-  }
-
-  // Auto-sync after raw-material writes.
-  const oldSet=Storage.prototype.setItem;
-  if(!window.__inkoreWasteStorageHook){
-    window.__inkoreWasteStorageHook=true;
-    // The existing global storage hook already schedules cloud sync; this hook is intentionally not replacing it.
-  }
-})();
-</script>
 
 </body>
 </html>
+
+
+</html>
+
+
+<script id="inkore-waste-final-patch">
+(function(){
+  'use strict';
+  const P='inkore_v2_';
+  const getArr=()=>{try{return JSON.parse(localStorage.getItem(P+'rawMaterials')||'[]')}catch(_){return[]}};
+  const putArr=a=>localStorage.setItem(P+'rawMaterials',JSON.stringify(a));
+  const n=v=>Number.isFinite(Number(v))?Number(v):0;
+
+  function ensureField(){
+    const price=document.getElementById('raw_price');
+    if(!price || document.getElementById('raw_waste_pct')) return;
+    const input=document.createElement('input');
+    input.id='raw_waste_pct'; input.type='number'; input.min='0'; input.max='100'; input.step='0.01';
+    input.className=price.className+' font-bold text-amber-700'; input.placeholder='نسبة الهالك %';
+    price.parentNode.insertBefore(input, price.nextSibling);
+  }
+
+  function patchHeaderAndRows(){
+    const table=document.querySelector('#page-inventory table');
+    if(!table)return;
+    const head=table.querySelector('thead tr');
+    if(head && !head.querySelector('.waste-pct-head')){
+      const th=document.createElement('th'); th.className='p-2 waste-pct-head text-amber-700'; th.textContent='الهالك %';
+      const cells=head.children; head.insertBefore(th, cells[3]||null);
+    }
+    const body=table.querySelector('tbody'); if(!body)return;
+    const mats=getArr();
+    [...body.querySelectorAll('tr')].forEach(tr=>{
+      if(tr.dataset.wastePatched==='1')return;
+      const nameCell=tr.children[0]; if(!nameCell)return;
+      const name=nameCell.textContent.trim();
+      const m=mats.find(x=>String(x.name||'').trim()===name);
+      if(!m)return;
+      const td=document.createElement('td'); td.className='p-2 border font-bold text-amber-700'; td.textContent=n(m.wastePct||0)+'%';
+      tr.insertBefore(td,tr.children[3]||null); tr.dataset.wastePatched='1';
+    });
+  }
+
+  const originalSave=window.saveRawMaterial;
+  if(originalSave && !originalSave.__wasteFinal){
+    const wrapped=function(){
+      ensureField();
+      const beforeId=document.getElementById('raw_edit_id')?.value||'';
+      const name=document.getElementById('raw_name')?.value.trim()||'';
+      const pct=Math.min(100,Math.max(0,n(document.getElementById('raw_waste_pct')?.value)));
+      originalSave.apply(this,arguments);
+      let arr=getArr();
+      let item=beforeId?arr.find(x=>String(x.id)===String(beforeId)):arr.find(x=>String(x.name||'').trim()===name);
+      if(item){item.wastePct=pct; item.waste_percent=pct; putArr(arr);}
+      try{ syncWaste(item); }catch(e){ console.warn('waste sync',e); }
+      setTimeout(patchHeaderAndRows,50);
+    };
+    wrapped.__wasteFinal=true; window.saveRawMaterial=wrapped;
+  }
+
+  const originalEdit=window.editRawMaterial;
+  if(originalEdit && !originalEdit.__wasteFinal){
+    const wrapped=function(id){
+      const r=originalEdit.apply(this,arguments);
+      ensureField();
+      const item=getArr().find(x=>String(x.id)===String(id));
+      if(item)document.getElementById('raw_waste_pct').value=n(item.wastePct||item.waste_percent);
+      return r;
+    };
+    wrapped.__wasteFinal=true; window.editRawMaterial=wrapped;
+  }
+
+  async function syncWaste(item){
+    if(!item || !window.inkoreSupabase)return;
+    const c=window.inkoreSupabase;
+    const {data:{session}}=await c.auth.getSession(); if(!session)return;
+    const {data:profile}=await c.from('profiles').select('company_id').eq('id',session.user.id).maybeSingle();
+    if(!profile?.company_id)return;
+    let q=c.from('raw_materials').select('id').eq('company_id',profile.company_id).eq('name',item.name).limit(1);
+    const {data,error:qerr}=await q;if(qerr)throw qerr;
+    const row={company_id:profile.company_id,sku:item.materialId||item.sku||null,name:item.name,unit:item.unit||'متر',
+      current_stock:n(item.qty),min_stock:n(item.minQty),purchase_price:n(item.purchasePrice),waste_percent:n(item.wastePct||item.waste_percent),active:item.active!==false};
+    if(data?.[0]?.id)row.id=data[0].id;
+    const {error}=await c.from('raw_materials').upsert(row,{onConflict:'id'});if(error)throw error;
+  }
+
+  function start(){
+    ensureField(); patchHeaderAndRows();
+    const obs=new MutationObserver(()=>{ensureField();patchHeaderAndRows()});
+    obs.observe(document.body,{childList:true,subtree:true});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
+</script>
 
