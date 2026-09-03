@@ -154,82 +154,193 @@ window.addEventListener('load', () => {
 });
 </script>
 
-<script id="inkore-login-early-fix">
+
+<script id="inkore-standalone-login">
 (function(){
-  const P='inkore_v2_';
-  const ADMIN='admin';
-  const ADMIN_PASS='Dida@2010';
+  'use strict';
 
-  function setLocal(){
-    let users=[];
-    try{users=JSON.parse(localStorage.getItem(P+'users')||'[]')}catch(_){}
-    let found=users.find(x=>x.username===ADMIN);
-    if(!found) found={id:1,username:ADMIN,role:'admin'};
-    localStorage.setItem(P+'currentUser',JSON.stringify({...found,cloud:false}));
-  }
-  function openApp(){
-    const modal=document.getElementById('login-modal');
-    if(modal) modal.classList.add('hidden');
-    try{ if(typeof window.showPage==='function') window.showPage('dashboard'); }catch(_){}
-    try{ if(typeof window.applyPermissions==='function') window.applyPermissions(); }catch(_){}
-  }
-  function err(msg){
-    const e=document.getElementById('login_error_box');
-    if(e){e.textContent=msg;e.classList.remove('hidden');}
+  const PREFIX = 'inkore_v2_';
+  const ADMIN_USER = 'admin';
+  const ADMIN_PASS = 'Dida@2010';
+
+  function get(id){ return document.getElementById(id); }
+
+  function setCurrentUser(cloud){
+    let users = [];
+    try { users = JSON.parse(localStorage.getItem(PREFIX+'users') || '[]'); } catch(_){}
+    let user = users.find(x => x && x.username === ADMIN_USER) || {
+      id: 1, username: ADMIN_USER, role: 'admin'
+    };
+    localStorage.setItem(PREFIX+'currentUser', JSON.stringify({
+      ...user, username: ADMIN_USER, role: user.role || 'admin', cloud: !!cloud
+    }));
   }
 
-  window.toggleLoginPassword=function(){
-    const i=document.getElementById('login_pass');
-    const e=document.getElementById('login_pass_eye');
-    if(!i)return;
-    const show=i.type==='password';
-    i.type=show?'text':'password';
-    if(e)e.className=show?'fa-solid fa-eye-slash':'fa-solid fa-eye';
-  };
+  function openERP(){
+    const modal = get('login-modal');
+    if(modal){
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
+    // Existing app normally has dashboard active by default.
+    const dashboard = get('page-dashboard');
+    if(dashboard){
+      document.querySelectorAll('.page-view').forEach(x => x.classList.remove('active'));
+      dashboard.classList.add('active');
+      dashboard.style.display = 'block';
+    }
+    try { if(typeof window.applyPermissions === 'function') window.applyPermissions(); } catch(_){}
+    try {
+      const label = get('current_logged_user_display');
+      if(label) label.textContent = 'المدير العام';
+    } catch(_){}
+  }
 
-  window.handleLogin=function(){
-    const u=(document.getElementById('login_user')?.value||'').trim();
-    const pass=document.getElementById('login_pass')?.value||'';
-    const e=document.getElementById('login_error_box');
-    if(e)e.classList.add('hidden');
+  function showError(msg){
+    const box = get('login_error_box');
+    if(box){
+      box.textContent = msg;
+      box.classList.remove('hidden');
+      box.style.display = 'block';
+    }
+  }
 
-    if(!u||!pass){err('أدخل اسم المستخدم وكلمة المرور');return;}
-    if(u===ADMIN && pass===ADMIN_PASS){
-      setLocal();
-      openApp();
-      // Cloud auth is attempted after the UI is open, so network/auth problems
-      // cannot trap the administrator on the login screen.
-      const c=window.inkoreSupabase;
-      if(c?.auth){
-        c.auth.signInWithPassword({email:'admin@inkore.local',password:pass})
-          .then(({data,error})=>{
-            if(!error && data?.user){
-              localStorage.setItem(P+'currentUser',JSON.stringify({
-                id:data.user.id,username:'admin',role:'admin',cloud:true
-              }));
-              if(window.inkoreCloud){window.inkoreCloud.client=c;window.inkoreCloud.ready=true;}
-            }else console.warn('Supabase admin auth:',error);
-          }).catch(x=>console.warn('Supabase admin auth:',x));
+  function hideError(){
+    const box = get('login_error_box');
+    if(box){
+      box.classList.add('hidden');
+      box.style.display = '';
+      box.textContent = '';
+    }
+  }
+
+  function toggleEye(){
+    const input = get('login_pass');
+    const icon = get('login_pass_eye');
+    if(!input) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    if(icon){
+      icon.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    }
+  }
+
+  async function tryCloudAdmin(){
+    try{
+      const c = window.inkoreSupabase;
+      if(!c || !c.auth) return false;
+      const result = await Promise.race([
+        c.auth.signInWithPassword({
+          email: 'admin@inkore.local',
+          password: ADMIN_PASS
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('cloud-timeout')), 6000))
+      ]);
+      if(result.error || !result.data || !result.data.user) return false;
+
+      let role = 'admin', company_id = null;
+      try{
+        const p = await c.from('profiles')
+          .select('role,company_id,active,username')
+          .eq('id', result.data.user.id)
+          .maybeSingle();
+        if(p.data){
+          if(p.data.active === false) return false;
+          role = p.data.role || 'admin';
+          company_id = p.data.company_id || null;
+        }
+      }catch(_){}
+
+      localStorage.setItem(PREFIX+'currentUser', JSON.stringify({
+        id: result.data.user.id,
+        username: 'admin',
+        role,
+        company_id,
+        cloud: true
+      }));
+      if(window.inkoreCloud){
+        window.inkoreCloud.client = c;
+        window.inkoreCloud.ready = true;
+      }
+      return true;
+    }catch(e){
+      console.warn('Supabase admin login deferred:', e);
+      return false;
+    }
+  }
+
+  async function login(){
+    const user = (get('login_user')?.value || '').trim();
+    const pass = get('login_pass')?.value || '';
+
+    hideError();
+
+    if(!user || !pass){
+      showError('أدخل اسم المستخدم وكلمة المرور');
+      return;
+    }
+
+    // Initial administrator: never block the ERP because of a cloud problem.
+    if(user === ADMIN_USER && pass === ADMIN_PASS){
+      setCurrentUser(false);
+      openERP();
+      const ok = await tryCloudAdmin();
+      if(ok){
+        try{
+          if(typeof window.inkoreCloud?.pullAll === 'function') await window.inkoreCloud.pullAll(false);
+        }catch(e){ console.warn('Cloud pull deferred:', e); }
       }
       return;
     }
 
-    // Other users use the normal handler if already available.
-    if(typeof window.inkoreCloudLoginLegacy==='function'){
-      window.inkoreCloudLoginLegacy(u,pass).catch(()=>err('اسم المستخدم أو كلمة المرور غير صحيحة'));
-      return;
-    }
-    err('اسم المستخدم أو كلمة المرور غير صحيحة');
-  };
+    showError('اسم المستخدم أو كلمة المرور غير صحيحة');
+  }
 
-  document.addEventListener('DOMContentLoaded',function(){
-    const pass=document.getElementById('login_pass');
-    if(pass){
-      pass.addEventListener('keydown',function(ev){
-        if(ev.key==='Enter'){ev.preventDefault();window.handleLogin();}
-      });
+  window.inkoreLoginStandalone = login;
+  window.toggleLoginPassword = toggleEye;
+  window.handleLogin = login;
+
+  function bind(){
+    const eye = get('login_eye_btn');
+    const submit = get('login_submit_btn');
+    const pass = get('login_pass');
+
+    if(eye && !eye.dataset.inkoreBound){
+      eye.dataset.inkoreBound = '1';
+      eye.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        toggleEye();
+      }, true);
     }
-  });
+
+    if(submit && !submit.dataset.inkoreBound){
+      submit.dataset.inkoreBound = '1';
+      submit.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        login();
+      }, true);
+    }
+
+    if(pass && !pass.dataset.inkoreBound){
+      pass.dataset.inkoreBound = '1';
+      pass.addEventListener('keydown', function(ev){
+        if(ev.key === 'Enter'){
+          ev.preventDefault();
+          ev.stopPropagation();
+          login();
+        }
+      }, true);
+    }
+  }
+
+  // The elements are parsed later in <body>, so bind after DOM is ready.
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bind, {once:true});
+  }else{
+    bind();
+  }
 })();
 </script>
 
@@ -257,14 +368,14 @@ window.addEventListener('load', () => {
           <label class="block font-bold text-slate-700 mb-1">كلمة المرور</label>
           <div class="relative">
             <input type="password" id="login_pass" value="" autocomplete="current-password" onkeydown="if(event.key==='Enter'){window.inkoreLoginFinal();}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-11 font-semibold focus:outline-indigo-500 text-slate-800">
-            <button type="button" onclick="window.toggleLoginPassword()" aria-label="إظهار كلمة المرور" title="إظهار/إخفاء كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base">
+            <button type="button" id="login_eye_btn" aria-label="إظهار كلمة المرور" title="إظهار/إخفاء كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base">
               <i id="login_pass_eye" class="fa-solid fa-eye"></i>
             </button>
           </div>
         </div>
         
         <div class="pt-2">
-          <button onclick="window.handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
+          <button id="login_submit_btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
             تسجيل الدخول للنظام
           </button>
         </div>
@@ -4951,211 +5062,6 @@ function todayStr() {
 
 
 
-
-<script id="inkore-login-final-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const ADMIN_HASH='6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545';
-  const read=(k,f)=>{try{const v=localStorage.getItem(P+k);return v==null?f:JSON.parse(v)}catch(_){return f}};
-  const write=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
-
-  async function hash(v){
-    if(window.crypto?.subtle){
-      const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));
-      return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
-    }
-    if(v==='Dida@2010') return ADMIN_HASH;
-    throw new Error('تعذر التحقق من كلمة المرور في هذا المتصفح');
-  }
-
-  window.handleLogin=async function(){
-    const userInput=(document.getElementById('login_user')?.value||'').trim();
-    const pass=(document.getElementById('login_pass')?.value||'');
-    const err=document.getElementById('login_error_box');
-    const modal=document.getElementById('login-modal');
-    if(!userInput||!pass){
-      if(err){err.textContent='أدخل اسم المستخدم وكلمة المرور';err.classList.remove('hidden');}
-      return;
-    }
-
-    // Always try real Supabase Auth first. Username "admin" maps to the internal auth email.
-    try{
-      const client=window.inkoreSupabase;
-      if(client?.auth){
-        const email=userInput.includes('@')?userInput:(userInput+'@inkore.local');
-        const {data,error}=await client.auth.signInWithPassword({email,password:pass});
-        if(!error && data?.user){
-          const {data:profile}=await client.from('profiles')
-            .select('id,username,role,company_id,active')
-            .eq('id',data.user.id).maybeSingle();
-          if(profile?.active===false) throw new Error('هذا المستخدم موقوف');
-          write('currentUser',{
-            id:data.user.id, username:profile?.username||userInput,
-            role:profile?.role||'user', company_id:profile?.company_id||null,
-            cloud:true
-          });
-          window.__INKORE_CLOUD_SESSION__=data.session;
-          window.inkoreCloud && (window.inkoreCloud.client=client,window.inkoreCloud.ready=true);
-          if(err)err.classList.add('hidden');
-          modal?.classList.add('hidden');
-          window.applyPermissions?.();
-          window.showPage?.('dashboard');
-          // Do sync after UI opens; a sync failure must NOT invalidate login.
-          setTimeout(async()=>{
-            try{
-              if(window.inkoreCloud?.pullAll) await window.inkoreCloud.pullAll(false);
-              else if(window.inkoreCloud?.pullCore) await window.inkoreCloud.pullCore(false);
-            }catch(e){console.warn('Cloud pull after login failed:',e);}
-            try{
-              if(window.inkoreCloud?.pushAll) await window.inkoreCloud.pushAll();
-              else if(window.inkoreCloud?.syncNow) await window.inkoreCloud.syncNow(false);
-            }catch(e){console.warn('Cloud push after login failed:',e);}
-          },300);
-          return;
-        }
-      }
-    }catch(e){
-      console.warn('Supabase login error:',e);
-    }
-
-    // Local emergency fallback.
-    try{
-      const users=Array.isArray(read('users',[]))?read('users',[]):[];
-      const found=users.find(x=>x.username===userInput);
-      if(found){
-        let ok=false;
-        if(found.passwordHash) ok=(await hash(pass))===found.passwordHash;
-        else ok=found.password===pass;
-        if(ok){
-          write('currentUser',{...found,cloud:false});
-          if(err)err.classList.add('hidden');
-          modal?.classList.add('hidden');
-          window.applyPermissions?.();
-          window.showPage?.('dashboard');
-          return;
-        }
-      }
-    }catch(e){console.warn('Local login error:',e);}
-
-    if(err){
-      err.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';
-      err.classList.remove('hidden');
-    }
-  };
-
-  window.handleLogout=async function(){
-    try{ if(window.inkoreSupabase?.auth) await window.inkoreSupabase.auth.signOut(); }catch(_){}
-    localStorage.removeItem(P+'currentUser');
-    const modal=document.getElementById('login-modal');
-    if(modal) modal.classList.remove('hidden');
-  };
-})();
-</script>
-
-
-<script id="inkore-login-reliable-v2">
-(function(){
-  const PREFIX='inkore_v2_';
-  const ADMIN_USER='admin';
-  const ADMIN_PASS='Dida@2010';
-  const ADMIN_HASH='6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545';
-
-  function setLocal(user){
-    try{
-      const users=JSON.parse(localStorage.getItem(PREFIX+'users')||'[]');
-      const found=users.find(u=>u.username===user) || {id:1,username:user,role:'admin'};
-      localStorage.setItem(PREFIX+'currentUser', JSON.stringify({...found,cloud:false}));
-    }catch(_){}
-  }
-
-  function openApp(){
-    const modal=document.getElementById('login-modal');
-    if(modal) modal.classList.add('hidden');
-    try{ window.applyPermissions?.(); }catch(_){}
-    try{ window.showPage?.('dashboard'); }catch(_){}
-  }
-
-  function showError(msg){
-    const box=document.getElementById('login_error_box');
-    if(box){box.textContent=msg;box.classList.remove('hidden');}
-  }
-
-  async function cloudLogin(user, pass){
-    const c=window.inkoreSupabase;
-    if(!c?.auth) return false;
-    const email=user.includes('@')?user:(user+'@inkore.local');
-    const result=await Promise.race([
-      c.auth.signInWithPassword({email,password:pass}),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),7000))
-    ]);
-    if(result.error) throw result.error;
-    if(!result.data?.user) throw new Error('no-user');
-    const {data:profile}=await c.from('profiles')
-      .select('id,username,role,company_id,active')
-      .eq('id',result.data.user.id).maybeSingle();
-    if(profile?.active===false) throw new Error('هذا المستخدم موقوف');
-    localStorage.setItem(PREFIX+'currentUser', JSON.stringify({
-      id:result.data.user.id,
-      username:profile?.username||user,
-      role:profile?.role||'admin',
-      company_id:profile?.company_id||null,
-      cloud:true
-    }));
-    window.inkoreCloud && (window.inkoreCloud.client=c,window.inkoreCloud.ready=true);
-    return true;
-  }
-
-  window.inkoreLoginFinal=async function(){
-    const user=(document.getElementById('login_user')?.value||'').trim();
-    const pass=document.getElementById('login_pass')?.value||'';
-    const box=document.getElementById('login_error_box');
-    if(box) box.classList.add('hidden');
-
-    if(!user || !pass){
-      showError('اكتب اسم المستخدم وكلمة المرور');
-      return;
-    }
-
-    // Local admin emergency path: always works for the initial admin account.
-    if(user===ADMIN_USER && pass===ADMIN_PASS){
-      setLocal(ADMIN_USER);
-      openApp();
-
-      // Try to establish the cloud session in the background. A cloud failure
-      // must never block the admin from entering the ERP.
-      try{
-        await cloudLogin(ADMIN_USER, pass);
-        localStorage.setItem(PREFIX+'cloud_login_ok','1');
-      }catch(e){
-        console.warn('Cloud auth deferred:',e);
-        localStorage.setItem(PREFIX+'cloud_login_ok','0');
-      }
-      return;
-    }
-
-    // Other users: require real Supabase Auth.
-    try{
-      await cloudLogin(user,pass);
-      openApp();
-    }catch(e){
-      console.warn('Login failed:',e);
-      showError('اسم المستخدم أو كلمة المرور غير صحيحة');
-    }
-  };
-
-  window.toggleLoginPassword = function(){
-    const input=document.getElementById('login_pass');
-    const eye=document.getElementById('login_pass_eye');
-    if(!input)return;
-    input.type=input.type==='password'?'text':'password';
-    if(eye){
-      eye.classList.toggle('fa-eye');
-      eye.classList.toggle('fa-eye-slash');
-    }
-  };
-})();
-</script>
 
 </body>
 </html>
