@@ -4871,6 +4871,108 @@ function todayStr() {
 
 
 
+
+<script id="inkore-login-final-fix">
+(function(){
+  'use strict';
+  const P='inkore_v2_';
+  const ADMIN_HASH='6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545';
+  const read=(k,f)=>{try{const v=localStorage.getItem(P+k);return v==null?f:JSON.parse(v)}catch(_){return f}};
+  const write=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+
+  async function hash(v){
+    if(window.crypto?.subtle){
+      const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));
+      return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+    }
+    if(v==='Dida@2010') return ADMIN_HASH;
+    throw new Error('تعذر التحقق من كلمة المرور في هذا المتصفح');
+  }
+
+  window.handleLogin=async function(){
+    const userInput=(document.getElementById('login_user')?.value||'').trim();
+    const pass=(document.getElementById('login_pass')?.value||'');
+    const err=document.getElementById('login_error_box');
+    const modal=document.getElementById('login-modal');
+    if(!userInput||!pass){
+      if(err){err.textContent='أدخل اسم المستخدم وكلمة المرور';err.classList.remove('hidden');}
+      return;
+    }
+
+    // Always try real Supabase Auth first. Username "admin" maps to the internal auth email.
+    try{
+      const client=window.inkoreSupabase;
+      if(client?.auth){
+        const email=userInput.includes('@')?userInput:(userInput+'@inkore.local');
+        const {data,error}=await client.auth.signInWithPassword({email,password:pass});
+        if(!error && data?.user){
+          const {data:profile}=await client.from('profiles')
+            .select('id,username,role,company_id,active')
+            .eq('id',data.user.id).maybeSingle();
+          if(profile?.active===false) throw new Error('هذا المستخدم موقوف');
+          write('currentUser',{
+            id:data.user.id, username:profile?.username||userInput,
+            role:profile?.role||'user', company_id:profile?.company_id||null,
+            cloud:true
+          });
+          window.__INKORE_CLOUD_SESSION__=data.session;
+          window.inkoreCloud && (window.inkoreCloud.client=client,window.inkoreCloud.ready=true);
+          if(err)err.classList.add('hidden');
+          modal?.classList.add('hidden');
+          window.applyPermissions?.();
+          window.showPage?.('dashboard');
+          // Do sync after UI opens; a sync failure must NOT invalidate login.
+          setTimeout(async()=>{
+            try{
+              if(window.inkoreCloud?.pullAll) await window.inkoreCloud.pullAll(false);
+              else if(window.inkoreCloud?.pullCore) await window.inkoreCloud.pullCore(false);
+            }catch(e){console.warn('Cloud pull after login failed:',e);}
+            try{
+              if(window.inkoreCloud?.pushAll) await window.inkoreCloud.pushAll();
+              else if(window.inkoreCloud?.syncNow) await window.inkoreCloud.syncNow(false);
+            }catch(e){console.warn('Cloud push after login failed:',e);}
+          },300);
+          return;
+        }
+      }
+    }catch(e){
+      console.warn('Supabase login error:',e);
+    }
+
+    // Local emergency fallback.
+    try{
+      const users=Array.isArray(read('users',[]))?read('users',[]):[];
+      const found=users.find(x=>x.username===userInput);
+      if(found){
+        let ok=false;
+        if(found.passwordHash) ok=(await hash(pass))===found.passwordHash;
+        else ok=found.password===pass;
+        if(ok){
+          write('currentUser',{...found,cloud:false});
+          if(err)err.classList.add('hidden');
+          modal?.classList.add('hidden');
+          window.applyPermissions?.();
+          window.showPage?.('dashboard');
+          return;
+        }
+      }
+    }catch(e){console.warn('Local login error:',e);}
+
+    if(err){
+      err.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';
+      err.classList.remove('hidden');
+    }
+  };
+
+  window.handleLogout=async function(){
+    try{ if(window.inkoreSupabase?.auth) await window.inkoreSupabase.auth.signOut(); }catch(_){}
+    localStorage.removeItem(P+'currentUser');
+    const modal=document.getElementById('login-modal');
+    if(modal) modal.classList.remove('hidden');
+  };
+})();
+</script>
+
 </body>
 </html>
 
