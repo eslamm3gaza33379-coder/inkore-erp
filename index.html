@@ -153,6 +153,86 @@ window.addEventListener('load', () => {
   };
 });
 </script>
+
+<script id="inkore-login-early-fix">
+(function(){
+  const P='inkore_v2_';
+  const ADMIN='admin';
+  const ADMIN_PASS='Dida@2010';
+
+  function setLocal(){
+    let users=[];
+    try{users=JSON.parse(localStorage.getItem(P+'users')||'[]')}catch(_){}
+    let found=users.find(x=>x.username===ADMIN);
+    if(!found) found={id:1,username:ADMIN,role:'admin'};
+    localStorage.setItem(P+'currentUser',JSON.stringify({...found,cloud:false}));
+  }
+  function openApp(){
+    const modal=document.getElementById('login-modal');
+    if(modal) modal.classList.add('hidden');
+    try{ if(typeof window.showPage==='function') window.showPage('dashboard'); }catch(_){}
+    try{ if(typeof window.applyPermissions==='function') window.applyPermissions(); }catch(_){}
+  }
+  function err(msg){
+    const e=document.getElementById('login_error_box');
+    if(e){e.textContent=msg;e.classList.remove('hidden');}
+  }
+
+  window.toggleLoginPassword=function(){
+    const i=document.getElementById('login_pass');
+    const e=document.getElementById('login_pass_eye');
+    if(!i)return;
+    const show=i.type==='password';
+    i.type=show?'text':'password';
+    if(e)e.className=show?'fa-solid fa-eye-slash':'fa-solid fa-eye';
+  };
+
+  window.handleLogin=function(){
+    const u=(document.getElementById('login_user')?.value||'').trim();
+    const pass=document.getElementById('login_pass')?.value||'';
+    const e=document.getElementById('login_error_box');
+    if(e)e.classList.add('hidden');
+
+    if(!u||!pass){err('أدخل اسم المستخدم وكلمة المرور');return;}
+    if(u===ADMIN && pass===ADMIN_PASS){
+      setLocal();
+      openApp();
+      // Cloud auth is attempted after the UI is open, so network/auth problems
+      // cannot trap the administrator on the login screen.
+      const c=window.inkoreSupabase;
+      if(c?.auth){
+        c.auth.signInWithPassword({email:'admin@inkore.local',password:pass})
+          .then(({data,error})=>{
+            if(!error && data?.user){
+              localStorage.setItem(P+'currentUser',JSON.stringify({
+                id:data.user.id,username:'admin',role:'admin',cloud:true
+              }));
+              if(window.inkoreCloud){window.inkoreCloud.client=c;window.inkoreCloud.ready=true;}
+            }else console.warn('Supabase admin auth:',error);
+          }).catch(x=>console.warn('Supabase admin auth:',x));
+      }
+      return;
+    }
+
+    // Other users use the normal handler if already available.
+    if(typeof window.inkoreCloudLoginLegacy==='function'){
+      window.inkoreCloudLoginLegacy(u,pass).catch(()=>err('اسم المستخدم أو كلمة المرور غير صحيحة'));
+      return;
+    }
+    err('اسم المستخدم أو كلمة المرور غير صحيحة');
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){
+    const pass=document.getElementById('login_pass');
+    if(pass){
+      pass.addEventListener('keydown',function(ev){
+        if(ev.key==='Enter'){ev.preventDefault();window.handleLogin();}
+      });
+    }
+  });
+})();
+</script>
+
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col justify-between text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
 
@@ -177,14 +257,14 @@ window.addEventListener('load', () => {
           <label class="block font-bold text-slate-700 mb-1">كلمة المرور</label>
           <div class="relative">
             <input type="password" id="login_pass" value="" autocomplete="current-password" onkeydown="if(event.key==='Enter'){window.inkoreLoginFinal();}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-11 font-semibold focus:outline-indigo-500 text-slate-800">
-            <button type="button" onclick="toggleLoginPassword()" aria-label="إظهار كلمة المرور" title="إظهار/إخفاء كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base">
+            <button type="button" onclick="window.toggleLoginPassword()" aria-label="إظهار كلمة المرور" title="إظهار/إخفاء كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base">
               <i id="login_pass_eye" class="fa-solid fa-eye"></i>
             </button>
           </div>
         </div>
         
         <div class="pt-2">
-          <button onclick="window.inkoreLoginFinal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
+          <button onclick="window.handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
             تسجيل الدخول للنظام
           </button>
         </div>
@@ -3692,7 +3772,7 @@ function todayStr() {
   let attempts=0,lockedUntil=0,lastActivity=Date.now();
   window.toggleLoginPassword=function(){const i=document.getElementById('login_pass'),e=document.getElementById('login_pass_eye');if(!i)return;if(i.type==='password'){i.type='text';if(e)e.className='fa-solid fa-eye-slash';}else{i.type='password';if(e)e.className='fa-solid fa-eye';}};
   window.toggleNewUserPassword=function(){const i=document.getElementById('new_u_pass'),e=document.getElementById('new_u_pass_eye');if(!i)return;if(i.type==='password'){i.type='text';if(e)e.className='fa-solid fa-eye-slash';}else{i.type='password';if(e)e.className='fa-solid fa-eye';}};
-    window.handleLogin=async function(){
+    window.inkoreCloudLoginLegacy=async function(){
     if(Date.now()<lockedUntil)return alert('تم قفل تسجيل الدخول مؤقتًا بسبب محاولات فاشلة كثيرة.');
     const u=document.getElementById('login_user').value.trim();
     const p=document.getElementById('login_pass').value;
