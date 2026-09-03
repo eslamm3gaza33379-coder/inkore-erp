@@ -80,7 +80,11 @@ window.inkoreCloud = {
   async remove(table,id) { const {error}=await window.inkoreSupabase.from(table).delete().eq('id',id); if(error) throw error; },
   async migrateLocalStorage(companyId) {
     const db=window.db||{}; const jobs=[];
-    const maps={clients:['clients'],orders:['orders'],expenses:['expenses'],employees:['employees'],attendance:['attendance'],suppliers:['suppliers'],rawMaterials:['raw_materials'],stockMoves:['stock_moves'],fabricBatches:['fabric_batches'],supplierTransactions:['supplier_transactions'],bankDeposits:['bank_deposits']};
+    const maps={clients: [],
+      orders: [],
+      expenses:['expenses'],employees: [],
+      attendance:['attendance'],suppliers: [],
+      fabricBatches:['fabric_batches'],supplierTransactions:['supplier_transactions'],bankDeposits:['bank_deposits']};
     const keyMap={rawMaterials:'raw_materials',stockMoves:'stock_moves',fabricBatches:'fabric_batches',supplierTransactions:'supplier_transactions',bankDeposits:'bank_deposits'};
     for(const [src,dst] of Object.entries(maps)){ const arr=Array.isArray(db[src])?db[src]:[]; for(const item of arr){ const row={...item,company_id:companyId}; delete row._id; delete row.clientId; delete row.materialId; delete row.orderNum; jobs.push(window.inkoreSupabase.from(dst).upsert(row,{onConflict:'id'})); } }
     const res=await Promise.all(jobs); return res.length;
@@ -102,11 +106,28 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (window.inkoreSupabase) {
       const {data:{session}} = await window.inkoreSupabase.auth.getSession();
       if (session) {
-        try { await window.inkoreCloud.pullCore(false); } catch(e) { console.warn('Cloud bootstrap pull failed', e); }
+        try { await (window.inkoreCloud.pullAll ? window.inkoreCloud.pullAll(false) : window.inkoreCloud.pullCore(false)); } catch(e) { console.warn('Cloud bootstrap pull failed', e); }
       }
     }
   } catch(e) { console.warn('Cloud bootstrap failed', e); }
 });
+</script>
+
+
+<script id="inkore-clean-install">
+(function(){
+  const marker='inkore_clean_install_v1';
+  if(localStorage.getItem(marker)) return;
+  const keys=[
+    'assets','clients','orders','expenses','partners','electricity','employees','attendance',
+    'calenderOps','suppliers','fabricBatches','payrollClosings','treasuryClosings',
+    'supplierTransactions','bankDeposits','rawMaterials','stockMoves',
+    'cashbox','instapay','vodacash','bankAccount','company',
+    'cloudLastSync','cloudLastPull','migration_v3_done'
+  ];
+  for(const k of keys) localStorage.removeItem('inkore_v2_'+k);
+  localStorage.setItem(marker,'1');
+})();
 </script>
 
 </head>
@@ -1260,61 +1281,30 @@ window.addEventListener('DOMContentLoaded', async () => {
   <script>
     const defaultDB = {
       currentUser: { username: 'admin', role: 'admin' },
-      cashbox: 24500,
-      instapay: 41200,
-      vodacash: 15000,
+      cashbox: 0,
+      instapay: 0,
+      vodacash: 0,
       bankAccount: 0,
-      company: { name: "مطبعة inkore الحديثة للسبلميشن", logo: "", address: "المنطقة الصناعية - القاهرة، مصر", phone: "01000000000", inkCostPerLiter: 320, paperCosts: { "152": 18, "162": 18, "182": 18 }, wastePaperCostPerMeter: 0, sessionTimeoutMin: 30, maxLoginAttempts: 5 },
-      assets: [
-        { id: 1, name: "ماكينة طباعة 4 رؤوس i3200", totalPrice: 380000, paidPrice: 280000, remainingPrice: 100000, status: "تعمل بكفاءة ممتازة", payments: [] },
-        { id: 2, name: "كالندر كبس مستمر لباد 1.8م", totalPrice: 450000, paidPrice: 450000, remainingPrice: 0, status: "حالة ممتازة - لباد جديد", payments: [] }
-      ],
-      clients: [
-        { id: 1, code: 'CL-101', name: 'شركة النور للملابس', phone: '01011122233', debt: 14500 },
-        { id: 2, code: 'CL-102', name: 'مصنع الأهرام سبورت', phone: '01122334455', debt: 32000 }
-      ],
-      orders: [
-        { id: 1, clientName: 'شركة النور للملابس', orderNum: 'INK-881', date: '2026-08-22', desc: 'ميلتون قطن بوليستر', linearMeters: 150, paperWidth: 152, useProtectPaper: true, inkMl: 2500, saleRate: 95, totalSale: 14250, profit: 8250, paid: 5000, due: 9250, steps: { design: true, print: true, press: true, delivered: false } },
-        { id: 2, clientName: 'شركة النور للملابس', orderNum: 'INK-890', date: '2026-08-28', desc: 'ديربي مضلع', linearMeters: 200, paperWidth: 152, useProtectPaper: true, inkMl: 0, saleRate: 40, totalSale: 8000, profit: 5000, paid: 2900, due: 5100, steps: { design: true, print: true, press: false, delivered: false } }
-      ],
-      expenses: [
-        { id: 1, date: '2026-09-01', amount: 450, desc: 'تيب حراري وبوفيه عمال', source: 'الصندوق (كاش)' },
-        { id: 2, date: '2026-09-02', amount: 1200, desc: 'صيانة ماكينة وفلاتر', source: 'إنستاباي' }
-      ],
-      partners: [
-        { id: 1, name: 'إسلام صبري', share: 50, agreedCapital: 600000, paidCapital: 450000, remainingCapital: 150000, withdrawals: 35000 },
-        { id: 2, name: 'الشريك الثاني', share: 50, agreedCapital: 600000, paidCapital: 600000, remainingCapital: 0, withdrawals: 30000 }
-      ],
-      electricity: [
-        { id: 1, date: '2026-08-25', location: 'عداد الكالندر والحرارة', amount: 3500, source: 'الصندوق (كاش)' }
-      ],
-      employees: [
-        { id: 1, name: 'محمود إبراهيم (فني كالندر)', role: 'فني كالندر', weeklySalary: 2200, otRate: 40, holidayPay: 200, advances: 300, actualPaid: 2100, carryOver: 200 },
-        { id: 2, name: 'سيد عبد العال (فني طباعة)', role: 'فني طباعة', weeklySalary: 2000, otRate: 40, holidayPay: 0, advances: 0, actualPaid: 2350, carryOver: 0 }
-      ],
-      attendance: [
-        { id: 1, date: '2026-09-01', empName: 'محمود إبراهيم (فني كالندر)', status: 'حاضر', lateMin: 0, ot: 2 },
-        { id: 2, date: '2026-09-01', empName: 'سيد عبد العال (فني طباعة)', status: 'تأخير', lateMin: 35, ot: 1 }
-      ],
-      calenderOps: [
-        { id: 1, clientName: 'شركة النور للملابس', fabric: 'ميلتون قطن بوليستر', paperM: 150, protectM: 150, fabricOut: 142, shrink: '5.3%', temp: 205, r1: 3.5, r2: 5.0, r3: 3.0, date: '2026-08-22' }
-      ],
-      suppliers: [
-        { id: 1, name: "شركة الأمل للاستيراد", material: "ورق سبلميشن كوري", rate: 18, totalInvoiced: 45000, totalPaid: 30000, remainingDue: 15000 }
-      ],
-      fabricBatches: [
-        { id: 1, code: 'INW-401', client: 'شركة النور للملابس', intakeType: 'ثوب', type: 'ميلتون معالج', color: 'أبيض', rolls: 10, pieces: 0, originalMeters: 1000, consumedMeters: 150, remainingMeters: 850 }
-      ],
+      company: { name: "", logo: "", address: "", phone: "", inkCostPerLiter: 0, paperCosts: { "152": 0, "162": 0, "182": 0 }, wastePaperCostPerMeter: 0, sessionTimeoutMin: 60, maxLoginAttempts: 5 },
+      assets: [],
+      clients: [],
+      orders: [],
+      expenses: [],
+      partners: [],
+      electricity: [],
+      employees: [],
+      attendance: [],
+      calenderOps: [],
+      suppliers: [],
+      fabricBatches: [],
       payrollClosings: [],
       treasuryClosings: [],
       supplierTransactions: [],
       bankDeposits: [],
-      rawMaterials: [{id:1,name:'ورق حماية',unit:'متر',qty:0,purchasePrice:0,minQty:10},{id:2,name:'حبر سبلميشن',unit:'لتر',qty:0,purchasePrice:0,minQty:1}],
+      rawMaterials: [],
       stockMoves: [],
       users: [
-        { id: 1, username: 'admin', passwordHash: '6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545', role: 'admin' },
-        { id: 2, username: 'client', passwordHash: 'a1f99682d44071c9324d3e0add7a671b61ecf8670c65ff533b9f879bc36de9ba', role: 'client', clientMatch: 'شركة النور للملابس' },
-        { id: 3, username: 'tech', passwordHash: '77da7125dbf623f1bed3659ae40435de6e763a9de6ff2e861dbda884a66c385e', role: 'custom', allowedCards: ['card_invoices', 'card_calender', 'card_fabric', 'card_attendance'] }
+        { id: 1, username: 'admin', passwordHash: '6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545', role: 'admin' }
       ]
     };
 
@@ -2811,7 +2801,10 @@ function todayStr() {
             <thead class="bg-slate-100"><tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الأمر</th><th class="p-2 border">العميل</th><th class="p-2 border">المتر الطولي</th><th class="p-2 border">القيمة</th><th class="p-2 border">المسدد</th><th class="p-2 border text-rose-600">المتبقي</th></tr></thead>
             <tbody>${orders.map(o => `<tr><td class="p-2 border font-mono">${o.date}</td><td class="p-2 border font-mono">${o.orderNum}</td><td class="p-2 border">${o.clientName}</td><td class="p-2 border font-mono">${o.linearMeters} م</td><td class="p-2 border font-mono">${fmt(o.totalSale)} ج.م</td><td class="p-2 border font-mono text-emerald-600">${fmt(o.paid)} ج.م</td><td class="p-2 border font-mono text-rose-600">${fmt(o.due)} ج.م</td></tr>`).join('')}</tbody>
           </table>
-        </body></html>
+        
+
+
+</body></html>
       `);
       win.document.close();
       setTimeout(() => win.print(), 500);
@@ -3767,6 +3760,462 @@ function todayStr() {
 })();
 
 </script>
+<script id="inkore-cloud-bridge-v3">
+(function(){
+  'use strict';
+  const PREFIX='inkore_v2_';
+  const CLOUD_KEYS=new Set([
+    'clients','orders','expenses','employees','attendance','payrollClosings',
+    'suppliers','supplierTransactions','rawMaterials','stockMoves','fabricBatches',
+    'bankDeposits','treasuryClosings','company'
+  ]);
+  const SKIP=new Set(['cloudLastSync','cloudLastPull','cloudMode','currentUser']);
+
+  function lsRead(k, fallback){
+    try{const v=localStorage.getItem(PREFIX+k);return v==null?fallback:JSON.parse(v);}catch(e){return fallback;}
+  }
+  function uuidLike(v){ return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(String(v||'')); }
+  function num(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
+  function d10(v){ return String(v||'').slice(0,10) || new Date().toISOString().slice(0,10); }
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+  function db(){return window.inkoreCloud?.client||null;}
+
+  async function companyFromProfile(){
+    const c=db(); if(!c) throw new Error('Supabase client غير جاهز');
+    const {data:u}=await c.auth.getUser();
+    const uid=u?.user?.id; if(!uid) throw new Error('غير مسجل الدخول بالسحابة');
+    const {data:p,error}=await c.from('profiles').select('company_id,role,username,active').eq('id',uid).maybeSingle();
+    if(error) throw error;
+    if(!p?.company_id) throw new Error('حساب المستخدم غير مرتبط بشركة');
+    return p.company_id;
+  }
+
+  async function upsertByName(table, company_id, localRow, map){
+    const c=db();
+    const name=localRow.name;
+    let q=c.from(table).select('id').eq('company_id',company_id).eq('name',name).limit(1);
+    const {data:found,error:qerr}=await q; if(qerr) throw qerr;
+    const row=map(localRow,company_id);
+    if(uuidLike(localRow.cloudId)) row.id=localRow.cloudId;
+    else if(found?.[0]?.id) row.id=found[0].id;
+    const {data,error}=await c.from(table).upsert(row,{onConflict:'id'}).select('id').single();
+    if(error) throw error;
+    localRow.cloudId=data.id;
+  }
+
+  async function pushAll(){
+    const c=db(); if(!c) return false;
+    const {data:{session}}=await c.auth.getSession(); if(!session) return false;
+    const company_id=await companyFromProfile();
+
+    // Clients
+    let clients=lsRead('clients',[]);
+    for(const x of clients.filter(x=>x?.name)){
+      await upsertByName('clients',company_id,x,(v,cid)=>({
+        company_id:cid,name:v.name,phone:v.phone||null,address:v.address||null,
+        email:v.email||null,notes:v.notes||null,
+        opening_balance:num(v.opening_balance??v.openingBalance),active:v.active!==false
+      }));
+    }
+    localStorage.setItem(PREFIX+'clients',JSON.stringify(clients));
+
+    // Employees
+    let employees=lsRead('employees',[]);
+    for(const x of employees.filter(x=>x?.name)){
+      const row={
+        company_id,name:x.name,phone:x.phone||null,
+        job_title:x.role||x.job_title||null,
+        weekly_base:num(x.weeklySalary??x.weekly_base),active:x.active!==false
+      };
+      let found;
+      if(uuidLike(x.cloudId)) found={id:x.cloudId};
+      else {
+        const q=await c.from('employees').select('id').eq('company_id',company_id).eq('name',x.name).limit(1);
+        if(q.error) throw q.error; found=q.data?.[0];
+      }
+      if(found?.id) row.id=found.id;
+      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; x.cloudId=r.data.id;
+    }
+    localStorage.setItem(PREFIX+'employees',JSON.stringify(employees));
+
+    // Suppliers
+    let suppliers=lsRead('suppliers',[]);
+    for(const x of suppliers.filter(x=>x?.name)){
+      await upsertByName('suppliers',company_id,x,(v,cid)=>({
+        company_id:cid,name:v.name,phone:v.phone||null,address:v.address||null,
+        notes:v.notes||null,opening_balance:num(v.opening_balance??v.openingBalance),
+        active:v.active!==false
+      }));
+    }
+    localStorage.setItem(PREFIX+'suppliers',JSON.stringify(suppliers));
+
+    // Raw materials
+    let materials=lsRead('rawMaterials',[]);
+    for(const x of materials.filter(x=>x?.name)){
+      const row={
+        company_id:company_id,sku:x.materialId||x.sku||null,name:x.name,
+        category:x.category||null,unit:x.unit||'متر',current_stock:num(x.qty??x.current_stock),
+        min_stock:num(x.minQty??x.min_stock),purchase_price:num(x.purchasePrice??x.purchase_price),
+        active:x.active!==false
+      };
+      let found;
+      if(uuidLike(x.cloudId)) found={id:x.cloudId};
+      else {
+        const q=await c.from('raw_materials').select('id').eq('company_id',company_id).eq('name',x.name).limit(1);
+        if(q.error) throw q.error; found=q.data?.[0];
+      }
+      if(found?.id) row.id=found.id;
+      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; x.cloudId=r.data.id;
+    }
+    localStorage.setItem(PREFIX+'rawMaterials',JSON.stringify(materials));
+
+    // Orders
+    let orders=lsRead('orders',[]);
+    const cByName=Object.fromEntries(clients.map(x=>[x.name,x.cloudId]).filter(x=>x[1]));
+    for(const x of orders){
+      let row={
+        company_id:company_id,client_id:x.clientId&&uuidLike(x.clientId)?x.clientId:(x.cloudClientId||cByName[x.clientName]||null),
+        invoice_no:x.orderNum||null,service:x.desc||null,order_date:d10(x.date),
+        meters:num(x.linearMeters),unit_price:num(x.saleRate),gross_total:num(x.grossSale),
+        discount:num(x.discount),final_total:num(x.totalSale),paid_total:num(x.paid),
+        due_total:num(x.due),ink_cost:num(x.inkCost),waste_paper_cost:num(x.wastePaperCost),
+        protective_paper_m:x.useProtectPaper?num(x.linearMeters):0,
+        protective_paper_cost:0,profit:num(x.profit),notes:x.notes||null,status:'open'
+      };
+      let found;
+      if(uuidLike(x.cloudId)) found={id:x.cloudId};
+      else if(x.orderNum){
+        const q=await c.from('orders').select('id,client_id').eq('company_id',company_id).eq('invoice_no',x.orderNum).limit(1);
+        if(q.error) throw q.error; found=q.data?.[0];
+      }
+      if(found?.id) row.id=found.id;
+      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; x.cloudId=r.data.id; x.cloudClientId=row.client_id;
+    }
+    localStorage.setItem(PREFIX+'orders',JSON.stringify(orders));
+
+    // Expenses
+    let expenses=lsRead('expenses',[]);
+    const accountNames={'cashbox':'الخزينة','instapay':'InstaPay','vodacash':'Vodafone Cash','bankAccount':'البنك'};
+    for(const x of expenses){
+      let account_id=null;
+      const source=x.source||x.paymentSource||x.account||'cashbox';
+      const names=[accountNames[source],source].filter(Boolean);
+      for(const name of names){
+        const q=await c.from('treasury_accounts').select('id').eq('company_id',company_id).eq('name',name).limit(1);
+        if(q.data?.[0]){account_id=q.data[0].id;break;}
+      }
+      const row={
+        company_id:company_id,category:x.category||'عام',amount:num(x.amount),
+        expense_date:d10(x.date||x.expenseDate),account_id,notes:x.notes||null,
+        receipt_path:x.receipt_path||x.receipt||null
+      };
+      let found;
+      if(uuidLike(x.cloudId)) found={id:x.cloudId};
+      else {
+        const q=await c.from('expenses').select('id').eq('company_id',company_id)
+          .eq('expense_date',row.expense_date).eq('category',row.category).eq('amount',row.amount).limit(1);
+        if(q.data?.[0]) found=q.data[0];
+      }
+      if(found?.id) row.id=found.id;
+      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; x.cloudId=r.data.id;
+    }
+    localStorage.setItem(PREFIX+'expenses',JSON.stringify(expenses));
+
+    // Attendance
+    for(const a of lsRead('attendance',[])){
+      const e=employees.find(x=>x.id==a.employeeId||x.name===a.empName);
+      if(!e?.cloudId) continue;
+      const row={
+        company_id:company_id,employee_id:e.cloudId,work_date:d10(a.date),
+        status:a.status==='حاضر'?'present':a.status==='غائب'?'absent':
+          a.status==='نصف يوم'?'half':a.status==='إجازة بإذن'?'leave':'late',
+        late_minutes:num(a.lateMin),overtime_minutes:Math.round(num(a.ot)*60),notes:a.notes||null
+      };
+      const r=await c.from('attendance').upsert(row,{onConflict:'employee_id,work_date'});
+      if(r.error) throw r.error;
+    }
+
+    // Payroll closings
+    for(const p of lsRead('payrollClosings',[])){
+      const e=employees.find(x=>x.id==p.employeeId||x.name===p.empName);
+      if(!e?.cloudId) continue;
+      const row={
+        company_id:company_id,employee_id:e.cloudId,
+        week_start:d10(p.weekStart||p.start),week_end:d10(p.weekEnd||p.end),
+        base_amount:num(p.baseAmount||p.base),
+        attendance_amount:num(p.attendanceAmount),absence_deduction:num(p.absenceDeduction),
+        half_day_deduction:num(p.halfDayDeduction),late_deduction:num(p.lateDeduction),
+        overtime_amount:num(p.overtimeAmount),holiday_allowance:num(p.holidayAllowance),
+        bonuses:num(p.bonuses),deductions:num(p.deductions),advances:num(p.advances),
+        gross_amount:num(p.grossAmount),net_amount:num(p.netAmount),paid_amount:num(p.paidAmount),
+        carry_over:num(p.carryOver),payment_method:p.paymentMethod||null,notes:p.notes||null
+      };
+      if(uuidLike(p.cloudId)) row.id=p.cloudId;
+      else {
+        const q=await c.from('payroll_closings').select('id').eq('employee_id',e.cloudId)
+          .eq('week_start',row.week_start).eq('week_end',row.week_end).limit(1);
+        if(q.data?.[0]) row.id=q.data[0].id;
+      }
+      const r=await c.from('payroll_closings').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; p.cloudId=r.data.id;
+    }
+
+    // Suppliers transactions
+    for(const t of lsRead('supplierTransactions',[])){
+      const s=suppliers.find(x=>x.id==t.supplierId||x.name===t.supplierName||x.name===t.supplier);
+      if(!s?.cloudId) continue;
+      const row={company_id:company_id,supplier_id:s.cloudId,tx_date:d10(t.date||t.tx_date),
+        tx_type:t.txType||t.type||'adjustment',amount:num(t.amount),notes:t.notes||null};
+      if(uuidLike(t.cloudId)) row.id=t.cloudId;
+      const r=await c.from('supplier_transactions').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; t.cloudId=r.data.id;
+    }
+    localStorage.setItem(PREFIX+'supplierTransactions',JSON.stringify(lsRead('supplierTransactions',[])));
+
+    // Stock moves
+    for(const m of lsRead('stockMoves',[])){
+      const material=materials.find(x=>x.cloudId===m.materialId || x.materialId===m.materialId || x.name===m.materialName);
+      if(!material?.cloudId) continue;
+      const typeMap={'إضافة':'in','دخول':'in','صرف':'out','خروج':'out','عكس صرف':'return','تسوية':'adjustment'};
+      const row={company_id:company_id,material_id:material.cloudId,move_date:m.date||new Date().toISOString(),
+        qty:num(m.qty),move_type:typeMap[m.type]||m.type||'adjustment',reference_type:'local',
+        reference_id:uuidLike(m.cloudRef)?m.cloudRef:null,notes:m.note||m.notes||null};
+      if(uuidLike(m.cloudId)) row.id=m.cloudId;
+      const r=await c.from('stock_moves').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; m.cloudId=r.data.id;
+    }
+    localStorage.setItem(PREFIX+'stockMoves',JSON.stringify(lsRead('stockMoves',[])));
+
+    // Fabric batches
+    for(const b of lsRead('fabricBatches',[])){
+      const row={company_id:company_id,client_id:cByName[b.clientName]||null,batch_no:b.batchNo||b.id?.toString(),
+        meters:num(b.meters||b.qty),received_date:d10(b.receivedDate||b.date),
+        status:b.status||'in_custody',notes:b.notes||null};
+      if(uuidLike(b.cloudId)) row.id=b.cloudId;
+      const r=await c.from('fabric_batches').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; b.cloudId=r.data.id;
+    }
+    localStorage.setItem(PREFIX+'fabricBatches',JSON.stringify(lsRead('fabricBatches',[])));
+
+    // Bank deposits
+    const accounts=await c.from('treasury_accounts').select('id,name,account_type').eq('company_id',company_id);
+    if(accounts.error) throw accounts.error;
+    const accByName=Object.fromEntries(accounts.data.map(a=>[a.name,a.id]));
+    const accByType=Object.fromEntries(accounts.data.map(a=>[a.account_type,a.id]));
+    for(const b of lsRead('bankDeposits',[])){
+      const row={company_id:company_id,source_account_id:b.sourceAccountId||accByName[b.source]||accByType[b.sourceType]||accByType.cash,
+        bank_account_id:b.bankAccountId||accByName['البنك']||accByType.bank,amount:num(b.amount),
+        deposit_date:d10(b.date||b.depositDate),notes:b.notes||null};
+      if(uuidLike(b.cloudId)) row.id=b.cloudId;
+      const r=await c.from('bank_deposits').upsert(row,{onConflict:'id'}).select('id').single();
+      if(r.error) throw r.error; b.cloudId=r.data.id;
+    }
+    localStorage.setItem(PREFIX+'bankDeposits',JSON.stringify(lsRead('bankDeposits',[])));
+
+    // Treasury balances (current snapshot)
+    const balances=[
+      ['الخزينة','cash',num(lsRead('cashbox',0))],
+      ['Vodafone Cash','vodafone',num(lsRead('vodacash',0))],
+      ['InstaPay','instapay',num(lsRead('instapay',0))],
+      ['البنك','bank',num(lsRead('bankAccount',0))]
+    ];
+    for(const [name,type,balance] of balances){
+      const q=await c.from('treasury_accounts').select('id').eq('company_id',company_id).eq('name',name).limit(1);
+      if(q.error)throw q.error;
+      if(q.data?.[0]){
+        const r=await c.from('treasury_accounts').update({current_balance:balance}).eq('id',q.data[0].id);
+        if(r.error)throw r.error;
+      }else{
+        const r=await c.from('treasury_accounts').insert({company_id:company_id,name,account_type:type,current_balance:balance});
+        if(r.error)throw r.error;
+      }
+    }
+
+    // App settings
+    const cLocal=lsRead('company',{});
+    const settings={
+      company_id:company_id,waste_paper_price:num(cLocal.wastePaperCostPerMeter),
+      paper_price_152:num(cLocal.paperCosts?.['152']),paper_price_162:num(cLocal.paperCosts?.['162']),
+      paper_price_182:num(cLocal.paperCosts?.['182']),invoice_prefix:cLocal.invoicePrefix||'INK-',
+      invoice_sequence:Math.max(1,num(cLocal.invoiceSeq)+1),
+      default_min_stock:num(cLocal.defaultMinStock),work_hours_per_day:num(cLocal.workHoursPerDay||8),
+      session_timeout_minutes:num(cLocal.sessionTimeoutMin||30),max_failed_attempts:num(cLocal.maxLoginAttempts||5)
+    };
+    const sr=await c.from('app_settings').upsert(settings,{onConflict:'company_id'}); if(sr.error)throw sr.error;
+
+    localStorage.setItem(PREFIX+'cloudLastSync',new Date().toISOString());
+    return true;
+  }
+
+  async function pullAll(show){
+    const c=db(); if(!c)return false;
+    const company_id=await companyFromProfile();
+
+    const clients=(await c.from('clients').select('*').eq('company_id',company_id).order('created_at',{ascending:false})).data||[];
+    localStorage.setItem(PREFIX+'clients',JSON.stringify(clients.map(x=>({
+      id:x.id,clientId:x.id,cloudId:x.id,name:x.name,phone:x.phone||'',address:x.address||'',
+      email:x.email||'',notes:x.notes||'',debt:0,opening_balance:x.opening_balance
+    }))));
+
+    const employees=(await c.from('employees').select('*').eq('company_id',company_id).order('name')).data||[];
+    localStorage.setItem(PREFIX+'employees',JSON.stringify(employees.map(x=>({
+      id:x.id,cloudId:x.id,name:x.name,phone:x.phone||'',role:x.job_title||'',
+      weeklySalary:x.weekly_base,active:x.active!==false
+    }))));
+
+    const suppliers=(await c.from('suppliers').select('*').eq('company_id',company_id).order('name')).data||[];
+    localStorage.setItem(PREFIX+'suppliers',JSON.stringify(suppliers.map(x=>({
+      id:x.id,cloudId:x.id,name:x.name,phone:x.phone||'',address:x.address||'',notes:x.notes||'',
+      opening_balance:x.opening_balance,active:x.active!==false
+    }))));
+
+    const mats=(await c.from('raw_materials').select('*').eq('company_id',company_id).order('name')).data||[];
+    localStorage.setItem(PREFIX+'rawMaterials',JSON.stringify(mats.map(x=>({
+      id:x.id,cloudId:x.id,materialId:x.sku||x.id,name:x.name,unit:x.unit,qty:x.current_stock,
+      minQty:x.min_stock,purchasePrice:x.purchase_price,active:x.active!==false
+    }))));
+
+    const orders=(await c.from('orders').select('*').eq('company_id',company_id).order('created_at',{ascending:false})).data||[];
+    const cli=clients;
+    localStorage.setItem(PREFIX+'orders',JSON.stringify(orders.map(o=>({
+      id:o.id,cloudId:o.id,clientId:o.client_id,
+      clientName:cli.find(c0=>c0.id===o.client_id)?.name||'',orderNum:o.invoice_no,date:o.order_date,
+      desc:o.service,linearMeters:o.meters,saleRate:o.unit_price,grossSale:o.gross_total,
+      discount:o.discount,totalSale:o.final_total,paid:o.paid_total,due:o.due_total,
+      profit:o.profit,useProtectPaper:num(o.protective_paper_m)>0,
+      paymentBreakdown:{cash:0,insta:0,voda:0}
+    }))));
+
+    const exp=(await c.from('expenses').select('*').eq('company_id',company_id).order('expense_date',{ascending:false})).data||[];
+    localStorage.setItem(PREFIX+'expenses',JSON.stringify(exp.map(e=>({
+      id:e.id,cloudId:e.id,category:e.category,amount:e.amount,date:e.expense_date,
+      notes:e.notes||'',receipt_path:e.receipt_path||''
+    }))));
+
+    const att=(await c.from('attendance').select('*,employees(name)').eq('company_id',company_id)).data||[];
+    localStorage.setItem(PREFIX+'attendance',JSON.stringify(att.map(a=>({
+      id:a.id,cloudId:a.id,date:a.work_date,employeeId:a.employee_id,
+      empName:a.employees?.name||'',status:a.status==='present'?'حاضر':a.status==='absent'?'غائب':
+      a.status==='half'?'نصف يوم':a.status==='leave'?'إجازة بإذن':'تأخير',
+      lateMin:a.late_minutes,ot:a.overtime_minutes/60
+    }))));
+
+    const pay=(await c.from('payroll_closings').select('*,employees(name)').eq('company_id',company_id)).data||[];
+    localStorage.setItem(PREFIX+'payrollClosings',JSON.stringify(pay.map(p=>({
+      id:p.id,cloudId:p.id,employeeId:p.employee_id,empName:p.employees?.name||'',
+      weekStart:p.week_start,weekEnd:p.week_end,baseAmount:p.base_amount,
+      attendanceAmount:p.attendance_amount,absenceDeduction:p.absence_deduction,
+      halfDayDeduction:p.half_day_deduction,lateDeduction:p.late_deduction,overtimeAmount:p.overtime_amount,
+      holidayAllowance:p.holiday_allowance,bonuses:p.bonuses,deductions:p.deductions,advances:p.advances,
+      grossAmount:p.gross_amount,netAmount:p.net_amount,paidAmount:p.paid_amount,carryOver:p.carry_over,
+      paymentMethod:p.payment_method,notes:p.notes||''
+    }))));
+
+    const st=(await c.from('stock_moves').select('*').eq('company_id',company_id)).data||[];
+    localStorage.setItem(PREFIX+'stockMoves',JSON.stringify(st.map(m=>({
+      id:m.id,cloudId:m.id,date:m.move_date,materialId:m.material_id,qty:m.qty,
+      type:m.move_type,note:m.notes||'',materialName:mats.find(mm=>mm.id===m.material_id)?.name||''
+    }))));
+
+    localStorage.setItem(PREFIX+'cloudLastPull',new Date().toISOString());
+    if(show) location.reload();
+    return true;
+  }
+
+  window.inkoreCloud.pushAll=pushAll;
+  window.inkoreCloud.pullAll=pullAll;
+
+  let timer=null, syncing=false;
+  async function queuedSync(){
+    if(syncing)return;
+    clearTimeout(timer);
+    timer=setTimeout(async()=>{
+      if(!window.inkoreCloud?.ready || !(await db().auth.getSession()).data.session)return;
+      syncing=true;
+      try{ await pushAll(); }
+      catch(e){ console.warn('inkore cloud sync:',e); }
+      finally{ syncing=false; }
+    },1200);
+  }
+
+  // Catch ALL ERP writes to localStorage and automatically mirror them to Supabase.
+  const nativeSet=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(key,value){
+    const result=nativeSet.call(this,key,value);
+    try{
+      if(this===localStorage && String(key).startsWith(PREFIX)){
+        const short=String(key).slice(PREFIX.length);
+        if(CLOUD_KEYS.has(short) && !SKIP.has(short)) queuedSync();
+      }
+    }catch(_){}
+    return result;
+  };
+
+  window.addEventListener('inkore:supabase-ready', async()=>{
+    try{
+      const s=await db().auth.getSession();
+      if(s.data.session){
+        await pullAll(false);
+        await pushAll();
+      }
+    }catch(e){console.warn('Cloud ready sync failed',e);}
+  });
+
+  // Initial one-time migration of existing browser data.
+  window.addEventListener('load',()=>{
+    setTimeout(async()=>{
+      try{
+        const s=await db()?.auth.getSession();
+        if(s?.data?.session && !localStorage.getItem(PREFIX+'migration_v3_done')){
+          await pushAll();
+          localStorage.setItem(PREFIX+'migration_v3_done','1');
+        }
+      }catch(e){console.warn('Initial migration:',e);}
+    },1800);
+  });
+})();
+</script>
+
+<script id="inkore-cloud-auth-fix">
+(function(){
+  const start = async () => {
+    const c = window.inkoreCloud?.client;
+    if (!c) return;
+    if (!c.__inkoreAuthHook) {
+      c.__inkoreAuthHook = true;
+      c.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          setTimeout(async () => {
+            try {
+              if (window.inkoreCloud.pullAll) await window.inkoreCloud.pullAll(false);
+              if (window.inkoreCloud.pushAll) await window.inkoreCloud.pushAll();
+            } catch (e) { console.warn('inkore cloud auth sync:', e); }
+          }, 300);
+        }
+      });
+    }
+    const oldLogin = window.inkoreCloud.cloudLoginByUsername;
+    if (oldLogin && !window.inkoreCloud.__cloudLoginV3) {
+      window.inkoreCloud.__cloudLoginV3 = true;
+      window.inkoreCloud.cloudLoginByUsername = async function(u,p){
+        const result = await oldLogin(u,p);
+        try {
+          if (window.inkoreCloud.pullAll) await window.inkoreCloud.pullAll(false);
+          if (window.inkoreCloud.pushAll) await window.inkoreCloud.pushAll();
+        } catch(e) { console.warn('inkore cloud login sync:',e); }
+        return result;
+      };
+    }
+  };
+  window.addEventListener('inkore:supabase-ready', start);
+  window.addEventListener('load', start);
+})();
+</script>
+
 </body>
 </html>
 
