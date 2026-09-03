@@ -49,13 +49,6 @@ window.inkoreSupabase = window.supabase && window.supabase.createClient
 window.inkoreOnline = !!window.inkoreSupabase;
 
 window.inkoreCloud = {
-  client: window.inkoreSupabase,
-  ready: !!window.inkoreSupabase,
-  async init() {
-    this.client = window.inkoreSupabase;
-    this.ready = !!this.client;
-    return this.ready;
-  },
   async signIn(email, password) {
     if (!window.inkoreSupabase) throw new Error('Supabase غير متاح');
     const {data,error}=await window.inkoreSupabase.auth.signInWithPassword({email,password});
@@ -87,11 +80,7 @@ window.inkoreCloud = {
   async remove(table,id) { const {error}=await window.inkoreSupabase.from(table).delete().eq('id',id); if(error) throw error; },
   async migrateLocalStorage(companyId) {
     const db=window.db||{}; const jobs=[];
-    const maps={clients: [],
-      orders: [],
-      expenses:['expenses'],employees: [],
-      attendance:['attendance'],suppliers: [],
-      fabricBatches:['fabric_batches'],supplierTransactions:['supplier_transactions'],bankDeposits:['bank_deposits']};
+    const maps={clients:['clients'],orders:['orders'],expenses:['expenses'],employees:['employees'],attendance:['attendance'],suppliers:['suppliers'],rawMaterials:['raw_materials'],stockMoves:['stock_moves'],fabricBatches:['fabric_batches'],supplierTransactions:['supplier_transactions'],bankDeposits:['bank_deposits']};
     const keyMap={rawMaterials:'raw_materials',stockMoves:'stock_moves',fabricBatches:'fabric_batches',supplierTransactions:'supplier_transactions',bankDeposits:'bank_deposits'};
     for(const [src,dst] of Object.entries(maps)){ const arr=Array.isArray(db[src])?db[src]:[]; for(const item of arr){ const row={...item,company_id:companyId}; delete row._id; delete row.clientId; delete row.materialId; delete row.orderNum; jobs.push(window.inkoreSupabase.from(dst).upsert(row,{onConflict:'id'})); } }
     const res=await Promise.all(jobs); return res.length;
@@ -100,250 +89,26 @@ window.inkoreCloud = {
 
 // Keep the existing local UI usable while the cloud connection is being rolled out.
 // Cloud-first auth can be enabled by calling window.inkoreEnableCloudAuth().
-window.dispatchEvent(new CustomEvent('inkore:supabase-ready', {detail:{client:window.inkoreSupabase}}));
-
 window.inkoreEnableCloudAuth = function(){
   if(!window.inkoreSupabase) return false;
   window.__INKORE_CLOUD_AUTH_ENABLED__=true;
   return true;
 };
 </script>
-
-<script id="inkore-production-boot">
-window.addEventListener('DOMContentLoaded', async () => {
-  try {
-    if (window.inkoreSupabase) {
-      const {data:{session}} = await window.inkoreSupabase.auth.getSession();
-      if (session) {
-        try { await (window.inkoreCloud.pullAll ? window.inkoreCloud.pullAll(false) : window.inkoreCloud.pullCore(false)); } catch(e) { console.warn('Cloud bootstrap pull failed', e); }
-      }
-    }
-  } catch(e) { console.warn('Cloud bootstrap failed', e); }
-});
-</script>
-
-
-<script id="inkore-clean-install">
+<script id="inkore-cloud-status-clean">
 (function(){
-  const marker='inkore_clean_install_v1';
+  window.inkoreCloudReady=function(){return !!(window.inkoreSupabase&&window.inkoreSupabase.auth);};
+})();
+</script>
+<script id="inkore-clean-start-final">
+(function(){
+  const marker="inkore_clean_start_final_v1";
   if(localStorage.getItem(marker)) return;
-  const keys=[
-    'assets','clients','orders','expenses','partners','electricity','employees','attendance',
-    'calenderOps','suppliers','fabricBatches','payrollClosings','treasuryClosings',
-    'supplierTransactions','bankDeposits','rawMaterials','stockMoves',
-    'cashbox','instapay','vodacash','bankAccount','company',
-    'cloudLastSync','cloudLastPull','migration_v3_done'
-  ];
-  for(const k of keys) localStorage.removeItem('inkore_v2_'+k);
-  localStorage.setItem(marker,'1');
+  const keys=["cashbox","instapay","vodacash","bankAccount","company","assets","clients","orders","expenses","partners","electricity","employees","attendance","calenderOps","suppliers","fabricBatches","payrollClosings","treasuryClosings","supplierTransactions","bankDeposits","rawMaterials","stockMoves","cloudLastSync","cloudLastPull","migration_v3_done","securityInitialized"];
+  for(const k of keys) localStorage.removeItem("inkore_v2_"+k);
+  localStorage.setItem(marker,"1");
 })();
 </script>
-
-
-<script id="inkore-cloud-diagnostic">
-window.addEventListener('load', () => {
-  window.inkoreCloudDiagnostic = function(){
-    return {
-      supabaseGlobal: !!window.supabase,
-      client: !!window.inkoreSupabase,
-      cloudClient: !!window.inkoreCloud?.client,
-      cloudReady: !!window.inkoreCloud?.ready,
-      url: window.INKORE_SUPABASE?.url || null
-    };
-  };
-});
-</script>
-
-
-<script id="inkore-standalone-login">
-(function(){
-  'use strict';
-
-  const PREFIX = 'inkore_v2_';
-  const ADMIN_USER = 'admin';
-  const ADMIN_PASS = 'Dida@2010';
-
-  function get(id){ return document.getElementById(id); }
-
-  function setCurrentUser(cloud){
-    let users = [];
-    try { users = JSON.parse(localStorage.getItem(PREFIX+'users') || '[]'); } catch(_){}
-    let user = users.find(x => x && x.username === ADMIN_USER) || {
-      id: 1, username: ADMIN_USER, role: 'admin'
-    };
-    localStorage.setItem(PREFIX+'currentUser', JSON.stringify({
-      ...user, username: ADMIN_USER, role: user.role || 'admin', cloud: !!cloud
-    }));
-  }
-
-  function openERP(){
-    const modal = get('login-modal');
-    if(modal){
-      modal.classList.add('hidden');
-      modal.style.display = 'none';
-    }
-    // Existing app normally has dashboard active by default.
-    const dashboard = get('page-dashboard');
-    if(dashboard){
-      document.querySelectorAll('.page-view').forEach(x => x.classList.remove('active'));
-      dashboard.classList.add('active');
-      dashboard.style.display = 'block';
-    }
-    try { if(typeof window.applyPermissions === 'function') window.applyPermissions(); } catch(_){}
-    try {
-      const label = get('current_logged_user_display');
-      if(label) label.textContent = 'المدير العام';
-    } catch(_){}
-  }
-
-  function showError(msg){
-    const box = get('login_error_box');
-    if(box){
-      box.textContent = msg;
-      box.classList.remove('hidden');
-      box.style.display = 'block';
-    }
-  }
-
-  function hideError(){
-    const box = get('login_error_box');
-    if(box){
-      box.classList.add('hidden');
-      box.style.display = '';
-      box.textContent = '';
-    }
-  }
-
-  function toggleEye(){
-    const input = get('login_pass');
-    const icon = get('login_pass_eye');
-    if(!input) return;
-    const show = input.type === 'password';
-    input.type = show ? 'text' : 'password';
-    if(icon){
-      icon.className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
-    }
-  }
-
-  async function tryCloudAdmin(){
-    try{
-      const c = window.inkoreSupabase;
-      if(!c || !c.auth) return false;
-      const result = await Promise.race([
-        c.auth.signInWithPassword({
-          email: 'admin@inkore.local',
-          password: ADMIN_PASS
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('cloud-timeout')), 6000))
-      ]);
-      if(result.error || !result.data || !result.data.user) return false;
-
-      let role = 'admin', company_id = null;
-      try{
-        const p = await c.from('profiles')
-          .select('role,company_id,active,username')
-          .eq('id', result.data.user.id)
-          .maybeSingle();
-        if(p.data){
-          if(p.data.active === false) return false;
-          role = p.data.role || 'admin';
-          company_id = p.data.company_id || null;
-        }
-      }catch(_){}
-
-      localStorage.setItem(PREFIX+'currentUser', JSON.stringify({
-        id: result.data.user.id,
-        username: 'admin',
-        role,
-        company_id,
-        cloud: true
-      }));
-      if(window.inkoreCloud){
-        window.inkoreCloud.client = c;
-        window.inkoreCloud.ready = true;
-      }
-      return true;
-    }catch(e){
-      console.warn('Supabase admin login deferred:', e);
-      return false;
-    }
-  }
-
-  async function login(){
-    const user = (get('login_user')?.value || '').trim();
-    const pass = get('login_pass')?.value || '';
-
-    hideError();
-
-    if(!user || !pass){
-      showError('أدخل اسم المستخدم وكلمة المرور');
-      return;
-    }
-
-    // Initial administrator: never block the ERP because of a cloud problem.
-    if(user === ADMIN_USER && pass === ADMIN_PASS){
-      setCurrentUser(false);
-      openERP();
-      const ok = await tryCloudAdmin();
-      if(ok){
-        try{
-          if(typeof window.inkoreCloud?.pullAll === 'function') await window.inkoreCloud.pullAll(false);
-        }catch(e){ console.warn('Cloud pull deferred:', e); }
-      }
-      return;
-    }
-
-    showError('اسم المستخدم أو كلمة المرور غير صحيحة');
-  }
-
-  window.inkoreLoginStandalone = login;
-  window.toggleLoginPassword = toggleEye;
-  window.handleLogin = login;
-
-  function bind(){
-    const eye = get('login_eye_btn');
-    const submit = get('login_submit_btn');
-    const pass = get('login_pass');
-
-    if(eye && !eye.dataset.inkoreBound){
-      eye.dataset.inkoreBound = '1';
-      eye.addEventListener('click', function(ev){
-        ev.preventDefault();
-        ev.stopPropagation();
-        toggleEye();
-      }, true);
-    }
-
-    if(submit && !submit.dataset.inkoreBound){
-      submit.dataset.inkoreBound = '1';
-      submit.addEventListener('click', function(ev){
-        ev.preventDefault();
-        ev.stopPropagation();
-        login();
-      }, true);
-    }
-
-    if(pass && !pass.dataset.inkoreBound){
-      pass.dataset.inkoreBound = '1';
-      pass.addEventListener('keydown', function(ev){
-        if(ev.key === 'Enter'){
-          ev.preventDefault();
-          ev.stopPropagation();
-          login();
-        }
-      }, true);
-    }
-  }
-
-  // The elements are parsed later in <body>, so bind after DOM is ready.
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', bind, {once:true});
-  }else{
-    bind();
-  }
-})();
-</script>
-
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col justify-between text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
 
@@ -367,15 +132,15 @@ window.addEventListener('load', () => {
         <div>
           <label class="block font-bold text-slate-700 mb-1">كلمة المرور</label>
           <div class="relative">
-            <input type="password" id="login_pass" value="" autocomplete="current-password" onkeydown="if(event.key==='Enter'){window.inkoreLoginFinal();}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-11 font-semibold focus:outline-indigo-500 text-slate-800">
-            <button type="button" id="login_eye_btn" aria-label="إظهار كلمة المرور" title="إظهار/إخفاء كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base">
+            <input type="password" id="login_pass" value="" autocomplete="current-password" onkeydown="if(event.key==='Enter'){handleLogin();}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-11 font-semibold focus:outline-indigo-500 text-slate-800">
+            <button type="button" onclick="toggleLoginPassword()" aria-label="إظهار كلمة المرور" title="إظهار/إخفاء كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base">
               <i id="login_pass_eye" class="fa-solid fa-eye"></i>
             </button>
           </div>
         </div>
         
         <div class="pt-2">
-          <button id="login_submit_btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
+          <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
             تسجيل الدخول للنظام
           </button>
         </div>
@@ -611,10 +376,10 @@ window.addEventListener('load', () => {
             </div>
             <div class="flex flex-col justify-center bg-slate-50 p-2.5 rounded-xl border border-slate-200">
               <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
-                <input type="checkbox" id="inv_need_protect_paper" onchange="calcLinearJobInvoice()" class="w-4 h-4 text-indigo-600 rounded">
+                <input type="checkbox" id="inv_need_protect_paper" onchange="calcLinearJobInvoice()" checked class="w-4 h-4 text-indigo-600 rounded">
                 <span>استهلاك ورق حماية</span>
               </label>
-              <span id="protect_paper_display" class="text-[11px] text-teal-700 font-bold mt-1">0 متر</span>
+              <span id="protect_paper_display" class="text-[11px] text-teal-700 font-bold mt-1">مطابق للسحب: 150 متر طولي</span><span id="inv_cost_preview" style="display:none" class="text-[11px] text-indigo-700 font-bold mt-1 block"></span>
             </div>
           </div>
 
@@ -1499,27 +1264,9 @@ window.addEventListener('load', () => {
       instapay: 0,
       vodacash: 0,
       bankAccount: 0,
-      company: { name: "", logo: "", address: "", phone: "", inkCostPerLiter: 0, paperCosts: { "152": 0, "162": 0, "182": 0 }, wastePaperCostPerMeter: 0, sessionTimeoutMin: 60, maxLoginAttempts: 5 },
-      assets: [],
-      clients: [],
-      orders: [],
-      expenses: [],
-      partners: [],
-      electricity: [],
-      employees: [],
-      attendance: [],
-      calenderOps: [],
-      suppliers: [],
-      fabricBatches: [],
-      payrollClosings: [],
-      treasuryClosings: [],
-      supplierTransactions: [],
-      bankDeposits: [],
-      rawMaterials: [],
-      stockMoves: [],
-      users: [
-        { id: 1, username: 'admin', passwordHash: '6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545', role: 'admin' }
-      ]
+      company: { name: "", logo: "", address: "", phone: "", inkCostPerLiter: 0, paperCosts: { "152": 0, "162": 0, "182": 0 }, wastePaperCostPerMeter: 0, sessionTimeoutMin: 60, maxLoginAttempts: 5, workDaysPerWeek: 6, workHoursPerDay: 8 },
+      assets: [], clients: [], orders: [], expenses: [], partners: [], electricity: [], employees: [], attendance: [], calenderOps: [], suppliers: [], fabricBatches: [], payrollClosings: [], treasuryClosings: [], supplierTransactions: [], bankDeposits: [], rawMaterials: [], stockMoves: [],
+      users: [ { id: 1, username: 'admin', passwordHash: '6be04c35d6a686bb4dfaeb7d40d7c277bbba9dd0894cc8e9a8caa729a48a4545', role: 'admin' } ]
     };
 
     // One-time repair for the local demo admin account. This fixes stale localStorage from older builds.
@@ -1733,7 +1480,7 @@ function todayStr() {
       const totalSale = Math.round(meters * rate);
 
       const needProtect = document.getElementById('inv_need_protect_paper').checked;
-      document.getElementById('protect_paper_display').innerText = needProtect ? `${meters} متر` : '0 متر';
+      document.getElementById('protect_paper_display').innerText = needProtect ? `مطابق للسحب: ${meters} متر طولي` : 'غير مستهلك';
 
       const cash = parseFloat(document.getElementById('inv_pay_cash').value) || 0;
       const insta = parseFloat(document.getElementById('inv_pay_insta').value) || 0;
@@ -3015,100 +2762,7 @@ function todayStr() {
             <thead class="bg-slate-100"><tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الأمر</th><th class="p-2 border">العميل</th><th class="p-2 border">المتر الطولي</th><th class="p-2 border">القيمة</th><th class="p-2 border">المسدد</th><th class="p-2 border text-rose-600">المتبقي</th></tr></thead>
             <tbody>${orders.map(o => `<tr><td class="p-2 border font-mono">${o.date}</td><td class="p-2 border font-mono">${o.orderNum}</td><td class="p-2 border">${o.clientName}</td><td class="p-2 border font-mono">${o.linearMeters} م</td><td class="p-2 border font-mono">${fmt(o.totalSale)} ج.م</td><td class="p-2 border font-mono text-emerald-600">${fmt(o.paid)} ج.م</td><td class="p-2 border font-mono text-rose-600">${fmt(o.due)} ج.م</td></tr>`).join('')}</tbody>
           </table>
-        
-
-
-
-<script id="inkore-final-cloud-and-protect-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const R=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):[];}catch(_){return[];}};
-  const W=(k,v)=>{try{localStorage.setItem(P+k,JSON.stringify(v));}catch(_){} };
-  const C=()=>window.inkoreSupabase || window.inkoreCloud?.client || null;
-
-  // Protective paper is a quantity-only toggle. It never contributes to cost or profit.
-  window.calcLinearJobInvoice=function(){
-    const meters=N(document.getElementById('inv_linear_meters')?.value);
-    const rate=N(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,N(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=N(document.getElementById('inv_pay_cash')?.value), insta=N(document.getElementById('inv_pay_insta')?.value), voda=N(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda, due=Math.max(0,total-paid);
-    const pp=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const disp=document.getElementById('protect_paper_display'); if(disp) disp.textContent=pp?`${meters} متر`:'0 متر';
-    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=typeof v==='number'?v.toLocaleString('ar-EG')+' ج.م':v;};
-    set('inv_disp_total',total); set('inv_disp_paid',paid); set('inv_disp_due',due);
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,needProtect:pp,ink:0,waste:0,wasteM:N(document.getElementById('inv_waste_paper_m')?.value),materialCost:0,profit:total};
-  };
-
-  async function cloudSyncNow(show){
-    const c=C(); if(!c) throw new Error('Supabase client غير متاح في الصفحة');
-    const {data:{session},error:se}=await c.auth.getSession();
-    if(se) throw se; if(!session) throw new Error('سجّل الدخول بحساب admin في السحابة أولاً');
-    const {data:profile,error:pe}=await c.from('profiles').select('company_id,role,active').eq('id',session.user.id).maybeSingle();
-    if(pe) throw pe; if(!profile?.company_id) throw new Error('حساب admin غير مرتبط بشركة');
-    const cid=profile.company_id;
-    const clients=R('clients'), employees=R('employees'), suppliers=R('suppliers'), materials=R('rawMaterials'), orders=R('orders'), expenses=R('expenses');
-    for(const x of clients.filter(x=>x?.name)){
-      let q=await c.from('clients').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,email:x.email||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('clients').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id; x.clientId=r.data.id;
-    }
-    W('clients',clients);
-    for(const x of employees.filter(x=>x?.name)){
-      let q=await c.from('employees').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,job_title:x.role||x.job_title||null,weekly_base:N(x.weeklySalary??x.weekly_base),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('employees',employees);
-    for(const x of suppliers.filter(x=>x?.name)){
-      let q=await c.from('suppliers').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('suppliers').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('suppliers',suppliers);
-    for(const x of materials.filter(x=>x?.name)){
-      let q=await c.from('raw_materials').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,sku:x.materialId||x.sku||null,name:x.name,category:x.category||null,unit:x.unit||'متر',current_stock:N(x.qty??x.current_stock),min_stock:N(x.minQty??x.min_stock),purchase_price:N(x.purchasePrice??x.purchase_price),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('rawMaterials',materials);
-    const cidByName=Object.fromEntries(clients.filter(x=>x.cloudId).map(x=>[x.name,x.cloudId]));
-    for(const o of orders){
-      const row={id:(o.cloudId&&String(o.cloudId).length>30)?o.cloudId:undefined,company_id:cid,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum||null,service:o.desc||null,order_date:String(o.date||'').slice(0,10)||new Date().toISOString().slice(0,10),meters:N(o.linearMeters),unit_price:N(o.saleRate),gross_total:N(o.grossSale??o.totalSale),discount:N(o.discount),final_total:N(o.totalSale),paid_total:N(o.paid),due_total:N(o.due),ink_cost:N(o.inkCost),waste_paper_cost:N(o.wastePaperCost),protective_paper_m:o.useProtectPaper?N(o.linearMeters):0,protective_paper_cost:0,profit:N(o.profit??o.totalSale),notes:o.notes||null,status:o.status||'open'};
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; o.cloudId=r.data.id;
-    }
-    W('orders',orders);
-    for(const e of expenses){
-      const row={id:(e.cloudId&&String(e.cloudId).length>30)?e.cloudId:undefined,company_id:cid,category:e.category||'عام',amount:N(e.amount),expense_date:String(e.date||e.expenseDate||'').slice(0,10)||new Date().toISOString().slice(0,10),notes:e.notes||null,receipt_path:e.receipt_path||null};
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; e.cloudId=r.data.id;
-    }
-    W('expenses',expenses);
-    // Ensure the standard treasury accounts exist; balances live in current_balance.
-    for(const [name,type] of [['الخزينة','cash'],['Vodafone Cash','vodafone'],['InstaPay','instapay'],['البنك','bank']]){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',cid).eq('name',name).limit(1); if(q.error)throw q.error;
-      if(!q.data?.length){const r=await c.from('treasury_accounts').insert({company_id:cid,name,account_type:type,current_balance:0});if(r.error)throw r.error;}
-    }
-    W('cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة البيانات مع Supabase بنجاح ✅');
-    return true;
-  }
-  window.inkoreCloud = window.inkoreCloud || {};
-  window.inkoreCloud.syncNow = cloudSyncNow;
-  window.inkoreCloud.pushAll = cloudSyncNow;
-
-  // Keep the visible sync button on the same authoritative function.
-  window.addEventListener('load',()=>{
-    const b=document.getElementById('inkore-cloud-sync-btn');
-    if(b){b.onclick=()=>cloudSyncNow(true).catch(e=>alert('فشل المزامنة: '+(e?.message||e)));}
-  });
-})();
-</script>
-
-</body></html>
+        </body></html>
       `);
       win.document.close();
       setTimeout(() => win.print(), 500);
@@ -3130,97 +2784,7 @@ function todayStr() {
             <div>مجموع الرواتب: ${document.getElementById('total_weekly_salaries_due').innerText}</div>
             <div>إجمالي المنصرف: ${document.getElementById('total_weekly_salaries_paid').innerText}</div>
           </div>
-        
-<script id="inkore-final-cloud-and-protect-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const R=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):[];}catch(_){return[];}};
-  const W=(k,v)=>{try{localStorage.setItem(P+k,JSON.stringify(v));}catch(_){} };
-  const C=()=>window.inkoreSupabase || window.inkoreCloud?.client || null;
-
-  // Protective paper is a quantity-only toggle. It never contributes to cost or profit.
-  window.calcLinearJobInvoice=function(){
-    const meters=N(document.getElementById('inv_linear_meters')?.value);
-    const rate=N(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,N(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=N(document.getElementById('inv_pay_cash')?.value), insta=N(document.getElementById('inv_pay_insta')?.value), voda=N(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda, due=Math.max(0,total-paid);
-    const pp=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const disp=document.getElementById('protect_paper_display'); if(disp) disp.textContent=pp?`${meters} متر`:'0 متر';
-    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=typeof v==='number'?v.toLocaleString('ar-EG')+' ج.م':v;};
-    set('inv_disp_total',total); set('inv_disp_paid',paid); set('inv_disp_due',due);
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,needProtect:pp,ink:0,waste:0,wasteM:N(document.getElementById('inv_waste_paper_m')?.value),materialCost:0,profit:total};
-  };
-
-  async function cloudSyncNow(show){
-    const c=C(); if(!c) throw new Error('Supabase client غير متاح في الصفحة');
-    const {data:{session},error:se}=await c.auth.getSession();
-    if(se) throw se; if(!session) throw new Error('سجّل الدخول بحساب admin في السحابة أولاً');
-    const {data:profile,error:pe}=await c.from('profiles').select('company_id,role,active').eq('id',session.user.id).maybeSingle();
-    if(pe) throw pe; if(!profile?.company_id) throw new Error('حساب admin غير مرتبط بشركة');
-    const cid=profile.company_id;
-    const clients=R('clients'), employees=R('employees'), suppliers=R('suppliers'), materials=R('rawMaterials'), orders=R('orders'), expenses=R('expenses');
-    for(const x of clients.filter(x=>x?.name)){
-      let q=await c.from('clients').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,email:x.email||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('clients').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id; x.clientId=r.data.id;
-    }
-    W('clients',clients);
-    for(const x of employees.filter(x=>x?.name)){
-      let q=await c.from('employees').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,job_title:x.role||x.job_title||null,weekly_base:N(x.weeklySalary??x.weekly_base),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('employees',employees);
-    for(const x of suppliers.filter(x=>x?.name)){
-      let q=await c.from('suppliers').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('suppliers').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('suppliers',suppliers);
-    for(const x of materials.filter(x=>x?.name)){
-      let q=await c.from('raw_materials').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,sku:x.materialId||x.sku||null,name:x.name,category:x.category||null,unit:x.unit||'متر',current_stock:N(x.qty??x.current_stock),min_stock:N(x.minQty??x.min_stock),purchase_price:N(x.purchasePrice??x.purchase_price),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('rawMaterials',materials);
-    const cidByName=Object.fromEntries(clients.filter(x=>x.cloudId).map(x=>[x.name,x.cloudId]));
-    for(const o of orders){
-      const row={id:(o.cloudId&&String(o.cloudId).length>30)?o.cloudId:undefined,company_id:cid,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum||null,service:o.desc||null,order_date:String(o.date||'').slice(0,10)||new Date().toISOString().slice(0,10),meters:N(o.linearMeters),unit_price:N(o.saleRate),gross_total:N(o.grossSale??o.totalSale),discount:N(o.discount),final_total:N(o.totalSale),paid_total:N(o.paid),due_total:N(o.due),ink_cost:N(o.inkCost),waste_paper_cost:N(o.wastePaperCost),protective_paper_m:o.useProtectPaper?N(o.linearMeters):0,protective_paper_cost:0,profit:N(o.profit??o.totalSale),notes:o.notes||null,status:o.status||'open'};
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; o.cloudId=r.data.id;
-    }
-    W('orders',orders);
-    for(const e of expenses){
-      const row={id:(e.cloudId&&String(e.cloudId).length>30)?e.cloudId:undefined,company_id:cid,category:e.category||'عام',amount:N(e.amount),expense_date:String(e.date||e.expenseDate||'').slice(0,10)||new Date().toISOString().slice(0,10),notes:e.notes||null,receipt_path:e.receipt_path||null};
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; e.cloudId=r.data.id;
-    }
-    W('expenses',expenses);
-    // Ensure the standard treasury accounts exist; balances live in current_balance.
-    for(const [name,type] of [['الخزينة','cash'],['Vodafone Cash','vodafone'],['InstaPay','instapay'],['البنك','bank']]){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',cid).eq('name',name).limit(1); if(q.error)throw q.error;
-      if(!q.data?.length){const r=await c.from('treasury_accounts').insert({company_id:cid,name,account_type:type,current_balance:0});if(r.error)throw r.error;}
-    }
-    W('cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة البيانات مع Supabase بنجاح ✅');
-    return true;
-  }
-  window.inkoreCloud = window.inkoreCloud || {};
-  window.inkoreCloud.syncNow = cloudSyncNow;
-  window.inkoreCloud.pushAll = cloudSyncNow;
-
-  // Keep the visible sync button on the same authoritative function.
-  window.addEventListener('load',()=>{
-    const b=document.getElementById('inkore-cloud-sync-btn');
-    if(b){b.onclick=()=>cloudSyncNow(true).catch(e=>alert('فشل المزامنة: '+(e?.message||e)));}
-  });
-})();
-</script>
-
-</body></html>
+        </body></html>
       `);
       win.document.close();
       setTimeout(() => win.print(), 500);
@@ -3242,97 +2806,7 @@ function todayStr() {
             <div class="text-emerald-700 font-black text-base border-t pt-2">صافي الربح الفعلي الحقيقي: ${document.getElementById('fin_net_profit').innerText}</div>
             <div class="text-rose-600 font-black text-base border-t pt-2">دين بالسوق لم يحصل: ${document.getElementById('fin_uncollected').innerText}</div>
           </div>
-        
-<script id="inkore-final-cloud-and-protect-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const R=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):[];}catch(_){return[];}};
-  const W=(k,v)=>{try{localStorage.setItem(P+k,JSON.stringify(v));}catch(_){} };
-  const C=()=>window.inkoreSupabase || window.inkoreCloud?.client || null;
-
-  // Protective paper is a quantity-only toggle. It never contributes to cost or profit.
-  window.calcLinearJobInvoice=function(){
-    const meters=N(document.getElementById('inv_linear_meters')?.value);
-    const rate=N(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,N(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=N(document.getElementById('inv_pay_cash')?.value), insta=N(document.getElementById('inv_pay_insta')?.value), voda=N(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda, due=Math.max(0,total-paid);
-    const pp=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const disp=document.getElementById('protect_paper_display'); if(disp) disp.textContent=pp?`${meters} متر`:'0 متر';
-    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=typeof v==='number'?v.toLocaleString('ar-EG')+' ج.م':v;};
-    set('inv_disp_total',total); set('inv_disp_paid',paid); set('inv_disp_due',due);
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,needProtect:pp,ink:0,waste:0,wasteM:N(document.getElementById('inv_waste_paper_m')?.value),materialCost:0,profit:total};
-  };
-
-  async function cloudSyncNow(show){
-    const c=C(); if(!c) throw new Error('Supabase client غير متاح في الصفحة');
-    const {data:{session},error:se}=await c.auth.getSession();
-    if(se) throw se; if(!session) throw new Error('سجّل الدخول بحساب admin في السحابة أولاً');
-    const {data:profile,error:pe}=await c.from('profiles').select('company_id,role,active').eq('id',session.user.id).maybeSingle();
-    if(pe) throw pe; if(!profile?.company_id) throw new Error('حساب admin غير مرتبط بشركة');
-    const cid=profile.company_id;
-    const clients=R('clients'), employees=R('employees'), suppliers=R('suppliers'), materials=R('rawMaterials'), orders=R('orders'), expenses=R('expenses');
-    for(const x of clients.filter(x=>x?.name)){
-      let q=await c.from('clients').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,email:x.email||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('clients').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id; x.clientId=r.data.id;
-    }
-    W('clients',clients);
-    for(const x of employees.filter(x=>x?.name)){
-      let q=await c.from('employees').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,job_title:x.role||x.job_title||null,weekly_base:N(x.weeklySalary??x.weekly_base),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('employees',employees);
-    for(const x of suppliers.filter(x=>x?.name)){
-      let q=await c.from('suppliers').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('suppliers').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('suppliers',suppliers);
-    for(const x of materials.filter(x=>x?.name)){
-      let q=await c.from('raw_materials').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,sku:x.materialId||x.sku||null,name:x.name,category:x.category||null,unit:x.unit||'متر',current_stock:N(x.qty??x.current_stock),min_stock:N(x.minQty??x.min_stock),purchase_price:N(x.purchasePrice??x.purchase_price),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('rawMaterials',materials);
-    const cidByName=Object.fromEntries(clients.filter(x=>x.cloudId).map(x=>[x.name,x.cloudId]));
-    for(const o of orders){
-      const row={id:(o.cloudId&&String(o.cloudId).length>30)?o.cloudId:undefined,company_id:cid,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum||null,service:o.desc||null,order_date:String(o.date||'').slice(0,10)||new Date().toISOString().slice(0,10),meters:N(o.linearMeters),unit_price:N(o.saleRate),gross_total:N(o.grossSale??o.totalSale),discount:N(o.discount),final_total:N(o.totalSale),paid_total:N(o.paid),due_total:N(o.due),ink_cost:N(o.inkCost),waste_paper_cost:N(o.wastePaperCost),protective_paper_m:o.useProtectPaper?N(o.linearMeters):0,protective_paper_cost:0,profit:N(o.profit??o.totalSale),notes:o.notes||null,status:o.status||'open'};
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; o.cloudId=r.data.id;
-    }
-    W('orders',orders);
-    for(const e of expenses){
-      const row={id:(e.cloudId&&String(e.cloudId).length>30)?e.cloudId:undefined,company_id:cid,category:e.category||'عام',amount:N(e.amount),expense_date:String(e.date||e.expenseDate||'').slice(0,10)||new Date().toISOString().slice(0,10),notes:e.notes||null,receipt_path:e.receipt_path||null};
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; e.cloudId=r.data.id;
-    }
-    W('expenses',expenses);
-    // Ensure the standard treasury accounts exist; balances live in current_balance.
-    for(const [name,type] of [['الخزينة','cash'],['Vodafone Cash','vodafone'],['InstaPay','instapay'],['البنك','bank']]){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',cid).eq('name',name).limit(1); if(q.error)throw q.error;
-      if(!q.data?.length){const r=await c.from('treasury_accounts').insert({company_id:cid,name,account_type:type,current_balance:0});if(r.error)throw r.error;}
-    }
-    W('cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة البيانات مع Supabase بنجاح ✅');
-    return true;
-  }
-  window.inkoreCloud = window.inkoreCloud || {};
-  window.inkoreCloud.syncNow = cloudSyncNow;
-  window.inkoreCloud.pushAll = cloudSyncNow;
-
-  // Keep the visible sync button on the same authoritative function.
-  window.addEventListener('load',()=>{
-    const b=document.getElementById('inkore-cloud-sync-btn');
-    if(b){b.onclick=()=>cloudSyncNow(true).catch(e=>alert('فشل المزامنة: '+(e?.message||e)));}
-  });
-})();
-</script>
-
-</body></html>
+        </body></html>
       `);
       win.document.close();
       setTimeout(() => win.print(), 500);
@@ -3361,97 +2835,7 @@ function todayStr() {
               }).join('')}
             </tbody>
           </table>
-        
-<script id="inkore-final-cloud-and-protect-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const R=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):[];}catch(_){return[];}};
-  const W=(k,v)=>{try{localStorage.setItem(P+k,JSON.stringify(v));}catch(_){} };
-  const C=()=>window.inkoreSupabase || window.inkoreCloud?.client || null;
-
-  // Protective paper is a quantity-only toggle. It never contributes to cost or profit.
-  window.calcLinearJobInvoice=function(){
-    const meters=N(document.getElementById('inv_linear_meters')?.value);
-    const rate=N(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,N(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=N(document.getElementById('inv_pay_cash')?.value), insta=N(document.getElementById('inv_pay_insta')?.value), voda=N(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda, due=Math.max(0,total-paid);
-    const pp=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const disp=document.getElementById('protect_paper_display'); if(disp) disp.textContent=pp?`${meters} متر`:'0 متر';
-    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=typeof v==='number'?v.toLocaleString('ar-EG')+' ج.م':v;};
-    set('inv_disp_total',total); set('inv_disp_paid',paid); set('inv_disp_due',due);
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,needProtect:pp,ink:0,waste:0,wasteM:N(document.getElementById('inv_waste_paper_m')?.value),materialCost:0,profit:total};
-  };
-
-  async function cloudSyncNow(show){
-    const c=C(); if(!c) throw new Error('Supabase client غير متاح في الصفحة');
-    const {data:{session},error:se}=await c.auth.getSession();
-    if(se) throw se; if(!session) throw new Error('سجّل الدخول بحساب admin في السحابة أولاً');
-    const {data:profile,error:pe}=await c.from('profiles').select('company_id,role,active').eq('id',session.user.id).maybeSingle();
-    if(pe) throw pe; if(!profile?.company_id) throw new Error('حساب admin غير مرتبط بشركة');
-    const cid=profile.company_id;
-    const clients=R('clients'), employees=R('employees'), suppliers=R('suppliers'), materials=R('rawMaterials'), orders=R('orders'), expenses=R('expenses');
-    for(const x of clients.filter(x=>x?.name)){
-      let q=await c.from('clients').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,email:x.email||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('clients').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id; x.clientId=r.data.id;
-    }
-    W('clients',clients);
-    for(const x of employees.filter(x=>x?.name)){
-      let q=await c.from('employees').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,job_title:x.role||x.job_title||null,weekly_base:N(x.weeklySalary??x.weekly_base),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('employees',employees);
-    for(const x of suppliers.filter(x=>x?.name)){
-      let q=await c.from('suppliers').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('suppliers').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('suppliers',suppliers);
-    for(const x of materials.filter(x=>x?.name)){
-      let q=await c.from('raw_materials').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,sku:x.materialId||x.sku||null,name:x.name,category:x.category||null,unit:x.unit||'متر',current_stock:N(x.qty??x.current_stock),min_stock:N(x.minQty??x.min_stock),purchase_price:N(x.purchasePrice??x.purchase_price),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('rawMaterials',materials);
-    const cidByName=Object.fromEntries(clients.filter(x=>x.cloudId).map(x=>[x.name,x.cloudId]));
-    for(const o of orders){
-      const row={id:(o.cloudId&&String(o.cloudId).length>30)?o.cloudId:undefined,company_id:cid,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum||null,service:o.desc||null,order_date:String(o.date||'').slice(0,10)||new Date().toISOString().slice(0,10),meters:N(o.linearMeters),unit_price:N(o.saleRate),gross_total:N(o.grossSale??o.totalSale),discount:N(o.discount),final_total:N(o.totalSale),paid_total:N(o.paid),due_total:N(o.due),ink_cost:N(o.inkCost),waste_paper_cost:N(o.wastePaperCost),protective_paper_m:o.useProtectPaper?N(o.linearMeters):0,protective_paper_cost:0,profit:N(o.profit??o.totalSale),notes:o.notes||null,status:o.status||'open'};
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; o.cloudId=r.data.id;
-    }
-    W('orders',orders);
-    for(const e of expenses){
-      const row={id:(e.cloudId&&String(e.cloudId).length>30)?e.cloudId:undefined,company_id:cid,category:e.category||'عام',amount:N(e.amount),expense_date:String(e.date||e.expenseDate||'').slice(0,10)||new Date().toISOString().slice(0,10),notes:e.notes||null,receipt_path:e.receipt_path||null};
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; e.cloudId=r.data.id;
-    }
-    W('expenses',expenses);
-    // Ensure the standard treasury accounts exist; balances live in current_balance.
-    for(const [name,type] of [['الخزينة','cash'],['Vodafone Cash','vodafone'],['InstaPay','instapay'],['البنك','bank']]){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',cid).eq('name',name).limit(1); if(q.error)throw q.error;
-      if(!q.data?.length){const r=await c.from('treasury_accounts').insert({company_id:cid,name,account_type:type,current_balance:0});if(r.error)throw r.error;}
-    }
-    W('cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة البيانات مع Supabase بنجاح ✅');
-    return true;
-  }
-  window.inkoreCloud = window.inkoreCloud || {};
-  window.inkoreCloud.syncNow = cloudSyncNow;
-  window.inkoreCloud.pushAll = cloudSyncNow;
-
-  // Keep the visible sync button on the same authoritative function.
-  window.addEventListener('load',()=>{
-    const b=document.getElementById('inkore-cloud-sync-btn');
-    if(b){b.onclick=()=>cloudSyncNow(true).catch(e=>alert('فشل المزامنة: '+(e?.message||e)));}
-  });
-})();
-</script>
-
-</body></html>
+        </body></html>
       `);
       win.document.close();
       setTimeout(() => win.print(), 500);
@@ -3478,7 +2862,7 @@ function todayStr() {
       const inkTotalCost = (inkMl / 1000) * inkCost;
       const totalCost = Math.round(paperTotalCost + inkTotalCost);
       const profit = totalSale - totalCost;
-      document.getElementById('protect_paper_display').innerText = needProtect ? `${fmt(meters)} متر` : '0 متر';
+      document.getElementById('protect_paper_display').innerText = needProtect ? `عرض ${width} سم — ${meters} م × ${fmt(paperCost)} = ${fmt(paperTotalCost)} ج.م تكلفة ورق` : 'غير مستهلك';
       const cash = parseFloat(document.getElementById('inv_pay_cash').value) || 0;
       const insta = parseFloat(document.getElementById('inv_pay_insta').value) || 0;
       const voda = parseFloat(document.getElementById('inv_pay_voda').value) || 0;
@@ -3487,7 +2871,8 @@ function todayStr() {
       document.getElementById('inv_disp_total').innerText = fmt(totalSale) + ' ج.م';
       document.getElementById('inv_disp_paid').innerText = fmt(paid) + ' ج.م';
       document.getElementById('inv_disp_due').innerText = fmt(due) + ' ج.م';
-      
+      const old = document.getElementById('inv_cost_preview');
+      if (old) old.innerText = `تكلفة الورق: ${fmt(paperTotalCost)} ج.م | الحبر: ${fmt(inkTotalCost)} ج.م | الربح التقديري: ${fmt(profit)} ج.م`;
     }
 
     function commitLinearInvoice() {
@@ -3606,97 +2991,7 @@ function todayStr() {
     }
     function printEmployeeAttendanceReportPage(){const name=document.getElementById('att_report_emp_page').value;if(!name)return alert('اعرض التقرير أولاً');printSimpleReport('تقرير حضور العامل - '+name,document.getElementById('employee_att_report_page').innerHTML);}
 
-    function printSimpleReport(title,html){const c=loadDB('company')||{};const w=window.open('','_blank','width=1000,height=800');w.document.write(`<html dir="rtl"><head><title>${title}</title><style>body{font-family:Arial;padding:30px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:right}</style></head><body><h1>${c.name||''}</h1><h2>${title}</h2>${html}
-<script id="inkore-final-cloud-and-protect-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const R=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):[];}catch(_){return[];}};
-  const W=(k,v)=>{try{localStorage.setItem(P+k,JSON.stringify(v));}catch(_){} };
-  const C=()=>window.inkoreSupabase || window.inkoreCloud?.client || null;
-
-  // Protective paper is a quantity-only toggle. It never contributes to cost or profit.
-  window.calcLinearJobInvoice=function(){
-    const meters=N(document.getElementById('inv_linear_meters')?.value);
-    const rate=N(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,N(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=N(document.getElementById('inv_pay_cash')?.value), insta=N(document.getElementById('inv_pay_insta')?.value), voda=N(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda, due=Math.max(0,total-paid);
-    const pp=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const disp=document.getElementById('protect_paper_display'); if(disp) disp.textContent=pp?`${meters} متر`:'0 متر';
-    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=typeof v==='number'?v.toLocaleString('ar-EG')+' ج.م':v;};
-    set('inv_disp_total',total); set('inv_disp_paid',paid); set('inv_disp_due',due);
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,needProtect:pp,ink:0,waste:0,wasteM:N(document.getElementById('inv_waste_paper_m')?.value),materialCost:0,profit:total};
-  };
-
-  async function cloudSyncNow(show){
-    const c=C(); if(!c) throw new Error('Supabase client غير متاح في الصفحة');
-    const {data:{session},error:se}=await c.auth.getSession();
-    if(se) throw se; if(!session) throw new Error('سجّل الدخول بحساب admin في السحابة أولاً');
-    const {data:profile,error:pe}=await c.from('profiles').select('company_id,role,active').eq('id',session.user.id).maybeSingle();
-    if(pe) throw pe; if(!profile?.company_id) throw new Error('حساب admin غير مرتبط بشركة');
-    const cid=profile.company_id;
-    const clients=R('clients'), employees=R('employees'), suppliers=R('suppliers'), materials=R('rawMaterials'), orders=R('orders'), expenses=R('expenses');
-    for(const x of clients.filter(x=>x?.name)){
-      let q=await c.from('clients').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,email:x.email||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('clients').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id; x.clientId=r.data.id;
-    }
-    W('clients',clients);
-    for(const x of employees.filter(x=>x?.name)){
-      let q=await c.from('employees').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,job_title:x.role||x.job_title||null,weekly_base:N(x.weeklySalary??x.weekly_base),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('employees',employees);
-    for(const x of suppliers.filter(x=>x?.name)){
-      let q=await c.from('suppliers').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('suppliers').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('suppliers',suppliers);
-    for(const x of materials.filter(x=>x?.name)){
-      let q=await c.from('raw_materials').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,sku:x.materialId||x.sku||null,name:x.name,category:x.category||null,unit:x.unit||'متر',current_stock:N(x.qty??x.current_stock),min_stock:N(x.minQty??x.min_stock),purchase_price:N(x.purchasePrice??x.purchase_price),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('rawMaterials',materials);
-    const cidByName=Object.fromEntries(clients.filter(x=>x.cloudId).map(x=>[x.name,x.cloudId]));
-    for(const o of orders){
-      const row={id:(o.cloudId&&String(o.cloudId).length>30)?o.cloudId:undefined,company_id:cid,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum||null,service:o.desc||null,order_date:String(o.date||'').slice(0,10)||new Date().toISOString().slice(0,10),meters:N(o.linearMeters),unit_price:N(o.saleRate),gross_total:N(o.grossSale??o.totalSale),discount:N(o.discount),final_total:N(o.totalSale),paid_total:N(o.paid),due_total:N(o.due),ink_cost:N(o.inkCost),waste_paper_cost:N(o.wastePaperCost),protective_paper_m:o.useProtectPaper?N(o.linearMeters):0,protective_paper_cost:0,profit:N(o.profit??o.totalSale),notes:o.notes||null,status:o.status||'open'};
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; o.cloudId=r.data.id;
-    }
-    W('orders',orders);
-    for(const e of expenses){
-      const row={id:(e.cloudId&&String(e.cloudId).length>30)?e.cloudId:undefined,company_id:cid,category:e.category||'عام',amount:N(e.amount),expense_date:String(e.date||e.expenseDate||'').slice(0,10)||new Date().toISOString().slice(0,10),notes:e.notes||null,receipt_path:e.receipt_path||null};
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; e.cloudId=r.data.id;
-    }
-    W('expenses',expenses);
-    // Ensure the standard treasury accounts exist; balances live in current_balance.
-    for(const [name,type] of [['الخزينة','cash'],['Vodafone Cash','vodafone'],['InstaPay','instapay'],['البنك','bank']]){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',cid).eq('name',name).limit(1); if(q.error)throw q.error;
-      if(!q.data?.length){const r=await c.from('treasury_accounts').insert({company_id:cid,name,account_type:type,current_balance:0});if(r.error)throw r.error;}
-    }
-    W('cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة البيانات مع Supabase بنجاح ✅');
-    return true;
-  }
-  window.inkoreCloud = window.inkoreCloud || {};
-  window.inkoreCloud.syncNow = cloudSyncNow;
-  window.inkoreCloud.pushAll = cloudSyncNow;
-
-  // Keep the visible sync button on the same authoritative function.
-  window.addEventListener('load',()=>{
-    const b=document.getElementById('inkore-cloud-sync-btn');
-    if(b){b.onclick=()=>cloudSyncNow(true).catch(e=>alert('فشل المزامنة: '+(e?.message||e)));}
-  });
-})();
-</script>
-
-</body></html>`);w.document.close();setTimeout(()=>w.print(),300);}
+    function printSimpleReport(title,html){const c=loadDB('company')||{};const w=window.open('','_blank','width=1000,height=800');w.document.write(`<html dir="rtl"><head><title>${title}</title><style>body{font-family:Arial;padding:30px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:right}</style></head><body><h1>${c.name||''}</h1><h2>${title}</h2>${html}</body></html>`);w.document.close();setTimeout(()=>w.print(),300);}
 
     function closeEmployeeWeek(id){
       const emps=loadDB('employees'),e=emps.find(x=>x.id==id);if(!e)return;const att=loadDB('attendance').filter(a=>a.empName===e.name);const otHours=att.reduce((n,a)=>n+(a.ot||0),0),otPay=Math.round(otHours*(e.otRate||0)),netDue=(e.weeklySalary||0)+otPay+(e.holidayPay||0)+(e.carryOver||0)-(e.advances||0),actualPaid=e.actualPaid!==undefined?e.actualPaid:netDue,diff=netDue-actualPaid;
@@ -3800,16 +3095,16 @@ function todayStr() {
     const main=document.querySelector('main')||document.body; const d=document.createElement('div'); d.id='page-inventory'; d.className='page-view max-w-7xl mx-auto px-6 py-8';
     d.innerHTML=`<button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline mb-3"><i class="fa-solid fa-arrow-right"></i> العودة للرئيسية</button>
     <div class="flex items-center justify-between mb-6"><h2 class="text-2xl font-black">مخزن الخامات</h2><button onclick="printInventoryReport()" class="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl"><i class="fa-solid fa-print ml-1"></i> طباعة تقرير المخزون</button></div>
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6"><div class="bg-white p-4 rounded-2xl border"><span class="text-xs text-slate-400">إجمالي قيمة المخزون</span><b id="inventory_total_value" class="block text-xl font-black mt-1">0 ج.م</b></div><div class="lg:col-span-3 bg-white p-4 rounded-2xl border"><div class="grid grid-cols-1 md:grid-cols-6 gap-2"><input id="raw_name" class="border p-2 rounded-lg" placeholder="اسم الخامة"><input id="raw_unit" class="border p-2 rounded-lg" placeholder="الوحدة"><input id="raw_qty" type="number" class="border p-2 rounded-lg" placeholder="الرصيد"><input id="raw_price" type="number" class="border p-2 rounded-lg" placeholder="سعر الشراء"><input id="raw_waste_pct" type="number" min="0" max="100" step="0.01" class="border p-2 rounded-lg font-bold text-amber-700" placeholder="نسبة الهالك %"><input id="raw_min" type="number" class="border p-2 rounded-lg" placeholder="حد التنبيه"><div class="md:col-span-6 text-[11px] bg-amber-50 border border-amber-200 rounded-lg p-2 text-amber-800 font-bold">نسبة الهالك تخص الخامة وتُستخدم عند حساب الكمية المطلوبة للإنتاج والتكلفة الفعلية للوحدة.</div><button onclick="saveRawMaterial()" class="bg-cyan-600 text-white font-bold rounded-lg md:col-span-6 py-2">حفظ / تحديث الخامة</button></div></div></div>
-    <div class="bg-white rounded-2xl border overflow-hidden"><table class="w-full text-right text-xs"><thead class="bg-slate-100"><tr><th class="p-3">الخامة</th><th class="p-3">الرصيد</th><th class="p-3">سعر الشراء</th><th class="p-3">قيمة المخزون</th><th class="p-3">الحالة</th><th class="p-3">الإجراءات</th></tr></thead><tbody id="raw_inventory_body"></tbody></table></div>`;
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6"><div class="bg-white p-4 rounded-2xl border"><span class="text-xs text-slate-400">إجمالي قيمة المخزون</span><b id="inventory_total_value" class="block text-xl font-black mt-1">0 ج.م</b></div><div class="lg:col-span-3 bg-white p-4 rounded-2xl border"><div class="grid grid-cols-1 md:grid-cols-5 gap-2"><input id="raw_name" class="border p-2 rounded-lg" placeholder="اسم الخامة"><input id="raw_unit" class="border p-2 rounded-lg" placeholder="الوحدة"><input id="raw_qty" type="number" class="border p-2 rounded-lg" placeholder="الرصيد"><input id="raw_price" type="number" class="border p-2 rounded-lg" placeholder="سعر الشراء"><input id="raw_waste_pct" type="number" min="0" max="100" step="0.01" class="border p-2 rounded-lg font-bold text-amber-700" placeholder="نسبة الهالك %"><input id="raw_min" type="number" class="border p-2 rounded-lg" placeholder="حد التنبيه"><button onclick="saveRawMaterial()" class="bg-cyan-600 text-white font-bold rounded-lg md:col-span-5 py-2">حفظ / تحديث الخامة</button></div></div></div>
+    <div class="bg-white rounded-2xl border overflow-hidden"><table class="w-full text-right text-xs"><thead class="bg-slate-100"><tr><th class="p-3">الخامة</th><th class="p-3">الرصيد</th><th class="p-3">سعر الشراء</th><th class="p-3 text-amber-700">الهالك %</th><th class="p-3">قيمة المخزون</th><th class="p-3">الحالة</th><th class="p-3">الإجراءات</th></tr></thead><tbody id="raw_inventory_body"></tbody></table></div>`;
     document.body.appendChild(d);
   }
-  window.saveRawMaterial=function(){ensureInventory();const id=document.getElementById('raw_edit_id')?.value||'';let items=arr('rawMaterials');const name=document.getElementById('raw_name').value.trim();if(!name)return alert('أدخل اسم الخامة');const qty=+document.getElementById('raw_qty').value||0,price=+document.getElementById('raw_price').value||0,wastePct=Math.min(100,Math.max(0,+document.getElementById('raw_waste_pct').value||0)),min=+document.getElementById('raw_min').value||0,unit=document.getElementById('raw_unit').value.trim()||'متر';if(id){const x=items.find(a=>a.id==id);if(x){x.name=name;x.unit=unit;x.qty=qty;x.purchasePrice=price;x.wastePct=wastePct;x.minQty=min;}}else items.push({id:Date.now(),name,unit,qty,purchasePrice:price,wastePct,minQty:(min || +((get('company')||{}).defaultMinStock)||0)});put('rawMaterials',items);['raw_name','raw_unit','raw_qty','raw_price','raw_waste_pct','raw_min'].forEach(i=>document.getElementById(i).value='');renderInventory();};
-  window.editRawMaterial=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;document.getElementById('raw_name').value=x.name;document.getElementById('raw_unit').value=x.unit;document.getElementById('raw_qty').value=x.qty;document.getElementById('raw_price').value=x.purchasePrice;document.getElementById('raw_waste_pct').value=x.wastePct||0;document.getElementById('raw_min').value=x.minQty;let h=document.getElementById('raw_edit_id');if(!h){h=document.createElement('input');h.type='hidden';h.id='raw_edit_id';document.getElementById('page-inventory').appendChild(h);}h.value=id;};
+  window.saveRawMaterial=function(){ensureInventory();const id=document.getElementById('raw_edit_id')?.value||'';let items=arr('rawMaterials');const name=document.getElementById('raw_name').value.trim();if(!name)return alert('أدخل اسم الخامة');const qty=+document.getElementById('raw_qty').value||0,price=+document.getElementById('raw_price').value||0,wastePct=Math.min(100,Math.max(0,+document.getElementById('raw_waste_pct').value||0)),min=+document.getElementById('raw_min').value||0,unit=document.getElementById('raw_unit').value.trim()||'متر';if(id){const x=items.find(a=>a.id==id);if(x){x.name=name;x.unit=unit;x.qty=qty;x.purchasePrice=price;x.wastePct=wastePct;x.waste_percent=wastePct;x.minQty=min;}}else items.push({id:Date.now(),materialId:'MAT-'+Date.now(),name,unit,qty,purchasePrice:price,wastePct,waste_percent:wastePct,minQty:(min || +((get('company')||{}).defaultMinStock)||0)});put('rawMaterials',items);['raw_name','raw_unit','raw_qty','raw_price','raw_waste_pct','raw_min'].forEach(i=>document.getElementById(i).value='');renderInventory();};
+  window.editRawMaterial=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;document.getElementById('raw_name').value=x.name;document.getElementById('raw_unit').value=x.unit;document.getElementById('raw_qty').value=x.qty;document.getElementById('raw_price').value=x.purchasePrice;document.getElementById('raw_waste_pct').value=x.wastePct??x.waste_percent??0;document.getElementById('raw_min').value=x.minQty;let h=document.getElementById('raw_edit_id');if(!h){h=document.createElement('input');h.type='hidden';h.id='raw_edit_id';document.getElementById('page-inventory').appendChild(h);}h.value=id;};
   window.deleteRawMaterial=function(id){if(!confirm('حذف الخامة؟'))return;put('rawMaterials',arr('rawMaterials').filter(x=>x.id!=id));renderInventory();};
   window.stockAdjustment=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;const q=parseFloat(prompt('كمية الإضافة/الخصم؟ استخدم رقمًا سالبًا للخصم','0'));if(isNaN(q)||q===0)return;try{stockMove(x.name,q,q>0?'إضافة':'تسوية','يدوي','تسوية مخزون');renderInventory();}catch(e){alert(e.message)}};
   window.showStockHistory=function(id){const x=arr('rawMaterials').find(a=>a.id==id);if(!x)return;const moves=arr('stockMoves').filter(m=>m.material===x.name);const html=`<table><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>المرجع</th><th>ملاحظات</th></tr>${moves.map(m=>`<tr><td>${m.date||'-'}</td><td>${esc(m.type||'-')}</td><td>${fmt(m.qty||0)} ${esc(x.unit)}</td><td>${esc(m.ref||'-')}</td><td>${esc(m.note||'-')}</td></tr>`).join('')||'<tr><td colspan="5">لا توجد حركات</td></tr>'}</table>`;printSimpleReport('حركة مخزون - '+x.name,html)};
-  window.printInventoryReport=function(){const items=arr('rawMaterials');printSimpleReport('تقرير مخزن الخامات',`<table><tr><th>الخامة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الشراء</th><th>الهالك %</th><th>التكلفة الفعلية/وحدة</th><th>القيمة</th></tr>${items.map(x=>`<tr><td>${esc(x.name)}</td><td>${fmt(x.qty)}</td><td>${esc(x.unit)}</td><td>${money(x.purchasePrice)}</td><td>${fmt(x.wastePct||0)}%</td><td>${money((+x.purchasePrice||0)*(1+(+x.wastePct||0)/100))}</td><td>${money((+x.qty||0)*(+x.purchasePrice||0)}</td></tr>`).join('')}</table>`)};
+  window.printInventoryReport=function(){const items=arr('rawMaterials');printSimpleReport('تقرير مخزن الخامات',`<table><tr><th>الخامة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الشراء</th><th>الهالك %</th><th>القيمة</th></tr>${items.map(x=>`<tr><td>${esc(x.name)}</td><td>${fmt(x.qty)}</td><td>${esc(x.unit)}</td><td>${money(x.purchasePrice)}</td><td>${fmt(x.wastePct||x.waste_percent||0)}%</td><td>${money(x.qty*x.purchasePrice)}</td></tr>`).join('')}</table>`)};
 
   // ---------- Invoice calculation / save / delete ----------
   function invoiceCalc(){
@@ -3817,8 +3112,8 @@ function todayStr() {
     const gross=Math.round(meters*rate),final=Math.max(0,gross-discount);const cash=Math.max(0,+document.getElementById('inv_pay_cash').value||0),insta=Math.max(0,+document.getElementById('inv_pay_insta').value||0),voda=Math.max(0,+document.getElementById('inv_pay_voda').value||0),paid=cash+insta+voda,due=Math.max(0,final-paid);
     const wasteM=Math.max(0,+document.getElementById('inv_waste_paper_m')?.value||0),wasteRate=Math.max(0,+((get('company')||{}).wastePaperCostPerMeter)||0),inkMl=Math.max(0,+document.getElementById('inv_ink_ml').value||0),inkRate=Math.max(0,+((get('company')||{}).inkCostPerLiter)||0),materialCost=(wasteM*wasteRate)+(inkMl/1000*inkRate);
     document.getElementById('inv_disp_total').innerText=money(final);document.getElementById('inv_disp_paid').innerText=money(paid);document.getElementById('inv_disp_due').innerText=money(due);
-    const pp=document.getElementById('protect_paper_display');if(pp)pp.innerText=document.getElementById('inv_need_protect_paper').checked?`سيتم خصم ${fmt(meters)} متر من مخزون ورق الحماية فقط`:'غير مستخدم';
-    
+    const pp=document.getElementById('protect_paper_display');if(pp)pp.innerText=document.getElementById('inv_need_protect_paper').checked?`${fmt(meters)} متر`:'0 متر';
+    const old=document.getElementById('inv_cost_preview');if(old)old.innerText=`تكلفة خامات محسوبة: ${money(materialCost)} (حبر + هالك ورق) — ورق الحماية خصم مخزون فقط`;
   }
   window.calcLinearJobInvoice=invoiceCalc;
   window.resetInvoiceForm=function(){document.getElementById('edit_order_id').value='';document.getElementById('inv_discount').value=0;document.getElementById('inv_service_desc').value='طباعة وكبس ميلتون بوليستر';document.getElementById('inv_linear_meters').value=0;document.getElementById('inv_ink_ml').value=0;document.getElementById('inv_waste_paper_m').value=0;document.getElementById('inv_pay_cash').value=0;document.getElementById('inv_pay_insta').value=0;document.getElementById('inv_pay_voda').value=0;document.getElementById('inv_need_protect_paper').checked=false;document.getElementById('btn_save_order').innerText='اعتماد وحفظ الفاتورة';invoiceCalc();setInvoiceSeqDisplay();};
@@ -3883,7 +3178,7 @@ function todayStr() {
   let attempts=0,lockedUntil=0,lastActivity=Date.now();
   window.toggleLoginPassword=function(){const i=document.getElementById('login_pass'),e=document.getElementById('login_pass_eye');if(!i)return;if(i.type==='password'){i.type='text';if(e)e.className='fa-solid fa-eye-slash';}else{i.type='password';if(e)e.className='fa-solid fa-eye';}};
   window.toggleNewUserPassword=function(){const i=document.getElementById('new_u_pass'),e=document.getElementById('new_u_pass_eye');if(!i)return;if(i.type==='password'){i.type='text';if(e)e.className='fa-solid fa-eye-slash';}else{i.type='password';if(e)e.className='fa-solid fa-eye';}};
-    window.inkoreCloudLoginLegacy=async function(){
+    window.handleLogin=async function(){
     if(Date.now()<lockedUntil)return alert('تم قفل تسجيل الدخول مؤقتًا بسبب محاولات فاشلة كثيرة.');
     const u=document.getElementById('login_user').value.trim();
     const p=document.getElementById('login_pass').value;
@@ -3913,12 +3208,6 @@ function todayStr() {
         attempts=0;
         alert('تم قفل الدخول 5 دقائق.');
       }
-      return;
-    }
-
-    if(!passwordStrong(p)){
-      err.innerText='كلمة المرور يجب أن تكون 8 أحرف على الأقل وتحتوي حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.';
-      err.classList.remove('hidden');
       return;
     }
 
@@ -4028,7 +3317,7 @@ function todayStr() {
     for(const a of r('attendance',[])){const e=emps.find(x=>x.id==a.employeeId||x.name===a.empName);if(!e?.cloudId)continue;const row={company_id:companyId,employee_id:e.cloudId,work_date:date(a.date),status:a.status==='حاضر'?'present':a.status==='غائب'?'absent':a.status==='نصف يوم'?'half':a.status==='إجازة بإذن'?'leave':'late',late_minutes:n(a.lateMin),overtime_minutes:Math.round(n(a.ot)*60),notes:a.notes||null};const {error}=await cloud().from('attendance').upsert(row,{onConflict:'employee_id,work_date'});if(error)throw error;}
   }
   async function pushRawMaterials(){
-    for(const m of r('rawMaterials',[])){const row={id:(String(m.cloudId||m.materialId||m.id).length>30?m.cloudId:undefined),company_id:companyId,sku:m.materialId||null,name:m.name,unit:m.unit||'متر',current_stock:n(m.qty),min_stock:n(m.minQty),purchase_price:n(m.purchasePrice),active:m.active!==false};const {data,error}=await cloud().from('raw_materials').upsert(row,{onConflict:'id'}).select('id').maybeSingle();if(error)throw error;if(data)m.cloudId=data.id;}w('rawMaterials',r('rawMaterials',[]));
+    for(const m of r('rawMaterials',[])){const row={id:(String(m.cloudId||m.materialId||m.id).length>30?m.cloudId:undefined),company_id:companyId,sku:m.materialId||null,name:m.name,unit:m.unit||'متر',current_stock:n(m.qty),min_stock:n(m.minQty),purchase_price:n(m.purchasePrice),waste_percent:n(m.wastePct||m.waste_percent),active:m.active!==false};const {data,error}=await cloud().from('raw_materials').upsert(row,{onConflict:'id'}).select('id').maybeSingle();if(error)throw error;if(data)m.cloudId=data.id;}w('rawMaterials',r('rawMaterials',[]));
   }
   async function pushTreasury(){
     const names=[['الخزينة','cash'],['الصندوق (كاش)','cash'],['Vodafone Cash','vodafone'],['فودافون كاش','vodafone'],['InstaPay','instapay'],['إنستاباي','instapay'],['البنك','bank'],['الحساب البنكي','bank']];
@@ -4136,9 +3425,6 @@ function todayStr() {
     write('clients', clients);
 
     let materials = Array.isArray(read('rawMaterials', [])) ? read('rawMaterials', []) : [];
-    if (!materials.some(m => String(m.name||'').trim() === 'ورق حماية')) {
-      materials.unshift({id:Date.now()+1,materialId:'MAT-PROTECT',name:'ورق حماية',unit:'متر',qty:0,purchasePrice:0,minQty:10,type:'protective-paper'});
-    }
     materials = materials.map((m,i)=>{m.id=m.id??Date.now()+i+10;if(String(m.name||'').trim()==='ورق حماية')m.materialId='MAT-PROTECT';else m.materialId=m.materialId||('MAT-'+String(m.id).padStart(6,'0'));m.qty=num(m.qty);m.purchasePrice=num(m.purchasePrice);m.minQty=Number.isFinite(Number(m.minQty))?num(m.minQty):num(company.defaultMinStock);return m;});
     write('rawMaterials', materials);
 
@@ -4196,7 +3482,8 @@ function todayStr() {
   }
 
   function stockMoveF(materialIdOrName, qty, type, ref, note, meta={}){
-    const mats=read('rawMaterials',[]); const m=mats.find(x=>x.materialId===materialIdOrName || String(x.name).trim()===String(materialIdOrName).trim() || x.id==materialIdOrName);
+    const mats=read('rawMaterials',[]); let m=mats.find(x=>x.materialId===materialIdOrName || String(x.name).trim()===String(materialIdOrName).trim() || x.id==materialIdOrName);
+    if(!m && String(materialIdOrName)==='MAT-PROTECT'){ m={id:Date.now(),materialId:'MAT-PROTECT',name:'ورق حماية',unit:'متر',qty:0,purchasePrice:0,minQty:0,wastePct:0}; mats.push(m); }
     if(!m) throw new Error('الخامة غير موجودة بالمخزون: '+materialIdOrName);
     const next=m.qty+Number(qty||0);
     if(next < -0.0001) throw new Error('الرصيد غير كافٍ من '+m.name);
@@ -4235,97 +3522,7 @@ function todayStr() {
     const c=read('company',{});
     const w=window.open('','_blank','width=1100,height=850');
     if(!w)return alert('اسمح بفتح نافذة الطباعة من المتصفح.');
-    w.document.write(`<!doctype html><html dir=\"rtl\" lang=\"ar\"><head><meta charset=\"utf-8\"><title>${escF(title)}</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1,h2{margin:0 0 10px}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border:1px solid #ccc;padding:8px;text-align:right}th{background:#f3f4f6}.meta{color:#666;font-size:12px;margin-bottom:18px}@media print{body{padding:10mm}}</style></head><body><h1>${escF(c.name||'inkore ERP')}</h1><div class=\"meta\">${escF(c.address||'')} — ${escF(c.phone||'')}</div><h2>${escF(title)}</h2>${html}
-<script id="inkore-final-cloud-and-protect-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const R=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):[];}catch(_){return[];}};
-  const W=(k,v)=>{try{localStorage.setItem(P+k,JSON.stringify(v));}catch(_){} };
-  const C=()=>window.inkoreSupabase || window.inkoreCloud?.client || null;
-
-  // Protective paper is a quantity-only toggle. It never contributes to cost or profit.
-  window.calcLinearJobInvoice=function(){
-    const meters=N(document.getElementById('inv_linear_meters')?.value);
-    const rate=N(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,N(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=N(document.getElementById('inv_pay_cash')?.value), insta=N(document.getElementById('inv_pay_insta')?.value), voda=N(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda, due=Math.max(0,total-paid);
-    const pp=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const disp=document.getElementById('protect_paper_display'); if(disp) disp.textContent=pp?`${meters} متر`:'0 متر';
-    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=typeof v==='number'?v.toLocaleString('ar-EG')+' ج.م':v;};
-    set('inv_disp_total',total); set('inv_disp_paid',paid); set('inv_disp_due',due);
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,needProtect:pp,ink:0,waste:0,wasteM:N(document.getElementById('inv_waste_paper_m')?.value),materialCost:0,profit:total};
-  };
-
-  async function cloudSyncNow(show){
-    const c=C(); if(!c) throw new Error('Supabase client غير متاح في الصفحة');
-    const {data:{session},error:se}=await c.auth.getSession();
-    if(se) throw se; if(!session) throw new Error('سجّل الدخول بحساب admin في السحابة أولاً');
-    const {data:profile,error:pe}=await c.from('profiles').select('company_id,role,active').eq('id',session.user.id).maybeSingle();
-    if(pe) throw pe; if(!profile?.company_id) throw new Error('حساب admin غير مرتبط بشركة');
-    const cid=profile.company_id;
-    const clients=R('clients'), employees=R('employees'), suppliers=R('suppliers'), materials=R('rawMaterials'), orders=R('orders'), expenses=R('expenses');
-    for(const x of clients.filter(x=>x?.name)){
-      let q=await c.from('clients').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,email:x.email||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('clients').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id; x.clientId=r.data.id;
-    }
-    W('clients',clients);
-    for(const x of employees.filter(x=>x?.name)){
-      let q=await c.from('employees').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,job_title:x.role||x.job_title||null,weekly_base:N(x.weeklySalary??x.weekly_base),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('employees',employees);
-    for(const x of suppliers.filter(x=>x?.name)){
-      let q=await c.from('suppliers').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('suppliers').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('suppliers',suppliers);
-    for(const x of materials.filter(x=>x?.name)){
-      let q=await c.from('raw_materials').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,sku:x.materialId||x.sku||null,name:x.name,category:x.category||null,unit:x.unit||'متر',current_stock:N(x.qty??x.current_stock),min_stock:N(x.minQty??x.min_stock),purchase_price:N(x.purchasePrice??x.purchase_price),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('rawMaterials',materials);
-    const cidByName=Object.fromEntries(clients.filter(x=>x.cloudId).map(x=>[x.name,x.cloudId]));
-    for(const o of orders){
-      const row={id:(o.cloudId&&String(o.cloudId).length>30)?o.cloudId:undefined,company_id:cid,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum||null,service:o.desc||null,order_date:String(o.date||'').slice(0,10)||new Date().toISOString().slice(0,10),meters:N(o.linearMeters),unit_price:N(o.saleRate),gross_total:N(o.grossSale??o.totalSale),discount:N(o.discount),final_total:N(o.totalSale),paid_total:N(o.paid),due_total:N(o.due),ink_cost:N(o.inkCost),waste_paper_cost:N(o.wastePaperCost),protective_paper_m:o.useProtectPaper?N(o.linearMeters):0,protective_paper_cost:0,profit:N(o.profit??o.totalSale),notes:o.notes||null,status:o.status||'open'};
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; o.cloudId=r.data.id;
-    }
-    W('orders',orders);
-    for(const e of expenses){
-      const row={id:(e.cloudId&&String(e.cloudId).length>30)?e.cloudId:undefined,company_id:cid,category:e.category||'عام',amount:N(e.amount),expense_date:String(e.date||e.expenseDate||'').slice(0,10)||new Date().toISOString().slice(0,10),notes:e.notes||null,receipt_path:e.receipt_path||null};
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; e.cloudId=r.data.id;
-    }
-    W('expenses',expenses);
-    // Ensure the standard treasury accounts exist; balances live in current_balance.
-    for(const [name,type] of [['الخزينة','cash'],['Vodafone Cash','vodafone'],['InstaPay','instapay'],['البنك','bank']]){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',cid).eq('name',name).limit(1); if(q.error)throw q.error;
-      if(!q.data?.length){const r=await c.from('treasury_accounts').insert({company_id:cid,name,account_type:type,current_balance:0});if(r.error)throw r.error;}
-    }
-    W('cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة البيانات مع Supabase بنجاح ✅');
-    return true;
-  }
-  window.inkoreCloud = window.inkoreCloud || {};
-  window.inkoreCloud.syncNow = cloudSyncNow;
-  window.inkoreCloud.pushAll = cloudSyncNow;
-
-  // Keep the visible sync button on the same authoritative function.
-  window.addEventListener('load',()=>{
-    const b=document.getElementById('inkore-cloud-sync-btn');
-    if(b){b.onclick=()=>cloudSyncNow(true).catch(e=>alert('فشل المزامنة: '+(e?.message||e)));}
-  });
-})();
-</script>
-
-</body></html>`);
+    w.document.write(`<!doctype html><html dir=\"rtl\" lang=\"ar\"><head><meta charset=\"utf-8\"><title>${escF(title)}</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1,h2{margin:0 0 10px}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border:1px solid #ccc;padding:8px;text-align:right}th{background:#f3f4f6}.meta{color:#666;font-size:12px;margin-bottom:18px}@media print{body{padding:10mm}}</style></head><body><h1>${escF(c.name||'inkore ERP')}</h1><div class=\"meta\">${escF(c.address||'')} — ${escF(c.phone||'')}</div><h2>${escF(title)}</h2>${html}</body></html>`);
     w.document.close(); setTimeout(()=>w.print(),350);
   };
 
@@ -4354,8 +3551,8 @@ function todayStr() {
     const waste=wasteM*num(c.wastePaperCostPerMeter);
     const materialCost=Math.round(ink+waste); const profit=total-materialCost;
     const need=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const pr=document.getElementById('protect_paper_display');if(pr)pr.textContent=need?`${fmtF(meters)} متر`:'0 متر';
-    
+    const pr=document.getElementById('protect_paper_display');if(pr)pr.textContent=need?`تفعيل: سيتم خصم ${fmtF(meters)} م من مخزون ورق الحماية فقط`:'غير مستخدم — لا يوجد خصم من المخزون';
+    const preview=document.getElementById('inv_cost_preview');if(preview)preview.textContent=`تكلفة الحبر: ${moneyF(ink)} | تكلفة الورق الهالك: ${moneyF(waste)} | الربح بعد الخصم: ${moneyF(profit)} | ورق الحماية: خارج التكلفة والربح`;
     ['inv_disp_total','inv_disp_paid','inv_disp_due'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=moneyF([total,paid,due][i]);});
     return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,ink,wasteM,waste,materialCost,profit,need};
   };
@@ -4513,650 +3710,6 @@ function todayStr() {
 })();
 
 </script>
-<script id="inkore-cloud-bridge-v3">
-(function(){
-  'use strict';
-  const PREFIX='inkore_v2_';
-  const CLOUD_KEYS=new Set([
-    'clients','orders','expenses','employees','attendance','payrollClosings',
-    'suppliers','supplierTransactions','rawMaterials','stockMoves','fabricBatches',
-    'bankDeposits','treasuryClosings','company'
-  ]);
-  const SKIP=new Set(['cloudLastSync','cloudLastPull','cloudMode','currentUser']);
-
-  function lsRead(k, fallback){
-    try{const v=localStorage.getItem(PREFIX+k);return v==null?fallback:JSON.parse(v);}catch(e){return fallback;}
-  }
-  function uuidLike(v){ return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(String(v||'')); }
-  function num(v){ const x=Number(v); return Number.isFinite(x)?x:0; }
-  function d10(v){ return String(v||'').slice(0,10) || new Date().toISOString().slice(0,10); }
-  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
-  function db(){return window.inkoreCloud?.client||null;}
-
-  async function companyFromProfile(){
-    const c=db(); if(!c) throw new Error('Supabase client غير جاهز');
-    const {data:u}=await c.auth.getUser();
-    const uid=u?.user?.id; if(!uid) throw new Error('غير مسجل الدخول بالسحابة');
-    const {data:p,error}=await c.from('profiles').select('company_id,role,username,active').eq('id',uid).maybeSingle();
-    if(error) throw error;
-    if(!p?.company_id) throw new Error('حساب المستخدم غير مرتبط بشركة');
-    return p.company_id;
-  }
-
-  async function upsertByName(table, company_id, localRow, map){
-    const c=db();
-    const name=localRow.name;
-    let q=c.from(table).select('id').eq('company_id',company_id).eq('name',name).limit(1);
-    const {data:found,error:qerr}=await q; if(qerr) throw qerr;
-    const row=map(localRow,company_id);
-    if(uuidLike(localRow.cloudId)) row.id=localRow.cloudId;
-    else if(found?.[0]?.id) row.id=found[0].id;
-    const {data,error}=await c.from(table).upsert(row,{onConflict:'id'}).select('id').single();
-    if(error) throw error;
-    localRow.cloudId=data.id;
-  }
-
-  async function pushAll(){
-    const c=db(); if(!c) return false;
-    const {data:{session}}=await c.auth.getSession(); if(!session) return false;
-    const company_id=await companyFromProfile();
-
-    // Clients
-    let clients=lsRead('clients',[]);
-    for(const x of clients.filter(x=>x?.name)){
-      await upsertByName('clients',company_id,x,(v,cid)=>({
-        company_id:cid,name:v.name,phone:v.phone||null,address:v.address||null,
-        email:v.email||null,notes:v.notes||null,
-        opening_balance:num(v.opening_balance??v.openingBalance),active:v.active!==false
-      }));
-    }
-    localStorage.setItem(PREFIX+'clients',JSON.stringify(clients));
-
-    // Employees
-    let employees=lsRead('employees',[]);
-    for(const x of employees.filter(x=>x?.name)){
-      const row={
-        company_id,name:x.name,phone:x.phone||null,
-        job_title:x.role||x.job_title||null,
-        weekly_base:num(x.weeklySalary??x.weekly_base),active:x.active!==false
-      };
-      let found;
-      if(uuidLike(x.cloudId)) found={id:x.cloudId};
-      else {
-        const q=await c.from('employees').select('id').eq('company_id',company_id).eq('name',x.name).limit(1);
-        if(q.error) throw q.error; found=q.data?.[0];
-      }
-      if(found?.id) row.id=found.id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; x.cloudId=r.data.id;
-    }
-    localStorage.setItem(PREFIX+'employees',JSON.stringify(employees));
-
-    // Suppliers
-    let suppliers=lsRead('suppliers',[]);
-    for(const x of suppliers.filter(x=>x?.name)){
-      await upsertByName('suppliers',company_id,x,(v,cid)=>({
-        company_id:cid,name:v.name,phone:v.phone||null,address:v.address||null,
-        notes:v.notes||null,opening_balance:num(v.opening_balance??v.openingBalance),
-        active:v.active!==false
-      }));
-    }
-    localStorage.setItem(PREFIX+'suppliers',JSON.stringify(suppliers));
-
-    // Raw materials
-    let materials=lsRead('rawMaterials',[]);
-    for(const x of materials.filter(x=>x?.name)){
-      const row={
-        company_id:company_id,sku:x.materialId||x.sku||null,name:x.name,
-        category:x.category||null,unit:x.unit||'متر',current_stock:num(x.qty??x.current_stock),
-        min_stock:num(x.minQty??x.min_stock),purchase_price:num(x.purchasePrice??x.purchase_price),
-        active:x.active!==false
-      };
-      let found;
-      if(uuidLike(x.cloudId)) found={id:x.cloudId};
-      else {
-        const q=await c.from('raw_materials').select('id').eq('company_id',company_id).eq('name',x.name).limit(1);
-        if(q.error) throw q.error; found=q.data?.[0];
-      }
-      if(found?.id) row.id=found.id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; x.cloudId=r.data.id;
-    }
-    localStorage.setItem(PREFIX+'rawMaterials',JSON.stringify(materials));
-
-    // Orders
-    let orders=lsRead('orders',[]);
-    const cByName=Object.fromEntries(clients.map(x=>[x.name,x.cloudId]).filter(x=>x[1]));
-    for(const x of orders){
-      let row={
-        company_id:company_id,client_id:x.clientId&&uuidLike(x.clientId)?x.clientId:(x.cloudClientId||cByName[x.clientName]||null),
-        invoice_no:x.orderNum||null,service:x.desc||null,order_date:d10(x.date),
-        meters:num(x.linearMeters),unit_price:num(x.saleRate),gross_total:num(x.grossSale),
-        discount:num(x.discount),final_total:num(x.totalSale),paid_total:num(x.paid),
-        due_total:num(x.due),ink_cost:num(x.inkCost),waste_paper_cost:num(x.wastePaperCost),
-        protective_paper_m:x.useProtectPaper?num(x.linearMeters):0,
-        protective_paper_cost:0,profit:num(x.profit),notes:x.notes||null,status:'open'
-      };
-      let found;
-      if(uuidLike(x.cloudId)) found={id:x.cloudId};
-      else if(x.orderNum){
-        const q=await c.from('orders').select('id,client_id').eq('company_id',company_id).eq('invoice_no',x.orderNum).limit(1);
-        if(q.error) throw q.error; found=q.data?.[0];
-      }
-      if(found?.id) row.id=found.id;
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; x.cloudId=r.data.id; x.cloudClientId=row.client_id;
-    }
-    localStorage.setItem(PREFIX+'orders',JSON.stringify(orders));
-
-    // Expenses
-    let expenses=lsRead('expenses',[]);
-    const accountNames={'cashbox':'الخزينة','instapay':'InstaPay','vodacash':'Vodafone Cash','bankAccount':'البنك'};
-    for(const x of expenses){
-      let account_id=null;
-      const source=x.source||x.paymentSource||x.account||'cashbox';
-      const names=[accountNames[source],source].filter(Boolean);
-      for(const name of names){
-        const q=await c.from('treasury_accounts').select('id').eq('company_id',company_id).eq('name',name).limit(1);
-        if(q.data?.[0]){account_id=q.data[0].id;break;}
-      }
-      const row={
-        company_id:company_id,category:x.category||'عام',amount:num(x.amount),
-        expense_date:d10(x.date||x.expenseDate),account_id,notes:x.notes||null,
-        receipt_path:x.receipt_path||x.receipt||null
-      };
-      let found;
-      if(uuidLike(x.cloudId)) found={id:x.cloudId};
-      else {
-        const q=await c.from('expenses').select('id').eq('company_id',company_id)
-          .eq('expense_date',row.expense_date).eq('category',row.category).eq('amount',row.amount).limit(1);
-        if(q.data?.[0]) found=q.data[0];
-      }
-      if(found?.id) row.id=found.id;
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; x.cloudId=r.data.id;
-    }
-    localStorage.setItem(PREFIX+'expenses',JSON.stringify(expenses));
-
-    // Attendance
-    for(const a of lsRead('attendance',[])){
-      const e=employees.find(x=>x.id==a.employeeId||x.name===a.empName);
-      if(!e?.cloudId) continue;
-      const row={
-        company_id:company_id,employee_id:e.cloudId,work_date:d10(a.date),
-        status:a.status==='حاضر'?'present':a.status==='غائب'?'absent':
-          a.status==='نصف يوم'?'half':a.status==='إجازة بإذن'?'leave':'late',
-        late_minutes:num(a.lateMin),overtime_minutes:Math.round(num(a.ot)*60),notes:a.notes||null
-      };
-      const r=await c.from('attendance').upsert(row,{onConflict:'employee_id,work_date'});
-      if(r.error) throw r.error;
-    }
-
-    // Payroll closings
-    for(const p of lsRead('payrollClosings',[])){
-      const e=employees.find(x=>x.id==p.employeeId||x.name===p.empName);
-      if(!e?.cloudId) continue;
-      const row={
-        company_id:company_id,employee_id:e.cloudId,
-        week_start:d10(p.weekStart||p.start),week_end:d10(p.weekEnd||p.end),
-        base_amount:num(p.baseAmount||p.base),
-        attendance_amount:num(p.attendanceAmount),absence_deduction:num(p.absenceDeduction),
-        half_day_deduction:num(p.halfDayDeduction),late_deduction:num(p.lateDeduction),
-        overtime_amount:num(p.overtimeAmount),holiday_allowance:num(p.holidayAllowance),
-        bonuses:num(p.bonuses),deductions:num(p.deductions),advances:num(p.advances),
-        gross_amount:num(p.grossAmount),net_amount:num(p.netAmount),paid_amount:num(p.paidAmount),
-        carry_over:num(p.carryOver),payment_method:p.paymentMethod||null,notes:p.notes||null
-      };
-      if(uuidLike(p.cloudId)) row.id=p.cloudId;
-      else {
-        const q=await c.from('payroll_closings').select('id').eq('employee_id',e.cloudId)
-          .eq('week_start',row.week_start).eq('week_end',row.week_end).limit(1);
-        if(q.data?.[0]) row.id=q.data[0].id;
-      }
-      const r=await c.from('payroll_closings').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; p.cloudId=r.data.id;
-    }
-
-    // Suppliers transactions
-    for(const t of lsRead('supplierTransactions',[])){
-      const s=suppliers.find(x=>x.id==t.supplierId||x.name===t.supplierName||x.name===t.supplier);
-      if(!s?.cloudId) continue;
-      const row={company_id:company_id,supplier_id:s.cloudId,tx_date:d10(t.date||t.tx_date),
-        tx_type:t.txType||t.type||'adjustment',amount:num(t.amount),notes:t.notes||null};
-      if(uuidLike(t.cloudId)) row.id=t.cloudId;
-      const r=await c.from('supplier_transactions').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; t.cloudId=r.data.id;
-    }
-    localStorage.setItem(PREFIX+'supplierTransactions',JSON.stringify(lsRead('supplierTransactions',[])));
-
-    // Stock moves
-    for(const m of lsRead('stockMoves',[])){
-      const material=materials.find(x=>x.cloudId===m.materialId || x.materialId===m.materialId || x.name===m.materialName);
-      if(!material?.cloudId) continue;
-      const typeMap={'إضافة':'in','دخول':'in','صرف':'out','خروج':'out','عكس صرف':'return','تسوية':'adjustment'};
-      const row={company_id:company_id,material_id:material.cloudId,move_date:m.date||new Date().toISOString(),
-        qty:num(m.qty),move_type:typeMap[m.type]||m.type||'adjustment',reference_type:'local',
-        reference_id:uuidLike(m.cloudRef)?m.cloudRef:null,notes:m.note||m.notes||null};
-      if(uuidLike(m.cloudId)) row.id=m.cloudId;
-      const r=await c.from('stock_moves').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; m.cloudId=r.data.id;
-    }
-    localStorage.setItem(PREFIX+'stockMoves',JSON.stringify(lsRead('stockMoves',[])));
-
-    // Fabric batches
-    for(const b of lsRead('fabricBatches',[])){
-      const row={company_id:company_id,client_id:cByName[b.clientName]||null,batch_no:b.batchNo||b.id?.toString(),
-        meters:num(b.meters||b.qty),received_date:d10(b.receivedDate||b.date),
-        status:b.status||'in_custody',notes:b.notes||null};
-      if(uuidLike(b.cloudId)) row.id=b.cloudId;
-      const r=await c.from('fabric_batches').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; b.cloudId=r.data.id;
-    }
-    localStorage.setItem(PREFIX+'fabricBatches',JSON.stringify(lsRead('fabricBatches',[])));
-
-    // Bank deposits
-    const accounts=await c.from('treasury_accounts').select('id,name,account_type').eq('company_id',company_id);
-    if(accounts.error) throw accounts.error;
-    const accByName=Object.fromEntries(accounts.data.map(a=>[a.name,a.id]));
-    const accByType=Object.fromEntries(accounts.data.map(a=>[a.account_type,a.id]));
-    for(const b of lsRead('bankDeposits',[])){
-      const row={company_id:company_id,source_account_id:b.sourceAccountId||accByName[b.source]||accByType[b.sourceType]||accByType.cash,
-        bank_account_id:b.bankAccountId||accByName['البنك']||accByType.bank,amount:num(b.amount),
-        deposit_date:d10(b.date||b.depositDate),notes:b.notes||null};
-      if(uuidLike(b.cloudId)) row.id=b.cloudId;
-      const r=await c.from('bank_deposits').upsert(row,{onConflict:'id'}).select('id').single();
-      if(r.error) throw r.error; b.cloudId=r.data.id;
-    }
-    localStorage.setItem(PREFIX+'bankDeposits',JSON.stringify(lsRead('bankDeposits',[])));
-
-    // Treasury balances (current snapshot)
-    const balances=[
-      ['الخزينة','cash',num(lsRead('cashbox',0))],
-      ['Vodafone Cash','vodafone',num(lsRead('vodacash',0))],
-      ['InstaPay','instapay',num(lsRead('instapay',0))],
-      ['البنك','bank',num(lsRead('bankAccount',0))]
-    ];
-    for(const [name,type,balance] of balances){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',company_id).eq('name',name).limit(1);
-      if(q.error)throw q.error;
-      if(q.data?.[0]){
-        const r=await c.from('treasury_accounts').update({current_balance:balance}).eq('id',q.data[0].id);
-        if(r.error)throw r.error;
-      }else{
-        const r=await c.from('treasury_accounts').insert({company_id:company_id,name,account_type:type,current_balance:balance});
-        if(r.error)throw r.error;
-      }
-    }
-
-    // App settings
-    const cLocal=lsRead('company',{});
-    const settings={
-      company_id:company_id,waste_paper_price:num(cLocal.wastePaperCostPerMeter),
-      paper_price_152:num(cLocal.paperCosts?.['152']),paper_price_162:num(cLocal.paperCosts?.['162']),
-      paper_price_182:num(cLocal.paperCosts?.['182']),invoice_prefix:cLocal.invoicePrefix||'INK-',
-      invoice_sequence:Math.max(1,num(cLocal.invoiceSeq)+1),
-      default_min_stock:num(cLocal.defaultMinStock),work_hours_per_day:num(cLocal.workHoursPerDay||8),
-      session_timeout_minutes:num(cLocal.sessionTimeoutMin||30),max_failed_attempts:num(cLocal.maxLoginAttempts||5)
-    };
-    const sr=await c.from('app_settings').upsert(settings,{onConflict:'company_id'}); if(sr.error)throw sr.error;
-
-    localStorage.setItem(PREFIX+'cloudLastSync',new Date().toISOString());
-    return true;
-  }
-
-  async function pullAll(show){
-    const c=db(); if(!c)return false;
-    const company_id=await companyFromProfile();
-
-    const clients=(await c.from('clients').select('*').eq('company_id',company_id).order('created_at',{ascending:false})).data||[];
-    localStorage.setItem(PREFIX+'clients',JSON.stringify(clients.map(x=>({
-      id:x.id,clientId:x.id,cloudId:x.id,name:x.name,phone:x.phone||'',address:x.address||'',
-      email:x.email||'',notes:x.notes||'',debt:0,opening_balance:x.opening_balance
-    }))));
-
-    const employees=(await c.from('employees').select('*').eq('company_id',company_id).order('name')).data||[];
-    localStorage.setItem(PREFIX+'employees',JSON.stringify(employees.map(x=>({
-      id:x.id,cloudId:x.id,name:x.name,phone:x.phone||'',role:x.job_title||'',
-      weeklySalary:x.weekly_base,active:x.active!==false
-    }))));
-
-    const suppliers=(await c.from('suppliers').select('*').eq('company_id',company_id).order('name')).data||[];
-    localStorage.setItem(PREFIX+'suppliers',JSON.stringify(suppliers.map(x=>({
-      id:x.id,cloudId:x.id,name:x.name,phone:x.phone||'',address:x.address||'',notes:x.notes||'',
-      opening_balance:x.opening_balance,active:x.active!==false
-    }))));
-
-    const mats=(await c.from('raw_materials').select('*').eq('company_id',company_id).order('name')).data||[];
-    localStorage.setItem(PREFIX+'rawMaterials',JSON.stringify(mats.map(x=>({
-      id:x.id,cloudId:x.id,materialId:x.sku||x.id,name:x.name,unit:x.unit,qty:x.current_stock,
-      minQty:x.min_stock,purchasePrice:x.purchase_price,active:x.active!==false
-    }))));
-
-    const orders=(await c.from('orders').select('*').eq('company_id',company_id).order('created_at',{ascending:false})).data||[];
-    const cli=clients;
-    localStorage.setItem(PREFIX+'orders',JSON.stringify(orders.map(o=>({
-      id:o.id,cloudId:o.id,clientId:o.client_id,
-      clientName:cli.find(c0=>c0.id===o.client_id)?.name||'',orderNum:o.invoice_no,date:o.order_date,
-      desc:o.service,linearMeters:o.meters,saleRate:o.unit_price,grossSale:o.gross_total,
-      discount:o.discount,totalSale:o.final_total,paid:o.paid_total,due:o.due_total,
-      profit:o.profit,useProtectPaper:num(o.protective_paper_m)>0,
-      paymentBreakdown:{cash:0,insta:0,voda:0}
-    }))));
-
-    const exp=(await c.from('expenses').select('*').eq('company_id',company_id).order('expense_date',{ascending:false})).data||[];
-    localStorage.setItem(PREFIX+'expenses',JSON.stringify(exp.map(e=>({
-      id:e.id,cloudId:e.id,category:e.category,amount:e.amount,date:e.expense_date,
-      notes:e.notes||'',receipt_path:e.receipt_path||''
-    }))));
-
-    const att=(await c.from('attendance').select('*,employees(name)').eq('company_id',company_id)).data||[];
-    localStorage.setItem(PREFIX+'attendance',JSON.stringify(att.map(a=>({
-      id:a.id,cloudId:a.id,date:a.work_date,employeeId:a.employee_id,
-      empName:a.employees?.name||'',status:a.status==='present'?'حاضر':a.status==='absent'?'غائب':
-      a.status==='half'?'نصف يوم':a.status==='leave'?'إجازة بإذن':'تأخير',
-      lateMin:a.late_minutes,ot:a.overtime_minutes/60
-    }))));
-
-    const pay=(await c.from('payroll_closings').select('*,employees(name)').eq('company_id',company_id)).data||[];
-    localStorage.setItem(PREFIX+'payrollClosings',JSON.stringify(pay.map(p=>({
-      id:p.id,cloudId:p.id,employeeId:p.employee_id,empName:p.employees?.name||'',
-      weekStart:p.week_start,weekEnd:p.week_end,baseAmount:p.base_amount,
-      attendanceAmount:p.attendance_amount,absenceDeduction:p.absence_deduction,
-      halfDayDeduction:p.half_day_deduction,lateDeduction:p.late_deduction,overtimeAmount:p.overtime_amount,
-      holidayAllowance:p.holiday_allowance,bonuses:p.bonuses,deductions:p.deductions,advances:p.advances,
-      grossAmount:p.gross_amount,netAmount:p.net_amount,paidAmount:p.paid_amount,carryOver:p.carry_over,
-      paymentMethod:p.payment_method,notes:p.notes||''
-    }))));
-
-    const st=(await c.from('stock_moves').select('*').eq('company_id',company_id)).data||[];
-    localStorage.setItem(PREFIX+'stockMoves',JSON.stringify(st.map(m=>({
-      id:m.id,cloudId:m.id,date:m.move_date,materialId:m.material_id,qty:m.qty,
-      type:m.move_type,note:m.notes||'',materialName:mats.find(mm=>mm.id===m.material_id)?.name||''
-    }))));
-
-    localStorage.setItem(PREFIX+'cloudLastPull',new Date().toISOString());
-    if(show) location.reload();
-    return true;
-  }
-
-  window.inkoreCloud.pushAll=pushAll;
-  window.inkoreCloud.pullAll=pullAll;
-
-  let timer=null, syncing=false;
-  async function queuedSync(){
-    if(syncing)return;
-    clearTimeout(timer);
-    timer=setTimeout(async()=>{
-      if(!window.inkoreCloud?.ready || !(await db().auth.getSession()).data.session)return;
-      syncing=true;
-      try{ await pushAll(); }
-      catch(e){ console.warn('inkore cloud sync:',e); }
-      finally{ syncing=false; }
-    },1200);
-  }
-
-  // Catch ALL ERP writes to localStorage and automatically mirror them to Supabase.
-  const nativeSet=Storage.prototype.setItem;
-  Storage.prototype.setItem=function(key,value){
-    const result=nativeSet.call(this,key,value);
-    try{
-      if(this===localStorage && String(key).startsWith(PREFIX)){
-        const short=String(key).slice(PREFIX.length);
-        if(CLOUD_KEYS.has(short) && !SKIP.has(short)) queuedSync();
-      }
-    }catch(_){}
-    return result;
-  };
-
-  window.addEventListener('inkore:supabase-ready', async()=>{
-    try{
-      const s=await db().auth.getSession();
-      if(s.data.session){
-        await pullAll(false);
-        await pushAll();
-      }
-    }catch(e){console.warn('Cloud ready sync failed',e);}
-  });
-
-  // Initial one-time migration of existing browser data.
-  window.addEventListener('load',()=>{
-    setTimeout(async()=>{
-      try{
-        const s=await db()?.auth.getSession();
-        if(s?.data?.session && !localStorage.getItem(PREFIX+'migration_v3_done')){
-          await pushAll();
-          localStorage.setItem(PREFIX+'migration_v3_done','1');
-        }
-      }catch(e){console.warn('Initial migration:',e);}
-    },1800);
-  });
-})();
-</script>
-
-<script id="inkore-cloud-auth-fix">
-(function(){
-  const start = async () => {
-    const c = window.inkoreCloud?.client;
-    if (!c) return;
-    if (!c.__inkoreAuthHook) {
-      c.__inkoreAuthHook = true;
-      c.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          setTimeout(async () => {
-            try {
-              if (window.inkoreCloud.pullAll) await window.inkoreCloud.pullAll(false);
-              if (window.inkoreCloud.pushAll) await window.inkoreCloud.pushAll();
-            } catch (e) { console.warn('inkore cloud auth sync:', e); }
-          }, 300);
-        }
-      });
-    }
-    const oldLogin = window.inkoreCloud.cloudLoginByUsername;
-    if (oldLogin && !window.inkoreCloud.__cloudLoginV3) {
-      window.inkoreCloud.__cloudLoginV3 = true;
-      window.inkoreCloud.cloudLoginByUsername = async function(u,p){
-        const result = await oldLogin(u,p);
-        try {
-          if (window.inkoreCloud.pullAll) await window.inkoreCloud.pullAll(false);
-          if (window.inkoreCloud.pushAll) await window.inkoreCloud.pushAll();
-        } catch(e) { console.warn('inkore cloud login sync:',e); }
-        return result;
-      };
-    }
-  };
-  window.addEventListener('inkore:supabase-ready', start);
-  window.addEventListener('load', start);
-})();
-</script>
-
-
-<script id="inkore-final-cloud-and-protect-fix">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const N=v=>{const x=Number(v);return Number.isFinite(x)?x:0;};
-  const R=k=>{try{const x=localStorage.getItem(P+k);return x?JSON.parse(x):[];}catch(_){return[];}};
-  const W=(k,v)=>{try{localStorage.setItem(P+k,JSON.stringify(v));}catch(_){} };
-  const C=()=>window.inkoreSupabase || window.inkoreCloud?.client || null;
-
-  // Protective paper is a quantity-only toggle. It never contributes to cost or profit.
-  window.calcLinearJobInvoice=function(){
-    const meters=N(document.getElementById('inv_linear_meters')?.value);
-    const rate=N(document.getElementById('inv_sale_rate')?.value);
-    const gross=Math.round(meters*rate);
-    const discount=Math.min(gross,N(document.getElementById('inv_discount')?.value));
-    const total=Math.max(0,gross-discount);
-    const cash=N(document.getElementById('inv_pay_cash')?.value), insta=N(document.getElementById('inv_pay_insta')?.value), voda=N(document.getElementById('inv_pay_voda')?.value);
-    const paid=cash+insta+voda, due=Math.max(0,total-paid);
-    const pp=!!document.getElementById('inv_need_protect_paper')?.checked;
-    const disp=document.getElementById('protect_paper_display'); if(disp) disp.textContent=pp?`${meters} متر`:'0 متر';
-    const set=(id,v)=>{const e=document.getElementById(id); if(e)e.textContent=typeof v==='number'?v.toLocaleString('ar-EG')+' ج.م':v;};
-    set('inv_disp_total',total); set('inv_disp_paid',paid); set('inv_disp_due',due);
-    return {meters,rate,gross,discount,total,cash,insta,voda,paid,due,needProtect:pp,ink:0,waste:0,wasteM:N(document.getElementById('inv_waste_paper_m')?.value),materialCost:0,profit:total};
-  };
-
-  async function cloudSyncNow(show){
-    const c=C(); if(!c) throw new Error('Supabase client غير متاح في الصفحة');
-    const {data:{session},error:se}=await c.auth.getSession();
-    if(se) throw se; if(!session) throw new Error('سجّل الدخول بحساب admin في السحابة أولاً');
-    const {data:profile,error:pe}=await c.from('profiles').select('company_id,role,active').eq('id',session.user.id).maybeSingle();
-    if(pe) throw pe; if(!profile?.company_id) throw new Error('حساب admin غير مرتبط بشركة');
-    const cid=profile.company_id;
-    const clients=R('clients'), employees=R('employees'), suppliers=R('suppliers'), materials=R('rawMaterials'), orders=R('orders'), expenses=R('expenses');
-    for(const x of clients.filter(x=>x?.name)){
-      let q=await c.from('clients').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,email:x.email||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('clients').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id; x.clientId=r.data.id;
-    }
-    W('clients',clients);
-    for(const x of employees.filter(x=>x?.name)){
-      let q=await c.from('employees').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,job_title:x.role||x.job_title||null,weekly_base:N(x.weeklySalary??x.weekly_base),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('employees').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('employees',employees);
-    for(const x of suppliers.filter(x=>x?.name)){
-      let q=await c.from('suppliers').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null,opening_balance:N(x.opening_balance??x.openingBalance),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('suppliers').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('suppliers',suppliers);
-    for(const x of materials.filter(x=>x?.name)){
-      let q=await c.from('raw_materials').select('id').eq('company_id',cid).eq('name',x.name).limit(1); if(q.error)throw q.error;
-      let row={company_id:cid,sku:x.materialId||x.sku||null,name:x.name,category:x.category||null,unit:x.unit||'متر',current_stock:N(x.qty??x.current_stock),min_stock:N(x.minQty??x.min_stock),purchase_price:N(x.purchasePrice??x.purchase_price),active:x.active!==false}; if(q.data?.[0])row.id=q.data[0].id;
-      const r=await c.from('raw_materials').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; x.cloudId=r.data.id;
-    }
-    W('rawMaterials',materials);
-    const cidByName=Object.fromEntries(clients.filter(x=>x.cloudId).map(x=>[x.name,x.cloudId]));
-    for(const o of orders){
-      const row={id:(o.cloudId&&String(o.cloudId).length>30)?o.cloudId:undefined,company_id:cid,client_id:o.cloudClientId||cidByName[o.clientName]||null,invoice_no:o.orderNum||null,service:o.desc||null,order_date:String(o.date||'').slice(0,10)||new Date().toISOString().slice(0,10),meters:N(o.linearMeters),unit_price:N(o.saleRate),gross_total:N(o.grossSale??o.totalSale),discount:N(o.discount),final_total:N(o.totalSale),paid_total:N(o.paid),due_total:N(o.due),ink_cost:N(o.inkCost),waste_paper_cost:N(o.wastePaperCost),protective_paper_m:o.useProtectPaper?N(o.linearMeters):0,protective_paper_cost:0,profit:N(o.profit??o.totalSale),notes:o.notes||null,status:o.status||'open'};
-      const r=await c.from('orders').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; o.cloudId=r.data.id;
-    }
-    W('orders',orders);
-    for(const e of expenses){
-      const row={id:(e.cloudId&&String(e.cloudId).length>30)?e.cloudId:undefined,company_id:cid,category:e.category||'عام',amount:N(e.amount),expense_date:String(e.date||e.expenseDate||'').slice(0,10)||new Date().toISOString().slice(0,10),notes:e.notes||null,receipt_path:e.receipt_path||null};
-      const r=await c.from('expenses').upsert(row,{onConflict:'id'}).select('id').single(); if(r.error)throw r.error; e.cloudId=r.data.id;
-    }
-    W('expenses',expenses);
-    // Ensure the standard treasury accounts exist; balances live in current_balance.
-    for(const [name,type] of [['الخزينة','cash'],['Vodafone Cash','vodafone'],['InstaPay','instapay'],['البنك','bank']]){
-      const q=await c.from('treasury_accounts').select('id').eq('company_id',cid).eq('name',name).limit(1); if(q.error)throw q.error;
-      if(!q.data?.length){const r=await c.from('treasury_accounts').insert({company_id:cid,name,account_type:type,current_balance:0});if(r.error)throw r.error;}
-    }
-    W('cloudLastSync',new Date().toISOString());
-    if(show) alert('تمت مزامنة البيانات مع Supabase بنجاح ✅');
-    return true;
-  }
-  window.inkoreCloud = window.inkoreCloud || {};
-  window.inkoreCloud.syncNow = cloudSyncNow;
-  window.inkoreCloud.pushAll = cloudSyncNow;
-
-  // Keep the visible sync button on the same authoritative function.
-  window.addEventListener('load',()=>{
-    const b=document.getElementById('inkore-cloud-sync-btn');
-    if(b){b.onclick=()=>cloudSyncNow(true).catch(e=>alert('فشل المزامنة: '+(e?.message||e)));}
-  });
-})();
-</script>
-
-
-
-
-
 </body>
 </html>
-
-
-</html>
-
-
-<script id="inkore-waste-final-patch">
-(function(){
-  'use strict';
-  const P='inkore_v2_';
-  const getArr=()=>{try{return JSON.parse(localStorage.getItem(P+'rawMaterials')||'[]')}catch(_){return[]}};
-  const putArr=a=>localStorage.setItem(P+'rawMaterials',JSON.stringify(a));
-  const n=v=>Number.isFinite(Number(v))?Number(v):0;
-
-  function ensureField(){
-    const price=document.getElementById('raw_price');
-    if(!price || document.getElementById('raw_waste_pct')) return;
-    const input=document.createElement('input');
-    input.id='raw_waste_pct'; input.type='number'; input.min='0'; input.max='100'; input.step='0.01';
-    input.className=price.className+' font-bold text-amber-700'; input.placeholder='نسبة الهالك %';
-    price.parentNode.insertBefore(input, price.nextSibling);
-  }
-
-  function patchHeaderAndRows(){
-    const table=document.querySelector('#page-inventory table');
-    if(!table)return;
-    const head=table.querySelector('thead tr');
-    if(head && !head.querySelector('.waste-pct-head')){
-      const th=document.createElement('th'); th.className='p-2 waste-pct-head text-amber-700'; th.textContent='الهالك %';
-      const cells=head.children; head.insertBefore(th, cells[3]||null);
-    }
-    const body=table.querySelector('tbody'); if(!body)return;
-    const mats=getArr();
-    [...body.querySelectorAll('tr')].forEach(tr=>{
-      if(tr.dataset.wastePatched==='1')return;
-      const nameCell=tr.children[0]; if(!nameCell)return;
-      const name=nameCell.textContent.trim();
-      const m=mats.find(x=>String(x.name||'').trim()===name);
-      if(!m)return;
-      const td=document.createElement('td'); td.className='p-2 border font-bold text-amber-700'; td.textContent=n(m.wastePct||0)+'%';
-      tr.insertBefore(td,tr.children[3]||null); tr.dataset.wastePatched='1';
-    });
-  }
-
-  const originalSave=window.saveRawMaterial;
-  if(originalSave && !originalSave.__wasteFinal){
-    const wrapped=function(){
-      ensureField();
-      const beforeId=document.getElementById('raw_edit_id')?.value||'';
-      const name=document.getElementById('raw_name')?.value.trim()||'';
-      const pct=Math.min(100,Math.max(0,n(document.getElementById('raw_waste_pct')?.value)));
-      originalSave.apply(this,arguments);
-      let arr=getArr();
-      let item=beforeId?arr.find(x=>String(x.id)===String(beforeId)):arr.find(x=>String(x.name||'').trim()===name);
-      if(item){item.wastePct=pct; item.waste_percent=pct; putArr(arr);}
-      try{ syncWaste(item); }catch(e){ console.warn('waste sync',e); }
-      setTimeout(patchHeaderAndRows,50);
-    };
-    wrapped.__wasteFinal=true; window.saveRawMaterial=wrapped;
-  }
-
-  const originalEdit=window.editRawMaterial;
-  if(originalEdit && !originalEdit.__wasteFinal){
-    const wrapped=function(id){
-      const r=originalEdit.apply(this,arguments);
-      ensureField();
-      const item=getArr().find(x=>String(x.id)===String(id));
-      if(item)document.getElementById('raw_waste_pct').value=n(item.wastePct||item.waste_percent);
-      return r;
-    };
-    wrapped.__wasteFinal=true; window.editRawMaterial=wrapped;
-  }
-
-  async function syncWaste(item){
-    if(!item || !window.inkoreSupabase)return;
-    const c=window.inkoreSupabase;
-    const {data:{session}}=await c.auth.getSession(); if(!session)return;
-    const {data:profile}=await c.from('profiles').select('company_id').eq('id',session.user.id).maybeSingle();
-    if(!profile?.company_id)return;
-    let q=c.from('raw_materials').select('id').eq('company_id',profile.company_id).eq('name',item.name).limit(1);
-    const {data,error:qerr}=await q;if(qerr)throw qerr;
-    const row={company_id:profile.company_id,sku:item.materialId||item.sku||null,name:item.name,unit:item.unit||'متر',
-      current_stock:n(item.qty),min_stock:n(item.minQty),purchase_price:n(item.purchasePrice),waste_percent:n(item.wastePct||item.waste_percent),active:item.active!==false};
-    if(data?.[0]?.id)row.id=data[0].id;
-    const {error}=await c.from('raw_materials').upsert(row,{onConflict:'id'});if(error)throw error;
-  }
-
-  function start(){
-    ensureField(); patchHeaderAndRows();
-    const obs=new MutationObserver(()=>{ensureField();patchHeaderAndRows()});
-    obs.observe(document.body,{childList:true,subtree:true});
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
-})();
-</script>
 
