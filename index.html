@@ -6199,6 +6199,487 @@ function todayStr() {
 })();
 </script>
 
+
+<script id="inkore-dashboard-notifications-v12">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const F=v=>N(v).toLocaleString('en-US',{maximumFractionDigits:2});
+
+  const arr=k=>G(k)||[];
+  const now=()=>new Date();
+  const today=()=>new Date().toISOString().slice(0,10);
+  const hourAgo=()=>Date.now()-60*60*1000;
+
+  function getNotifications(){
+    const notes=[];
+    const materials=arr('rawMaterials');
+    const orders=arr('orders');
+    const attendance=arr('attendance');
+    const expenses=arr('expenses');
+    const employees=arr('employees');
+
+    // Low stock notifications.
+    materials.forEach(m=>{
+      const stock=N(m.currentStock??m.stock??m.quantity);
+      const min=N(m.minStock??m.min_stock);
+      if(stock<=min){
+        notes.push({
+          id:'stock-'+m.id,type:'stock',level:'danger',
+          title:'مخزون منخفض',
+          text:`${m.name||'خامة'} — الرصيد ${F(stock)} ${m.unit||'وحدة'} (الحد الأدنى ${F(min)})`,
+          page:'raw_materials'
+        });
+      }
+    });
+
+    // Open / pending work orders.
+    orders.forEach(o=>{
+      const steps=o.steps||{};
+      const status=o.status;
+      const done=!!steps.delivered || status==='closed';
+      if(!done){
+        notes.push({
+          id:'order-'+o.id,type:'order',level:'info',
+          title:'أمر شغل مفتوح',
+          text:`${o.orderNum||'أمر شغل'} — ${o.clientName||'بدون عميل'} — ${o.desc||'قيد التنفيذ'}`,
+          page:'invoices'
+        });
+      }
+    });
+
+    // Today's attendance / missing attendance.
+    const activeEmployees=employees.filter(e=>e.active!==false);
+    const attToday=attendance.filter(a=>String(a.date||a.work_date)===today());
+    const markedIds=new Set(attToday.map(a=>String(a.employeeId||a.empId||a.employee_id||'')));
+
+    activeEmployees.forEach(e=>{
+      if(!markedIds.has(String(e.id))){
+        notes.push({
+          id:'att-missing-'+e.id,type:'attendance',level:'warning',
+          title:'حضور غير مسجل',
+          text:`لم يتم تسجيل حضور ${e.name||'العامل'} لليوم`,
+          page:'daily_attendance'
+        });
+      }
+    });
+
+    // Recent expenses.
+    expenses.forEach(x=>{
+      const d=new Date(x.date||x.expenseDate||x.createdAt||0).getTime();
+      if(d>=hourAgo()){
+        notes.push({
+          id:'expense-'+x.id,type:'expense',level:'success',
+          title:'مصروف جديد',
+          text:`${x.category||'مصروف'} — ${F(x.amount)} ج.م`,
+          page:'expenses'
+        });
+      }
+    });
+
+    return notes;
+  }
+
+  function iconFor(type){
+    return ({
+      stock:'fa-box-open',
+      order:'fa-gears',
+      attendance:'fa-user-clock',
+      expense:'fa-money-bill-wave',
+      treasury:'fa-wallet'
+    })[type]||'fa-bell';
+  }
+
+  function badgeColor(level){
+    return ({
+      danger:'bg-rose-100 text-rose-700 border-rose-200',
+      warning:'bg-amber-100 text-amber-700 border-amber-200',
+      info:'bg-sky-100 text-sky-700 border-sky-200',
+      success:'bg-emerald-100 text-emerald-700 border-emerald-200'
+    })[level]||'bg-slate-100 text-slate-700 border-slate-200';
+  }
+
+  window.renderInkoreNotifications=function(){
+    const list=document.getElementById('inkore_notification_list');
+    const count=document.getElementById('inkore_notification_count');
+    const notes=getNotifications();
+
+    if(count){
+      count.textContent=notes.length;
+      count.classList.toggle('hidden',notes.length===0);
+    }
+    if(!list)return;
+
+    list.innerHTML=notes.slice(0,12).map(n=>`
+      <button type="button" data-page="${E(n.page)}"
+        class="w-full text-right p-3 rounded-xl border ${badgeColor(n.level)} hover:shadow-sm transition-all mb-2">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 rounded-lg bg-white/80 flex items-center justify-center shrink-0">
+            <i class="fa-solid ${iconFor(n.type)}"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="font-black text-xs">${E(n.title)}</div>
+            <div class="text-[11px] mt-1 leading-5">${E(n.text)}</div>
+          </div>
+        </div>
+      </button>
+    `).join('') || `<div class="text-center text-slate-400 text-xs py-8">
+      <i class="fa-regular fa-circle-check text-2xl mb-2"></i>
+      <div>مفيش تنبيهات جديدة دلوقتي</div>
+    </div>`;
+
+    list.querySelectorAll('[data-page]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(typeof window.showPage==='function')window.showPage(btn.dataset.page);
+        const pop=document.getElementById('inkore_notification_popover');
+        if(pop)pop.classList.add('hidden');
+      });
+    });
+  };
+
+  function injectNotificationCenter(){
+    const header=document.querySelector('header');
+    if(!header || document.getElementById('inkore_notification_button'))return;
+
+    const wrap=document.createElement('div');
+    wrap.className='relative ml-1';
+    wrap.innerHTML=`
+      <button id="inkore_notification_button" type="button"
+        title="التنبيهات ومتابعة العمليات"
+        class="relative text-xs bg-amber-500/15 text-amber-200 hover:bg-amber-500 hover:text-white px-3 py-1.5 rounded-lg border border-amber-400/30 transition-colors">
+        <i class="fa-solid fa-bell"></i>
+        <span id="inkore_notification_count" class="hidden absolute -top-2 -left-2 min-w-5 h-5 px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center"></span>
+      </button>
+      <div id="inkore_notification_popover"
+        class="hidden absolute left-0 top-11 w-[360px] max-w-[calc(100vw-24px)] bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 z-[70]">
+        <div class="flex items-center justify-between px-2 pb-2 border-b">
+          <div>
+            <div class="font-black text-sm text-slate-900">مركز الإشعارات</div>
+            <div class="text-[10px] text-slate-400">المخزون والعمليات والتنبيهات</div>
+          </div>
+          <button id="inkore_refresh_notifications" type="button" class="text-indigo-600 text-xs font-bold">تحديث</button>
+        </div>
+        <div id="inkore_notification_list" class="mt-3 max-h-[420px] overflow-auto"></div>
+      </div>
+    `;
+    header.querySelector('.flex.items-center.gap-3:last-child')?.prepend(wrap);
+
+    document.getElementById('inkore_notification_button').addEventListener('click',(ev)=>{
+      ev.stopPropagation();
+      const pop=document.getElementById('inkore_notification_popover');
+      pop?.classList.toggle('hidden');
+      renderInkoreNotifications();
+    });
+    document.getElementById('inkore_refresh_notifications').addEventListener('click',()=>{
+      renderInkoreNotifications();
+    });
+    document.addEventListener('click',ev=>{
+      const pop=document.getElementById('inkore_notification_popover');
+      const btn=document.getElementById('inkore_notification_button');
+      if(pop && !pop.contains(ev.target) && btn && !btn.contains(ev.target))pop.classList.add('hidden');
+    });
+  }
+
+  function injectDashboardNotificationCard(){
+    const dash=document.getElementById('page-dashboard');
+    const grid=document.getElementById('dashboard_grid');
+    if(!dash||!grid||document.getElementById('inkore_dashboard_notifications'))return;
+
+    const card=document.createElement('div');
+    card.id='inkore_dashboard_notifications';
+    card.className='sm:col-span-2 lg:col-span-2 bg-white p-5 rounded-2xl border border-amber-200 shadow-sm';
+    card.innerHTML=`
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-black text-sm text-slate-900">مركز التنبيهات والعمليات</h3>
+          <p class="text-[11px] text-slate-400 mt-1">ملخص سريع لما يحتاج انتباهك الآن</p>
+        </div>
+        <button type="button" id="inkore_open_notifications" class="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg font-bold">كل التنبيهات</button>
+      </div>
+      <div id="inkore_dashboard_note_items"></div>
+    `;
+    grid.insertBefore(card,grid.firstElementChild);
+
+    document.getElementById('inkore_open_notifications').addEventListener('click',()=>{
+      document.getElementById('inkore_notification_button')?.click();
+    });
+  }
+
+  function renderDashboardNotificationCard(){
+    const box=document.getElementById('inkore_dashboard_note_items');
+    if(!box)return;
+    const notes=getNotifications();
+
+    const counts={
+      stock:notes.filter(x=>x.type==='stock').length,
+      order:notes.filter(x=>x.type==='order').length,
+      attendance:notes.filter(x=>x.type==='attendance').length,
+      expense:notes.filter(x=>x.type==='expense').length
+    };
+
+    box.innerHTML=`
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 text-xs">
+        <div class="bg-rose-50 border border-rose-100 rounded-xl p-3"><div class="text-rose-600 font-bold">مخزون منخفض</div><b class="text-xl text-rose-700">${counts.stock}</b></div>
+        <div class="bg-sky-50 border border-sky-100 rounded-xl p-3"><div class="text-sky-600 font-bold">أوامر مفتوحة</div><b class="text-xl text-sky-700">${counts.order}</b></div>
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-3"><div class="text-amber-600 font-bold">حضور ناقص</div><b class="text-xl text-amber-700">${counts.attendance}</b></div>
+        <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3"><div class="text-emerald-600 font-bold">مصروفات حديثة</div><b class="text-xl text-emerald-700">${counts.expense}</b></div>
+      </div>
+      <div class="text-[11px] text-slate-500">${notes.length?`عندك <b>${notes.length}</b> تنبيه محتاج مراجعة.`:'الوضع هادئ — مفيش تنبيهات حالية.'}</div>
+    `;
+  }
+
+  function refreshAll(){
+    renderInkoreNotifications();
+    renderDashboardNotificationCard();
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(()=>{
+      injectNotificationCenter();
+      injectDashboardNotificationCard();
+      refreshAll();
+    },700);
+  });
+
+  // Refresh periodically so dashboard notifications follow ongoing activity.
+  setInterval(refreshAll,30000);
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    setTimeout(refreshAll,150);
+    return r;
+  };
+})();
+</script>
+
+
+<script id="inkore-complete-backup-annual-v13">
+(function(){
+  'use strict';
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const F=v=>N(v).toLocaleString('en-US',{maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
+  const today=()=>new Date().toISOString().slice(0,10);
+  const safeParse=(k,def)=>{try{const x=localStorage.getItem(k);return x?JSON.parse(x):def}catch(_){return def}};
+
+  // ===== Full local backup / restore =====
+  const BACKUP_KEYS=[
+    'company','cashbox','instapay','vodacash','bankAccount','clients','orders','expenses',
+    'partners','assets','electricity','employees','attendance','calenderOps','suppliers',
+    'supplierTransactions','fabricBatches','payrollClosings','payrollArchive','treasuryClosings',
+    'bankDeposits','annualClosings','rawMaterials','stockMoves','users','securityInitialized'
+  ];
+  const INTERNAL_BACKUP_KEY=P+'__disaster_backups_v1';
+
+  async function digest(s){
+    const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+    return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  }
+  function snapshotData(){
+    const data={};
+    BACKUP_KEYS.forEach(k=>{
+      const raw=localStorage.getItem(P+k);
+      if(raw!==null){try{data[k]=JSON.parse(raw)}catch(_){data[k]=raw}}
+    });
+    return data;
+  }
+  async function makeBackup(source='local'){
+    const data=snapshotData(), raw=JSON.stringify(data);
+    return {format:'inkore-erp-backup',version:13,app:'inkore ERP',createdAt:new Date().toISOString(),
+            source,companyId:'b300c956-18fc-4654-a90f-a065e0b2749f',sha256:await digest(raw),data};
+  }
+  function download(payload,name){
+    const b=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  async function autoBackup(label){
+    try{
+      const p=await makeBackup('auto');
+      const h=safeParse(INTERNAL_BACKUP_KEY,[]);
+      h.unshift({label,createdAt:p.createdAt,sha256:p.sha256,data:p.data});
+      localStorage.setItem(INTERNAL_BACKUP_KEY,JSON.stringify(h.slice(0,5)));
+    }catch(e){console.warn('auto backup',e)}
+  }
+  async function restore(file){
+    const p=JSON.parse(await file.text());
+    if(!p||p.format!=='inkore-erp-backup'||!p.data)throw new Error('ملف النسخة الاحتياطية غير صالح');
+    if(p.sha256 && p.sha256!==(await digest(JSON.stringify(p.data))))throw new Error('النسخة الاحتياطية تالفة');
+    if(!confirm('سيتم استبدال بيانات الجهاز ببيانات النسخة. سيتم أخذ نسخة تلقائية من الحالية أولاً. هل تريد المتابعة؟'))return;
+    await autoBackup('قبل الاستعادة');
+    Object.entries(p.data).forEach(([k,v])=>S(k,v));
+    alert('تمت الاستعادة بنجاح وسيتم إعادة تحميل النظام.');
+    location.reload();
+  }
+  window.inkoreDownloadBackup=async()=>download(await makeBackup('local'),'inkore_backup_'+Date.now()+'.json');
+  window.inkoreDownloadInternalBackup=async()=>{
+    const h=safeParse(INTERNAL_BACKUP_KEY,[]);
+    if(!h.length)return alert('لا توجد نسخة تلقائية محفوظة.');
+    download({format:'inkore-erp-backup',version:13,app:'inkore ERP',createdAt:h[0].createdAt,source:'internal',sha256:h[0].sha256,data:h[0].data},'inkore_internal_backup_'+Date.now()+'.json');
+  };
+  window.inkoreRestoreBackup=input=>{const f=input?.files?.[0];if(f)restore(f).catch(e=>alert('تعذر الاستعادة: '+e.message)).finally(()=>{input.value=''})};
+
+  // ===== Annual inventory + financial closing =====
+  function annuals(){return A('annualClosings')}
+  function stockSnapshot(){
+    return A('rawMaterials').map(m=>({
+      id:m.id,name:m.name,unit:m.unit||'متر',
+      bookQty:N(m.currentStock??m.stock??m.quantity),
+      price:N(m.purchasePrice??m.purchase_price),
+      countedQty:N(m.currentStock??m.stock??m.quantity),difference:0,notes:''
+    }))
+  }
+  function annualSummary(y){
+    const from=`${y}-01-01`,to=`${y}-12-31`;
+    const orders=A('orders').filter(o=>{const d=String(o.date||'').slice(0,10);return d>=from&&d<=to});
+    const expenses=A('expenses').filter(x=>{const d=String(x.date||x.expenseDate||'').slice(0,10);return d>=from&&d<=to});
+    return {
+      invoices:orders.length,sales:orders.reduce((s,o)=>s+N(o.totalSale),0),
+      receipts:orders.reduce((s,o)=>s+N(o.paid),0),
+      expenses:expenses.reduce((s,o)=>s+N(o.amount),0)
+    }
+  }
+  function renderAnnualUI(){
+    const page=document.getElementById('page-settings');if(!page||document.getElementById('inkore_annual_complete_box'))return;
+    const y=new Date().getFullYear()-1;
+    const box=document.createElement('div');
+    box.id='inkore_annual_complete_box';box.className='bg-white p-6 rounded-2xl border border-violet-200 shadow-sm mt-6';
+    box.innerHTML=`
+      <div class="flex flex-wrap justify-between gap-3 items-center">
+        <div><h3 class="text-lg font-black">الجرد والتقفيل السنوي</h3><p class="text-xs text-slate-500 mt-1">جرد فعلي للمخزون + إقفال مالي سنوي محفوظ كأرشيف مستقل.</p></div>
+        <button onclick="saveInkoreAnnualClosing()" class="bg-violet-600 text-white px-5 py-2.5 rounded-xl font-black">حفظ التقفيل السنوي</button>
+      </div>
+      <div class="grid md:grid-cols-3 gap-3 mt-5 text-xs">
+        <label class="font-bold">السنة<select id="inkore_annual_year" class="w-full border p-2.5 rounded-lg mt-1">${[y-2,y-1,y,new Date().getFullYear()].map(v=>`<option value="${v}" ${v===y?'selected':''}>${v}</option>`).join('')}</select></label>
+        <label class="font-bold">ملاحظات<input id="inkore_annual_notes" class="w-full border p-2.5 rounded-lg mt-1"></label>
+        <div id="inkore_annual_summary" class="bg-slate-50 border rounded-lg p-3">اختر السنة لعرض الملخص.</div>
+      </div>
+      <div class="mt-5 border rounded-xl overflow-auto">
+        <table class="w-full text-xs"><thead class="bg-slate-100"><tr><th class="p-2">الخامة</th><th class="p-2">الوحدة</th><th class="p-2">دفتر</th><th class="p-2">جرد فعلي</th><th class="p-2">الفرق</th><th class="p-2">ملاحظات</th></tr></thead><tbody id="inkore_annual_stock_body"></tbody></table>
+      </div>
+      <div class="mt-5 grid md:grid-cols-4 gap-3 text-xs">
+        <label class="font-bold">الصندوق<input id="inkore_ann_cash" type="number" min="0" step="0.01" class="w-full border p-2.5 rounded-lg mt-1" value="${N(G('cashbox'))}"></label>
+        <label class="font-bold">إنستاباي<input id="inkore_ann_insta" type="number" min="0" step="0.01" class="w-full border p-2.5 rounded-lg mt-1" value="${N(G('instapay'))}"></label>
+        <label class="font-bold">فودافون كاش<input id="inkore_ann_voda" type="number" min="0" step="0.01" class="w-full border p-2.5 rounded-lg mt-1" value="${N(G('vodacash'))}"></label>
+        <label class="font-bold">البنك<input id="inkore_ann_bank" type="number" min="0" step="0.01" class="w-full border p-2.5 rounded-lg mt-1" value="${N(G('bankAccount'))}"></label>
+      </div>
+      <div class="mt-5"><h4 class="font-black text-sm mb-2">أرشيف السنوات</h4><div id="inkore_annual_archive"></div></div>`;
+    page.appendChild(box);
+    renderAnnualStock();renderAnnualSummary();renderAnnualArchive();
+  }
+  function renderAnnualSummary(){
+    const el=document.getElementById('inkore_annual_summary');if(!el)return;
+    const y=N(document.getElementById('inkore_annual_year')?.value)||new Date().getFullYear()-1,s=annualSummary(y);
+    el.innerHTML=`فواتير: <b>${s.invoices}</b> — مبيعات: <b>${M(s.sales)}</b> — مقبوضات: <b>${M(s.receipts)}</b> — مصروفات: <b>${M(s.expenses)}</b>`;
+  }
+  function renderAnnualStock(){
+    const b=document.getElementById('inkore_annual_stock_body');if(!b)return;
+    b.innerHTML=stockSnapshot().map(m=>`<tr><td class="p-2 border font-bold">${E(m.name)}</td><td class="p-2 border">${E(m.unit)}</td><td class="p-2 border">${F(m.bookQty)}</td><td class="p-2 border"><input data-ann-stock="${E(m.id)}" value="${F(m.countedQty)}" type="number" step="0.01" class="w-24 border rounded p-1 text-center"></td><td class="p-2 border"><span data-ann-diff="${E(m.id)}">0</span></td><td class="p-2 border"><input data-ann-note="${E(m.id)}" class="w-40 border rounded p-1"></td></tr>`).join('')||'<tr><td colspan="6" class="p-5 text-center text-slate-400">لا توجد خامات.</td></tr>';
+    b.querySelectorAll('[data-ann-stock]').forEach(i=>i.addEventListener('input',()=>{
+      const m=stockSnapshot().find(x=>String(x.id)===String(i.dataset.annStock)),d=N(i.value)-N(m?.bookQty);
+      const el=document.querySelector(`[data-ann-diff="${CSS.escape(String(i.dataset.annStock))}"]`);if(el)el.textContent=F(d);
+    }));
+  }
+  function collectAnnualStock(){
+    return stockSnapshot().map(m=>{
+      const i=document.querySelector(`[data-ann-stock="${CSS.escape(String(m.id))}"]`);
+      const n=document.querySelector(`[data-ann-note="${CSS.escape(String(m.id))}"]`);
+      const q=i?N(i.value):m.bookQty;
+      return {...m,countedQty:q,difference:q-m.bookQty,notes:n?.value||''};
+    })
+  }
+  function renderAnnualArchive(){
+    const b=document.getElementById('inkore_annual_archive');if(!b)return;
+    b.innerHTML=annuals().sort((a,b)=>b.year-a.year).map(x=>`<div class="border rounded-xl p-3 mb-2 flex flex-wrap justify-between gap-3 text-xs"><b>سنة ${x.year}</b><span>فرق الجرد: ${M(x.stockDifferenceValue)}</span><button onclick="printInkoreAnnual(${JSON.stringify(x.id)})" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg">طباعة</button></div>`).join('')||'<span class="text-slate-400">لا يوجد أرشيف.</span>';
+  }
+  window.saveInkoreAnnualClosing=function(){
+    const y=N(document.getElementById('inkore_annual_year')?.value);if(!y)return alert('اختر السنة');
+    const stock=collectAnnualStock(),book=stock.reduce((s,m)=>s+N(m.bookQty)*N(m.price),0),actual=stock.reduce((s,m)=>s+N(m.countedQty)*N(m.price),0);
+    const fin=annualSummary(y), ar=annuals();
+    ar.unshift({id:Date.now()+Math.random(),year:y,closedAt:new Date().toISOString(),notes:document.getElementById('inkore_annual_notes')?.value||'',
+      financial:fin,closingBalances:{cash:N(document.getElementById('inkore_ann_cash')?.value),instapay:N(document.getElementById('inkore_ann_insta')?.value),vodafone:N(document.getElementById('inkore_ann_voda')?.value),bank:N(document.getElementById('inkore_ann_bank')?.value)},
+      stockItems:stock,totalBookValue:book,totalCountedValue:actual,stockDifferenceValue:actual-book,locked:true});
+    S('annualClosings',ar);renderAnnualArchive();alert(`تم حفظ وتقفيل سنة ${y} كأرشيف مستقل.`);
+  };
+  window.printInkoreAnnual=function(id){
+    const x=annuals().find(v=>String(v.id)===String(id));if(!x)return;
+    const c=G('company')||{},rows=(x.stockItems||[]).map(m=>`<tr><td>${E(m.name)}</td><td>${E(m.unit)}</td><td>${F(m.bookQty)}</td><td>${F(m.countedQty)}</td><td>${F(m.difference)}</td><td>${M(N(m.purchasePrice??m.price)*N(m.countedQty))}</td></tr>`).join('');
+    const w=window.open('','_blank','width=1100,height=850');if(!w)return;
+    w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>تقفيل سنة ${x.year}</title><style>body{font-family:Arial;padding:25px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:7px;font-size:11px}th{background:#f3f4f6}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:15px 0}.box{border:1px solid #ddd;padding:10px}</style></head><body><h1>${E(c.name||'inkore ERP')}</h1><h2>تقفيل وجرد سنوي ${x.year}</h2><div class="cards"><div class="box">المبيعات<br><b>${M(x.financial.sales)}</b></div><div class="box">المقبوضات<br><b>${M(x.financial.receipts)}</b></div><div class="box">المصروفات<br><b>${M(x.financial.expenses)}</b></div><div class="box">فرق الجرد<br><b>${M(x.stockDifferenceValue)}</b></div></div><table><thead><tr><th>الخامة</th><th>الوحدة</th><th>دفتر</th><th>فعلي</th><th>فرق</th><th>قيمة الجرد</th></tr></thead><tbody>${rows||'<tr><td colspan="6">لا توجد خامات</td></tr>'}</tbody></table><p>${E(x.notes||'')}</p><div style="margin-top:50px;display:grid;grid-template-columns:1fr 1fr;gap:50px"><div style="border-top:1px solid">اعتماد الحسابات</div><div style="border-top:1px solid">اعتماد الإدارة</div></div></body></html>`);
+    w.document.close();setTimeout(()=>w.print(),250);
+  };
+
+  // ===== Payroll archive/reopen =====
+  window.archiveInkorePayrollWeek=function(){
+    const start=document.getElementById('payroll_week_start')?.value||'';
+    if(!start)return alert('اختر أسبوع الرواتب أولاً');
+    const d=new Date(start+'T00:00:00');d.setDate(d.getDate()+5);const end=d.toISOString().slice(0,10);
+    const rows=A('employees').map(e=>({employeeId:e.id,name:e.name,weeklySalary:N(e.weeklySalary??e.weekly_base),currentPaid:N(e.currentPaid),carryOver:N(e.carryOver),otMultiplier:e.otMultiplier,lateMultiplier:e.lateMultiplier}));
+    const ar=A('payrollArchive');ar.unshift({id:Date.now()+Math.random(),weekStart:start,weekEnd:end,status:'closed',closedAt:new Date().toISOString(),employees:rows});
+    S('payrollArchive',ar);renderPayrollArchiveUI();alert('تم حفظ الأسبوع في الأرشيف.');
+  };
+  window.reopenInkorePayrollWeek=function(id){
+    const ar=A('payrollArchive'),x=ar.find(v=>String(v.id)===String(id));if(!x)return;
+    x.status='open';x.reopenedAt=new Date().toISOString();S('payrollArchive',ar);renderPayrollArchiveUI();alert('تم فتح الأسبوع للتعديل.');
+  };
+  function renderPayrollArchiveUI(){
+    const b=document.getElementById('inkore_payroll_archive_list');if(!b)return;
+    b.innerHTML=A('payrollArchive').sort((a,b)=>String(b.weekStart).localeCompare(String(a.weekStart))).map(x=>`<div class="border rounded-xl p-3 mb-2 flex justify-between items-center text-xs"><span><b>${E(x.weekStart)} → ${E(x.weekEnd)}</b> — ${x.status==='open'?'<span class="text-amber-700">مفتوح للتعديل</span>':'<span class="text-emerald-700">مقفول</span>'}</span>${x.status==='closed'?`<button onclick="reopenInkorePayrollWeek(${JSON.stringify(x.id)})" class="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg font-bold">إعادة فتح</button>`:''}</div>`).join('')||'<span class="text-slate-400">لا يوجد أرشيف.</span>';
+  }
+  function injectPayrollArchiveUI(){
+    const page=document.getElementById('page-weekly_hr')||document.getElementById('page-payroll')||document.getElementById('page-reports');if(!page||document.getElementById('inkore_payroll_archive_box'))return;
+    const b=document.createElement('div');b.id='inkore_payroll_archive_box';b.className='bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm mt-6';
+    b.innerHTML=`<div class="flex justify-between items-center"><div><h3 class="font-black">أرشيف أسابيع الرواتب</h3><p class="text-xs text-slate-500">الأسبوع القديم محفوظ، ويمكن للمدير إعادة فتحه عند وجود خطأ.</p></div><button onclick="archiveInkorePayrollWeek()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold">أرشفة الأسبوع</button></div><div id="inkore_payroll_archive_list" class="mt-4"></div>`;
+    page.appendChild(b);renderPayrollArchiveUI();
+  }
+
+  // ===== Backup settings UI =====
+  function injectBackupUI(){
+    const page=document.getElementById('page-settings');if(!page||document.getElementById('inkore_backup_complete_box'))return;
+    const b=document.createElement('div');b.id='inkore_backup_complete_box';b.className='bg-white p-6 rounded-2xl border border-emerald-200 shadow-sm mt-6';
+    b.innerHTML=`<div><h3 class="text-lg font-black">النسخ الاحتياطي واستعادة البيانات</h3><p class="text-xs text-slate-500 mt-1">احفظ نسخة كاملة من بيانات النظام واستعدها وقت الحاجة.</p></div>
+      <div class="grid md:grid-cols-3 gap-3 mt-4"><button onclick="inkoreDownloadBackup()" class="bg-slate-900 text-white p-3 rounded-xl font-black">تحميل نسخة احتياطية</button><button onclick="inkoreDownloadInternalBackup()" class="bg-indigo-600 text-white p-3 rounded-xl font-black">آخر نسخة تلقائية</button><label class="bg-amber-50 border border-amber-200 p-3 rounded-xl font-black text-center cursor-pointer">استعادة نسخة<input type="file" accept=".json,application/json" onchange="inkoreRestoreBackup(this)" class="hidden"></label></div>
+      <div class="mt-4 text-xs text-slate-500">يتم أخذ نسخة تلقائية محلية عند بداية الجلسة وقبل الاستعادة. احتفظ أيضًا بنسخة خارج الجهاز.</div>`;
+    page.appendChild(b);
+  }
+
+  // Snapshot at beginning of each browser session.
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(()=>{injectBackupUI();renderAnnualUI();injectPayrollArchiveUI();},800);
+    try{
+      if(!sessionStorage.getItem(P+'__backup_session_v2')){
+        autoBackup('بداية الجلسة');sessionStorage.setItem(P+'__backup_session_v2','1');
+      }
+    }catch(_){}
+  });
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    setTimeout(()=>{
+      if(page==='settings'){injectBackupUI();renderAnnualUI()}
+      if(page==='weekly_hr'||page==='payroll'||page==='reports')injectPayrollArchiveUI();
+    },120);
+    return r;
+  };
+
+  // Keep annual year summary live when the year selector changes.
+  document.addEventListener('change',e=>{
+    if(e.target?.id==='inkore_annual_year')renderAnnualSummary();
+  });
+})();
+</script>
+
 </body>
 </html>
 
