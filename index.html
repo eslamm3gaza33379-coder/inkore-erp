@@ -5022,6 +5022,846 @@ function todayStr() {
 })();
 </script>
 
+
+<script id="inkore-premium-print-and-credit-v7">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const GET=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const PUT=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const A=k=>GET(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const M=v=>F(v)+' ج.م';
+  const today=()=>new Date().toISOString().slice(0,10);
+
+  function company(){
+    const c=GET('company')||{};
+    c.printSettings=c.printSettings||{};
+    const ps=c.printSettings;
+    if(ps.showLogo===undefined)ps.showLogo=true;
+    if(ps.paperSize===undefined)ps.paperSize='A4';
+    if(ps.accent===undefined)ps.accent='#4f46e5';
+    if(ps.invoiceTitle===undefined)ps.invoiceTitle='فاتورة / أمر شغل';
+    if(ps.footer===undefined)ps.footer='شكرًا لتعاملكم معنا';
+    if(ps.terms===undefined)ps.terms='';
+    if(ps.showPaymentBreakdown===undefined)ps.showPaymentBreakdown=true;
+    if(ps.showWorkflow===undefined)ps.showWorkflow=true;
+    if(ps.showSignatures===undefined)ps.showSignatures=true;
+    return c;
+  }
+
+  function getCredit(c){return N(c?.credit??c?.customerCredit??0)}
+  function setClientAccount(c, debt, credit){
+    c.debt=Math.max(0,N(debt));
+    c.credit=Math.max(0,N(credit));
+    c.accountBalance=c.debt-c.credit;
+  }
+
+  function recalcClientAccount(name){
+    const clients=A('clients'),orders=A('orders');
+    const c=clients.find(x=>x.name===name);
+    if(!c)return;
+    const debt=orders.filter(o=>o.clientName===name).reduce((s,o)=>s+N(o.due),0);
+    const credit=orders.filter(o=>o.clientName===name).reduce((s,o)=>s+N(o.overpayment),0);
+    setClientAccount(c,debt,credit);
+    PUT('clients',clients);
+  }
+
+  // ----- Overpayment handling -----
+  window.commitLinearInvoice=function(){
+    const editId=document.getElementById('edit_order_id')?.value||'';
+    const clientName=document.getElementById('inv_client_select')?.value||'';
+    if(!clientName)return alert('اختر العميل');
+
+    const meters=N(document.getElementById('inv_linear_meters')?.value);
+    const rate=N(document.getElementById('inv_sale_rate')?.value);
+    if(meters<=0 || rate<0)return alert('أدخل المتر والسعر بشكل صحيح');
+
+    const gross=Math.round(meters*rate);
+    const discount=Math.max(0,N(document.getElementById('inv_discount')?.value));
+    if(discount>gross)return alert('الخصم لا يمكن أن يتجاوز إجمالي الفاتورة');
+
+    const totalSale=gross-discount;
+    const cash=N(document.getElementById('inv_pay_cash')?.value);
+    const insta=N(document.getElementById('inv_pay_insta')?.value);
+    const voda=N(document.getElementById('inv_pay_voda')?.value);
+    const paid=cash+insta+voda;
+
+    const due=Math.max(0,totalSale-paid);
+    const overpayment=Math.max(0,paid-totalSale);
+
+    const useProtect=!!document.getElementById('inv_need_protect_paper')?.checked;
+    const wastePaperM=Math.max(0,N(document.getElementById('inv_waste_paper_m')?.value));
+    const comp=company();
+    const inkMl=Math.max(0,N(document.getElementById('inv_ink_ml')?.value));
+    const materialCost=Math.round((inkMl/1000)*N(comp.inkCostPerLiter)+wastePaperM*N(comp.wastePaperCostPerMeter));
+    const profit=totalSale-materialCost;
+    const steps={
+      design:!!document.getElementById('step_design')?.checked,
+      print:!!document.getElementById('step_print')?.checked,
+      press:!!document.getElementById('step_press')?.checked,
+      delivered:!!document.getElementById('step_delivered')?.checked
+    };
+    let orders=A('orders'), clients=A('clients');
+
+    const stockSafe=(...args)=>{try{if(typeof window.stockMove==='function')window.stockMove(...args)}catch(_){}};
+    const treasurySafe=(...args)=>{try{if(typeof window.adjustTreasury==='function')window.adjustTreasury(...args)}catch(_){}};
+
+    try{
+      if(editId){
+        const o=orders.find(x=>String(x.id)===String(editId));
+        if(!o)return alert('الفاتورة غير موجودة');
+
+        const oldClient=clients.find(c=>c.name===o.clientName);
+        const oldPay=o.paymentBreakdown||{};
+        if(oldClient){
+          oldClient.debt=Math.max(0,N(oldClient.debt)-N(o.due));
+          oldClient.credit=Math.max(0,getCredit(oldClient)-N(o.overpayment));
+          setClientAccount(oldClient,oldClient.debt,oldClient.credit);
+        }
+
+        if(N(oldPay.cash))treasurySafe('الصندوق (كاش)',-N(oldPay.cash));
+        if(N(oldPay.insta))treasurySafe('إنستاباي',-N(oldPay.insta));
+        if(N(oldPay.voda))treasurySafe('فودافون كاش',-N(oldPay.voda));
+        if(o.useProtectPaper&&N(o.linearMeters))stockSafe('ورق حماية',N(o.linearMeters),'إرجاع','تعديل '+(o.orderNum||''),'عكس الاستهلاك القديم');
+        if(useProtect)stockSafe('ورق حماية',-meters,'صرف',o.orderNum||'','ورق حماية لأمر الشغل');
+
+        Object.assign(o,{
+          clientName,
+          desc:document.getElementById('inv_service_desc')?.value.trim()||'',
+          linearMeters:meters,
+          paperWidth:document.getElementById('inv_paper_width')?.value||'152',
+          useProtectPaper:useProtect,
+          inkMl,wastePaperM,saleRate:rate,grossSale:gross,discount,totalSale,
+          materialCost,profit,paid,due,overpayment,steps,
+          paymentBreakdown:{cash,insta,voda},
+          updatedAt:new Date().toISOString()
+        });
+
+        if(cash)treasurySafe('الصندوق (كاش)',cash);
+        if(insta)treasurySafe('إنستاباي',insta);
+        if(voda)treasurySafe('فودافون كاش',voda);
+
+        // Rebuild account from all invoices, so edits cannot leave stale balances.
+        PUT('orders',orders); PUT('clients',clients);
+        recalcClientAccount(o.clientName);
+        if(oldClient && oldClient.name!==o.clientName)recalcClientAccount(oldClient.name);
+
+        alert(overpayment>0
+          ? `تم تعديل الفاتورة. يوجد رصيد دائن للعميل ${F(overpayment)} ج.م وسيظهر في حسابه.`
+          : 'تم تعديل الفاتورة بنجاح.');
+      }else{
+        const orderNum=typeof window.nextInvoiceNumber==='function'?window.nextInvoiceNumber():('INK-'+String(orders.length+1).padStart(5,'0'));
+        if(useProtect)stockSafe('ورق حماية',-meters,'صرف',orderNum,'ورق حماية لأمر الشغل');
+
+        const o={
+          id:Date.now()+Math.random(),clientName,orderNum,
+          date:typeof window.now==='function'?window.now():today(),
+          desc:document.getElementById('inv_service_desc')?.value.trim()||'',
+          linearMeters:meters,paperWidth:document.getElementById('inv_paper_width')?.value||'152',
+          useProtectPaper:useProtect,inkMl,wastePaperM,saleRate:rate,grossSale:gross,
+          discount,totalSale,materialCost,profit,paid,due,overpayment,steps,
+          paymentBreakdown:{cash,insta,voda}
+        };
+        orders.unshift(o);
+        PUT('orders',orders);
+        recalcClientAccount(clientName);
+
+        if(cash)treasurySafe('الصندوق (كاش)',cash);
+        if(insta)treasurySafe('إنستاباي',insta);
+        if(voda)treasurySafe('فودافون كاش',voda);
+
+        alert(overpayment>0
+          ? `تم حفظ الفاتورة، وتم تسجيل ${F(overpayment)} ج.م رصيد دائن للعميل في حسابه.`
+          : 'تم حفظ أمر الشغل برقم '+orderNum);
+        if(typeof window.resetInvoiceForm==='function')window.resetInvoiceForm();
+      }
+
+      if(typeof window.renderOrdersTable==='function')window.renderOrdersTable();
+      if(typeof window.refreshTreasuryBars==='function')window.refreshTreasuryBars();
+      if(typeof window.renderClients==='function')window.renderClients();
+      if(typeof window.refreshInvoicePrintChoices==='function')window.refreshInvoicePrintChoices();
+      if(typeof window.inkoreSyncNow==='function'){try{window.inkoreSyncNow()}catch(_){}}
+    }catch(err){
+      console.error(err);
+      alert(err?.message||'تعذر حفظ العملية');
+    }
+  };
+
+  // ----- Premium printing -----
+  function workflowText(o){
+    if(!o.steps)return 'غير محدد';
+    const s=[];
+    if(o.steps.design)s.push('تصميم');
+    if(o.steps.print)s.push('طباعة الورق');
+    if(o.steps.press)s.push('كبس القماش');
+    if(o.steps.delivered)s.push('تم التسليم');
+    return s.join(' • ')||'لم يبدأ';
+  }
+
+  function styledPrintShell(inner,title){
+    const c=company(), ps=c.printSettings||{};
+    const accent=ps.accent||'#4f46e5';
+    const size=ps.paperSize==='80mm'?'80mm':'A4';
+    const logo=ps.showLogo&&c.logoData?`<img src="${c.logoData}" class="logo">`:'<div class="logo-fallback">iK</div>';
+    return `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${E(title)}</title>
+      <style>
+      @page{size:${size==='80mm'?'80mm auto':'A4'};margin:${size==='80mm'?'6mm':'12mm'}}
+      *{box-sizing:border-box}body{font-family:Cairo,Arial,sans-serif;margin:0;color:#172033;background:#fff}
+      .sheet{max-width:${size==='80mm'?'76mm':'820px'};margin:auto}
+      .top{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;border-bottom:3px solid ${accent};padding-bottom:14px;margin-bottom:18px}
+      .logo{width:70px;height:70px;object-fit:contain;border-radius:14px}.logo-fallback{width:70px;height:70px;border-radius:14px;background:${accent};color:#fff;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900}
+      .brand{font-size:25px;font-weight:900;line-height:1.1}.sub{color:#667085;font-size:11px;margin-top:4px}
+      .title{font-weight:900;font-size:18px;color:${accent};text-align:left}.meta{text-align:left;font-size:11px;color:#667085;margin-top:5px}
+      .pillbar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
+      .pill{border:1px solid #e5e7eb;border-radius:12px;padding:9px;background:#f8fafc;text-align:center}.pill b{display:block;font-size:14px;margin-top:2px}
+      table{width:100%;border-collapse:collapse;margin:14px 0}th,td{border:1px solid #e5e7eb;padding:9px;font-size:11px;text-align:right}th{background:#f8fafc}
+      .totals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}.totalbox{border:1px solid #e5e7eb;border-radius:14px;padding:12px}.big{font-size:20px;font-weight:900;color:${accent}}
+      .credit{color:#047857;font-weight:900}.due{color:#b91c1c;font-weight:900}
+      .notes{border:1px dashed #cbd5e1;border-radius:12px;padding:10px;margin-top:12px;font-size:11px}
+      .signs{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:38px}.sign{border-top:1px solid #334155;padding-top:8px;text-align:center;font-size:11px;min-height:45px}
+      .footer{border-top:1px solid #e5e7eb;margin-top:28px;padding-top:10px;text-align:center;color:#64748b;font-size:10px}
+      .printbtn{position:fixed;top:12px;left:12px;border:0;background:${accent};color:#fff;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer}
+      @media print{.printbtn{display:none}}
+      </style><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+      </head><body><button class="printbtn" onclick="window.print()">طباعة</button><div class="sheet">${inner}</div></body></html>`;
+  }
+
+  window.printOneInvoicePremium=function(o){
+    const c=company(),ps=c.printSettings||{},p=o.paymentBreakdown||{};
+    const over=N(o.overpayment), due=N(o.due);
+    const inner=`
+      <div class="top">
+        <div>${c.printSettings?.showLogo!==false?`<div style="display:flex;gap:12px;align-items:center">${c.logoData?`<img src="${c.logoData}" class="logo">`:'<div class="logo-fallback">iK</div>'}<div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="sub">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div></div>`:`<div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="sub">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div>`}</div>
+        <div><div class="title">${E(ps.invoiceTitle||'فاتورة / أمر شغل')}</div><div class="meta">رقم الفاتورة: <b>${E(o.orderNum||'-')}</b><br>التاريخ: ${E(o.date||'-')}</div></div>
+      </div>
+      <div class="pillbar">
+        <div class="pill">العميل<b>${E(o.clientName||'-')}</b></div>
+        <div class="pill">الكمية<b>${F(o.linearMeters)} متر</b></div>
+        <div class="pill">حالة التشغيل<b>${E(workflowText(o))}</b></div>
+      </div>
+      <table><thead><tr><th>البيان</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+      <tbody><tr><td>${E(o.desc||'طباعة')}</td><td>${F(o.linearMeters)} متر</td><td>${F(o.saleRate)} ج.م</td><td>${F(o.grossSale||o.totalSale)} ج.م</td></tr></tbody></table>
+      <div class="totals">
+        <div class="totalbox">الخصم<br><b>${M(o.discount)}</b><br><span class="big">صافي الفاتورة: ${M(o.totalSale)}</span></div>
+        <div class="totalbox">المدفوع<br><b>${M(o.paid)}</b><br>${due>0?`<span class="due">المتبقي: ${M(due)}</span>`:`${over>0?`<span class="credit">رصيد دائن للعميل: ${M(over)}</span>`:'<span class="credit">الفاتورة خالصة</span>'}`}</div>
+      </div>
+      ${ps.showPaymentBreakdown!==false?`<div class="notes"><b>توزيع السداد:</b> كاش ${M(p.cash)} — إنستاباي ${M(p.insta)} — فودافون كاش ${M(p.voda)}</div>`:''}
+      ${ps.showWorkflow!==false?`<div class="notes"><b>مسار التشغيل:</b> ${E(workflowText(o))}</div>`:''}
+      ${o.notes?`<div class="notes"><b>ملاحظات:</b> ${E(o.notes)}</div>`:''}
+      ${ps.terms?`<div class="notes"><b>الشروط:</b> ${E(ps.terms)}</div>`:''}
+      ${ps.showSignatures!==false?`<div class="signs"><div class="sign">توقيع العميل / المستلم<br><br></div><div class="sign">توقيع وتسليم المطبعة<br><br></div></div>`:''}
+      <div class="footer">${E(ps.footer||'شكرًا لتعاملكم معنا')}<br>${E(c.name||'inkore ERP')} — ${today()}</div>`;
+    const w=window.open('','_blank','width=1000,height=850');if(!w)return;
+    w.document.write(styledPrintShell(inner,'فاتورة '+(o.orderNum||'')));w.document.close();
+  };
+
+  window.printSelectedClientInvoice=function(){
+    const id=document.getElementById('print_invoice_select')?.value||'';
+    if(!id)return alert('اختر الفاتورة أولاً');
+    const o=A('orders').find(x=>String(x.id)===String(id));
+    if(!o)return alert('الفاتورة غير موجودة');
+    window.printOneInvoicePremium(o);
+  };
+
+  window.printEnhancedClientStatement=function(name){
+    const c=A('clients').find(x=>x.name===name)||{name};
+    const orders=A('orders').filter(o=>o.clientName===name).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const cst=company(),ps=cst.printSettings||{};
+    const total=orders.reduce((s,o)=>s+N(o.totalSale),0);
+    const paid=orders.reduce((s,o)=>s+N(o.paid),0);
+    const invoiceDue=orders.reduce((s,o)=>s+N(o.due),0);
+    const invoiceCredit=orders.reduce((s,o)=>s+N(o.overpayment),0);
+    const currentDebt=Math.max(0,invoiceDue);
+    const currentCredit=Math.max(0,invoiceCredit);
+    const inner=`
+      <div class="top">
+        <div><div class="brand">${E(cst.name||'inkore ERP')}</div><div class="sub">${E(cst.address||'')} ${cst.phone?(' — '+E(cst.phone)):''}</div></div>
+        <div><div class="title">كشف حساب عميل</div><div class="meta">العميل: <b>${E(name)}</b><br>التاريخ: ${today()}</div></div>
+      </div>
+      <div class="pillbar">
+        <div class="pill">عدد الفواتير<b>${orders.length}</b></div>
+        <div class="pill">إجمالي المبيعات<b>${M(total)}</b></div>
+        <div class="pill">إجمالي المدفوع<b>${M(paid)}</b></div>
+      </div>
+      <table><thead><tr><th>التاريخ</th><th>رقم الفاتورة</th><th>البيان</th><th>الإجمالي</th><th>المدفوع</th><th>متبقي</th><th>رصيد دائن</th></tr></thead>
+      <tbody>${orders.map(o=>`<tr><td>${E(o.date)}</td><td>${E(o.orderNum)}</td><td>${E(o.desc||'-')}</td><td>${M(o.totalSale)}</td><td class="credit">${M(o.paid)}</td><td class="due">${M(o.due)}</td><td class="credit">${M(o.overpayment)}</td></tr>`).join('')||'<tr><td colspan="7">لا توجد فواتير</td></tr>'}</tbody></table>
+      <div class="totals">
+        <div class="totalbox">الرصيد المستحق على العميل<br><span class="big">${M(currentDebt)}</span></div>
+        <div class="totalbox">الرصيد الدائن للعميل<br><span class="credit big">${M(currentCredit)}</span></div>
+      </div>
+      <div class="notes"><b>صافي رصيد الحساب:</b> ${currentDebt-currentCredit>0?`على العميل ${M(currentDebt-currentCredit)}`:currentCredit-currentDebt>0?`للعميل رصيد دائن ${M(currentCredit-currentDebt)}`:'الحساب متعادل'}</div>
+      ${ps.showSignatures!==false?`<div class="signs"><div class="sign">توقيع العميل / المستلم</div><div class="sign">توقيع المراجعة / الحسابات</div></div>`:''}
+      <div class="footer">${E(ps.footer||'شكرًا لتعاملكم معنا')}<br>${E(cst.name||'inkore ERP')} — ${today()}</div>`;
+    const w=window.open('','_blank','width=1100,height=850');if(!w)return;
+    w.document.write(styledPrintShell(inner,'كشف حساب '+name));w.document.close();
+  };
+
+  // ----- Printing settings UI -----
+  function injectPrintSettings(){
+    const page=document.getElementById('page-settings');if(!page||document.getElementById('inkore_print_settings_box'))return;
+    const box=document.createElement('div');box.id='inkore_print_settings_box';
+    box.className='bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm mt-6';
+    const ps=company().printSettings, c=company();
+    box.innerHTML=`
+      <div class="flex items-center justify-between mb-5">
+        <div><h3 class="text-lg font-black">إعدادات شكل الطباعة والفواتير</h3><p class="text-xs text-slate-500 mt-1">خصص شكل الفاتورة وكشف الحساب واللوجو والتوقيعات.</p></div>
+        <button onclick="savePremiumPrintSettings()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black">حفظ إعدادات الطباعة</button>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+        <label class="font-bold">عنوان الفاتورة<input id="print_set_title" class="w-full border p-2.5 rounded-lg mt-1" value="${E(ps.invoiceTitle)}"></label>
+        <label class="font-bold">حجم الورق<select id="print_set_paper" class="w-full border p-2.5 rounded-lg mt-1"><option value="A4" ${ps.paperSize==='A4'?'selected':''}>A4</option><option value="80mm" ${ps.paperSize==='80mm'?'selected':''}>80mm</option></select></label>
+        <label class="font-bold">لون التصميم<input id="print_set_accent" type="color" value="${E(ps.accent)}" class="w-full h-11 border p-1 rounded-lg mt-1"></label>
+        <label class="font-bold lg:col-span-2">نص أسفل الفاتورة<input id="print_set_footer" class="w-full border p-2.5 rounded-lg mt-1" value="${E(ps.footer)}"></label>
+        <label class="font-bold lg:col-span-2">الشروط والملاحظات الثابتة<textarea id="print_set_terms" class="w-full border p-2.5 rounded-lg mt-1 min-h-20">${E(ps.terms)}</textarea></label>
+      </div>
+      <div class="flex flex-wrap gap-4 mt-4 text-xs">
+        <label class="flex items-center gap-2 font-bold"><input id="print_show_logo" type="checkbox" ${ps.showLogo!==false?'checked':''}> إظهار اللوجو</label>
+        <label class="flex items-center gap-2 font-bold"><input id="print_show_pay" type="checkbox" ${ps.showPaymentBreakdown!==false?'checked':''}> إظهار توزيع السداد</label>
+        <label class="flex items-center gap-2 font-bold"><input id="print_show_work" type="checkbox" ${ps.showWorkflow!==false?'checked':''}> إظهار مسار التشغيل</label>
+        <label class="flex items-center gap-2 font-bold"><input id="print_show_sign" type="checkbox" ${ps.showSignatures!==false?'checked':''}> إظهار التوقيعات</label>
+      </div>
+      <div class="mt-5 flex items-center gap-4">
+        <label class="font-bold text-xs">لوجو المطبعة
+          <input id="print_logo_file" type="file" accept="image/png,image/jpeg,image/webp" class="block mt-1 text-xs">
+        </label>
+        <img id="print_logo_preview" src="${c.logoData||''}" ${c.logoData?'':'style="display:none"'} class="w-20 h-20 rounded-xl border object-contain bg-slate-50">
+        <button onclick="clearPrintLogo()" class="bg-rose-50 text-rose-700 border border-rose-200 px-3 py-2 rounded-lg text-xs font-bold">حذف اللوجو</button>
+      </div>
+      <div class="mt-4 p-3 rounded-xl bg-slate-50 border text-xs">
+        <b>شكل الطباعة:</b> تصميم احترافي، رأسية منظمة، إجماليات واضحة، رصيد العميل، وتوقيع العميل/المستلم. اختر A4 أو 80mm من الإعدادات.
+      </div>`;
+    page.appendChild(box);
+
+    document.getElementById('print_logo_file').addEventListener('change',function(){
+      const f=this.files?.[0];if(!f)return;
+      if(f.size>1500000)return alert('حجم اللوجو كبير. استخدم صورة أقل من 1.5MB.');
+      const reader=new FileReader();
+      reader.onload=()=>{const c=company();c.logoData=reader.result;PUT('company',c);document.getElementById('print_logo_preview').src=reader.result;document.getElementById('print_logo_preview').style.display='block';};
+      reader.readAsDataURL(f);
+    });
+  }
+
+  window.savePremiumPrintSettings=function(){
+    const c=company(),p=c.printSettings;
+    p.invoiceTitle=document.getElementById('print_set_title')?.value||'فاتورة / أمر شغل';
+    p.paperSize=document.getElementById('print_set_paper')?.value||'A4';
+    p.accent=document.getElementById('print_set_accent')?.value||'#4f46e5';
+    p.footer=document.getElementById('print_set_footer')?.value||'شكرًا لتعاملكم معنا';
+    p.terms=document.getElementById('print_set_terms')?.value||'';
+    p.showLogo=!!document.getElementById('print_show_logo')?.checked;
+    p.showPaymentBreakdown=!!document.getElementById('print_show_pay')?.checked;
+    p.showWorkflow=!!document.getElementById('print_show_work')?.checked;
+    p.showSignatures=!!document.getElementById('print_show_sign')?.checked;
+    PUT('company',c);
+    alert('تم حفظ إعدادات شكل الطباعة.');
+  };
+  window.clearPrintLogo=function(){
+    const c=company();delete c.logoData;PUT('company',c);
+    const img=document.getElementById('print_logo_preview');if(img){img.src='';img.style.display='none';}
+  };
+
+  // Ensure client details always show the credit and net balance.
+  const oldOpen=window.openClientDetails;
+  window.openClientDetails=function(name){
+    const c=A('clients').find(x=>x.name===name), orders=A('orders').filter(x=>x.clientName===name);
+    if(!c)return oldOpen?oldOpen(name):alert('العميل غير موجود');
+    const debt=orders.reduce((s,o)=>s+N(o.due),0);
+    const credit=orders.reduce((s,o)=>s+N(o.overpayment),0);
+    setClientAccount(c,debt,credit);
+    PUT('clients',A('clients'));
+    if(typeof oldOpen==='function')oldOpen(name);
+    setTimeout(()=>{
+      const modal=document.getElementById('client_details_modal');
+      if(!modal)return;
+      const body=modal.innerHTML;
+      if(!body.includes('الرصيد الدائن')){
+        modal.innerHTML=body.replace(/<div class="grid grid-cols-3 gap-3 mb-5 text-center">[\s\S]*?<\/div>/,m=>{
+          return `<div class="grid grid-cols-4 gap-3 mb-5 text-center">
+            <div class="bg-indigo-50 p-3 rounded-xl"><b>${orders.length}</b><br><span class="text-xs">أوامر الشغل</span></div>
+            <div class="bg-emerald-50 p-3 rounded-xl"><b>${M(orders.reduce((s,o)=>s+N(o.paid),0))}</b><br><span class="text-xs">إجمالي المدفوع</span></div>
+            <div class="bg-rose-50 p-3 rounded-xl"><b>${M(debt)}</b><br><span class="text-xs">المستحق</span></div>
+            <div class="bg-green-50 p-3 rounded-xl"><b>${M(credit)}</b><br><span class="text-xs">الرصيد الدائن</span></div>
+          </div>`;
+        });
+      }
+    },50);
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(injectPrintSettings,500));
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='settings')setTimeout(injectPrintSettings,100);
+    return r;
+  };
+})();
+</script>
+
+
+<script id="inkore-unified-print-engine-v8">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const M=v=>F(v)+' ج.م';
+
+  function getCompany(){
+    const c=G('company')||{};
+    c.printSettings=c.printSettings||{};
+    const p=c.printSettings;
+    p.template=p.template||'modern';
+    p.paperSize=p.paperSize||'A4';
+    p.accent=p.accent||'#4f46e5';
+    p.invoiceTitle=p.invoiceTitle||'فاتورة / أمر شغل';
+    p.footer=p.footer||'شكرًا لتعاملكم معنا';
+    p.terms=p.terms||'';
+    if(p.showLogo===undefined)p.showLogo=true;
+    if(p.showPaymentBreakdown===undefined)p.showPaymentBreakdown=true;
+    if(p.showWorkflow===undefined)p.showWorkflow=true;
+    if(p.showSignatures===undefined)p.showSignatures=true;
+    return c;
+  }
+
+  const THEMES={
+    modern:{
+      label:'مودرن احترافي',
+      bg:'#ffffff',text:'#172033',muted:'#667085',line:'#e5e7eb',soft:'#f8fafc',
+      radius:'14px',shadow:'0 6px 24px rgba(15,23,42,.06)',titleWeight:900,headerBorder:'3px'
+    },
+    classic:{
+      label:'كلاسيك رسمي',
+      bg:'#fffdf8',text:'#2b241b',muted:'#6b6258',line:'#cfc6b8',soft:'#f3eee6',
+      radius:'4px',shadow:'none',titleWeight:800,headerBorder:'2px'
+    },
+    elegant:{
+      label:'فاخر أنيق',
+      bg:'#ffffff',text:'#111827',muted:'#6b7280',line:'#d8dde7',soft:'#f4f6fb',
+      radius:'20px',shadow:'0 10px 30px rgba(31,41,55,.08)',titleWeight:900,headerBorder:'1px'
+    },
+    minimal:{
+      label:'بسيط ونظيف',
+      bg:'#ffffff',text:'#20242b',muted:'#73777e',line:'#ececec',soft:'#fafafa',
+      radius:'8px',shadow:'none',titleWeight:700,headerBorder:'1px'
+    },
+    thermal:{
+      label:'حراري 80mm',
+      bg:'#ffffff',text:'#111111',muted:'#555',line:'#888',soft:'#f2f2f2',
+      radius:'0',shadow:'none',titleWeight:900,headerBorder:'2px'
+    }
+  };
+
+  function theme(){
+    const c=getCompany(),p=c.printSettings||{};
+    return THEMES[p.template]||THEMES.modern;
+  }
+
+  function printDocument(title,html,opts={}){
+    const c=getCompany(),p=c.printSettings||{},t=theme();
+    const size=(opts.paperSize||p.paperSize)==='80mm' || p.template==='thermal'?'80mm':'A4';
+    const accent=p.accent||'#4f46e5';
+    const logo=(p.showLogo!==false && c.logoData)?`<img src="${c.logoData}" class="logo">`:'<div class="logo-fallback">iK</div>';
+
+    const shell=`<!doctype html><html dir="rtl" lang="ar"><head>
+      <meta charset="utf-8"><title>${E(title)}</title>
+      <style>
+        @page{size:${size==='80mm'?'80mm auto':'A4'};margin:${size==='80mm'?'5mm':'10mm'}}
+        *{box-sizing:border-box}
+        body{margin:0;background:${t.bg};color:${t.text};font-family:Cairo,Arial,sans-serif}
+        .sheet{width:100%;max-width:${size==='80mm'?'74mm':'900px'};margin:0 auto}
+        .toolbar{position:fixed;left:12px;top:12px;display:flex;gap:8px;z-index:9}
+        .toolbar button{border:0;background:${accent};color:#fff;padding:8px 12px;border-radius:10px;font-weight:800;cursor:pointer}
+        .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:${t.headerBorder} solid ${accent};padding-bottom:14px;margin-bottom:16px}
+        .brandrow{display:flex;align-items:center;gap:12px}.logo{width:68px;height:68px;object-fit:contain;border-radius:12px}.logo-fallback{width:68px;height:68px;border-radius:12px;background:${accent};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px}
+        .brand{font-size:${size==='80mm'?'20px':'26px'};font-weight:${t.titleWeight};line-height:1.1}.muted{font-size:11px;color:${t.muted};margin-top:4px}
+        .doc-title{font-size:${size==='80mm'?'15px':'19px'};font-weight:900;color:${accent};text-align:left}.meta{text-align:left;font-size:10px;color:${t.muted};margin-top:5px}
+        .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+        .card{border:1px solid ${t.line};background:${t.soft};border-radius:${t.radius};padding:9px;text-align:center}.card b{display:block;margin-top:3px;font-size:${size==='80mm'?'11px':'14px'}}
+        table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid ${t.line};padding:${size==='80mm'?'6px':'9px'};font-size:${size==='80mm'?'9px':'11px'};text-align:right}th{background:${t.soft};font-weight:800}
+        .box{border:1px solid ${t.line};background:${t.bg};border-radius:${t.radius};padding:11px;margin:10px 0}
+        .totals{display:grid;grid-template-columns:1fr 1fr;gap:10px}.big{font-size:${size==='80mm'?'15px':'20px'};font-weight:900;color:${accent}}
+        .ok{color:#047857;font-weight:900}.warn{color:#b91c1c;font-weight:900}
+        .signs{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:40px}.sign{border-top:1px solid ${t.text};padding-top:8px;text-align:center;font-size:10px;min-height:40px}
+        .footer{border-top:1px solid ${t.line};margin-top:24px;padding-top:9px;text-align:center;color:${t.muted};font-size:9px}
+        .no-print{display:block}
+        @media print{.toolbar,.no-print{display:none!important}.sheet{max-width:none}}
+      </style>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+      </head><body><div class="toolbar"><button onclick="window.print()">طباعة</button></div><div class="sheet">${html}</div></body></html>`;
+    const w=window.open('','_blank','width=1100,height=900');if(!w)return;
+    w.document.write(shell);w.document.close();
+  }
+
+  // Unified engine for all reports that call printSimpleReport.
+  window.printSimpleReport=function(title,html){
+    const c=getCompany();
+    const head=`
+      <div class="head">
+        <div class="brandrow">
+          ${c.printSettings.showLogo!==false && c.logoData?`<img src="${c.logoData}" class="logo">`:'<div class="logo-fallback">iK</div>'}
+          <div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="muted">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div>
+        </div>
+        <div><div class="doc-title">${E(title)}</div><div class="meta">التاريخ: ${new Date().toLocaleDateString('en-GB')}</div></div>
+      </div>`;
+    const foot=`<div class="footer">${E(c.printSettings.footer||'شكرًا لتعاملكم معنا')}</div>`;
+    printDocument(title,head+html+foot);
+  };
+
+  // Rebuild the two customer prints using the same selected template.
+  window.printSelectedClientInvoice=function(){
+    const id=document.getElementById('print_invoice_select')?.value||'';
+    if(!id)return alert('اختر الفاتورة أولاً');
+    const o=(G('orders')||[]).find(x=>String(x.id)===String(id));
+    if(!o)return alert('الفاتورة غير موجودة');
+    const c=getCompany(),p=c.printSettings||{},pay=o.paymentBreakdown||{};
+    const status=[o.steps?.delivered?'تم التسليم':null,o.steps?.press?'تم الكبس':null,o.steps?.print?'تمت الطباعة':null,o.steps?.design?'قيد التصميم':null].filter(Boolean).join(' • ')||'لم يبدأ';
+    const over=N(o.overpayment),due=N(o.due);
+    let html=`
+      <div class="head">
+        <div class="brandrow">${p.showLogo!==false&&c.logoData?`<img src="${c.logoData}" class="logo">`:'<div class="logo-fallback">iK</div>'}<div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="muted">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div></div>
+        <div><div class="doc-title">${E(p.invoiceTitle||'فاتورة / أمر شغل')}</div><div class="meta">رقم: ${E(o.orderNum||'-')}<br>التاريخ: ${E(o.date||'-')}</div></div>
+      </div>
+      <div class="cards"><div class="card">العميل<b>${E(o.clientName||'-')}</b></div><div class="card">الكمية<b>${F(o.linearMeters)} متر</b></div><div class="card">الحالة<b>${E(status)}</b></div></div>
+      <table><thead><tr><th>البيان</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead><tbody><tr><td>${E(o.desc||'طباعة')}</td><td>${F(o.linearMeters)} متر</td><td>${F(o.saleRate)} ج.م</td><td>${F(o.grossSale||o.totalSale)} ج.م</td></tr></tbody></table>
+      <div class="totals"><div class="box">الخصم: <b>${M(o.discount)}</b><br><span class="big">الصافي: ${M(o.totalSale)}</span></div>
+      <div class="box">المدفوع: <b>${M(o.paid)}</b><br>${due>0?`<span class="warn">المتبقي: ${M(due)}</span>`:over>0?`<span class="ok">رصيد دائن للعميل: ${M(over)}</span>`:'<span class="ok">الفاتورة خالصة</span>'}</div></div>`;
+    if(p.showPaymentBreakdown!==false)html+=`<div class="box"><b>توزيع السداد:</b> كاش ${M(pay.cash)} — إنستاباي ${M(pay.insta)} — فودافون كاش ${M(pay.voda)}</div>`;
+    if(p.showWorkflow!==false)html+=`<div class="box"><b>مسار التشغيل:</b> ${E(status)}</div>`;
+    if(o.notes)html+=`<div class="box"><b>ملاحظات:</b> ${E(o.notes)}</div>`;
+    if(p.terms)html+=`<div class="box"><b>الشروط:</b> ${E(p.terms)}</div>`;
+    if(p.showSignatures!==false)html+=`<div class="signs"><div class="sign">توقيع العميل / المستلم<br><br></div><div class="sign">توقيع وتسليم المطبعة<br><br></div></div>`;
+    html+=`<div class="footer">${E(p.footer||'شكرًا لتعاملكم معنا')}</div>`;
+    printDocument('فاتورة '+(o.orderNum||''),html);
+  };
+
+  window.printEnhancedClientStatement=function(name){
+    const c=getCompany(),p=c.printSettings||{},orders=(G('orders')||[]).filter(o=>o.clientName===name).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const total=orders.reduce((s,o)=>s+N(o.totalSale),0),paid=orders.reduce((s,o)=>s+N(o.paid),0),due=orders.reduce((s,o)=>s+N(o.due),0),credit=orders.reduce((s,o)=>s+N(o.overpayment),0);
+    const rows=orders.map(o=>`<tr><td>${E(o.date)}</td><td>${E(o.orderNum)}</td><td>${E(o.desc||'-')}</td><td>${M(o.totalSale)}</td><td class="ok">${M(o.paid)}</td><td class="warn">${M(o.due)}</td><td class="ok">${M(o.overpayment)}</td></tr>`).join('')||'<tr><td colspan="7">لا توجد فواتير</td></tr>';
+    let html=`
+      <div class="head"><div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="muted">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div>
+      <div><div class="doc-title">كشف حساب عميل</div><div class="meta">العميل: <b>${E(name)}</b><br>التاريخ: ${new Date().toLocaleDateString('en-GB')}</div></div></div>
+      <div class="cards"><div class="card">عدد الفواتير<b>${orders.length}</b></div><div class="card">إجمالي المبيعات<b>${M(total)}</b></div><div class="card">إجمالي المدفوع<b>${M(paid)}</b></div></div>
+      <table><thead><tr><th>التاريخ</th><th>الفاتورة</th><th>البيان</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>رصيد دائن</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="totals"><div class="box">المستحق على العميل<br><span class="big">${M(due)}</span></div><div class="box">الرصيد الدائن للعميل<br><span class="big ok">${M(credit)}</span></div></div>`;
+    if(p.showSignatures!==false)html+=`<div class="signs"><div class="sign">توقيع العميل / المستلم</div><div class="sign">توقيع المراجعة / الحسابات</div></div>`;
+    html+=`<div class="footer">${E(p.footer||'شكرًا لتعاملكم معنا')}</div>`;
+    printDocument('كشف حساب '+name,html);
+  };
+
+  // Generic financial / operational report print using the same engine.
+  window.printFinancialMovementReport=function(){
+    const report=document.getElementById('inkore_full_financial_report');
+    if(!report)return alert('اعرض التقرير المالي أولاً');
+    const clone=report.cloneNode(true);
+    clone.querySelectorAll('button,input,select,textarea').forEach(x=>x.remove());
+    const html=clone.innerHTML;
+    window.printSimpleReport('التقرير المالي الكامل — حركة الفلوس',html);
+  };
+
+  function injectUnifiedTemplateSettings(){
+    const page=document.getElementById('page-settings');
+    if(!page||document.getElementById('inkore_print_templates_box'))return;
+    const c=getCompany(),p=c.printSettings||{};
+    const box=document.createElement('div');
+    box.id='inkore_print_templates_box';
+    box.className='bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm mt-6';
+    box.innerHTML=`
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div><h3 class="text-lg font-black">قوالب الطباعة الموحدة</h3>
+        <p class="text-xs text-slate-500 mt-1">نفس الهوية البصرية تطبق على الفواتير وكشوف العملاء والماليات والمخزون والموردين والحضور والرواتب وكل التقارير التي تستخدم محرك الطباعة الموحد.</p></div>
+        <button onclick="saveUnifiedPrintTemplate()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black">حفظ القالب</button>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <label class="font-bold">شكل الفورمة
+          <select id="unified_print_template" class="w-full border p-3 rounded-xl mt-1 font-bold">
+            ${Object.entries(THEMES).map(([k,v])=>`<option value="${k}" ${p.template===k?'selected':''}>${v.label}</option>`).join('')}
+          </select>
+        </label>
+        <label class="font-bold">حجم الورق
+          <select id="unified_print_paper" class="w-full border p-3 rounded-xl mt-1">
+            <option value="A4" ${p.paperSize!=='80mm'?'selected':''}>A4</option>
+            <option value="80mm" ${p.paperSize==='80mm'?'selected':''}>80mm</option>
+          </select>
+        </label>
+        <label class="font-bold">اللون الأساسي
+          <input id="unified_print_accent" type="color" value="${E(p.accent||'#4f46e5')}" class="w-full h-12 border p-1 rounded-xl mt-1">
+        </label>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 text-xs">
+        <label class="flex items-center gap-2"><input id="unified_show_logo" type="checkbox" ${p.showLogo!==false?'checked':''}> اللوجو</label>
+        <label class="flex items-center gap-2"><input id="unified_show_pay" type="checkbox" ${p.showPaymentBreakdown!==false?'checked':''}> توزيع السداد</label>
+        <label class="flex items-center gap-2"><input id="unified_show_work" type="checkbox" ${p.showWorkflow!==false?'checked':''}> مسار التشغيل</label>
+        <label class="flex items-center gap-2"><input id="unified_show_sign" type="checkbox" ${p.showSignatures!==false?'checked':''}> التوقيعات</label>
+      </div>
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <label class="font-bold">عنوان الفاتورة<input id="unified_print_title" class="w-full border p-3 rounded-xl mt-1" value="${E(p.invoiceTitle||'فاتورة / أمر شغل')}"></label>
+        <label class="font-bold">النص السفلي<input id="unified_print_footer" class="w-full border p-3 rounded-xl mt-1" value="${E(p.footer||'شكرًا لتعاملكم معنا')}"></label>
+      </div>
+      <div class="mt-4"><label class="font-bold text-xs">شروط/ملاحظات ثابتة<textarea id="unified_print_terms" class="w-full border p-3 rounded-xl mt-1 min-h-20">${E(p.terms||'')}</textarea></label></div>
+      <div class="mt-5 grid grid-cols-2 md:grid-cols-5 gap-2">
+        ${Object.entries(THEMES).map(([k,v])=>`<button type="button" onclick="previewPrintTemplate('${k}')" class="border rounded-xl p-3 hover:border-indigo-400 text-xs font-bold bg-slate-50">${v.label}<br><span class="text-[10px] text-slate-500">${k==='thermal'?'80mm':'A4'}</span></button>`).join('')}
+      </div>`;
+    page.appendChild(box);
+  }
+
+  window.saveUnifiedPrintTemplate=function(){
+    const c=getCompany(),p=c.printSettings;
+    p.template=document.getElementById('unified_print_template')?.value||'modern';
+    p.paperSize=document.getElementById('unified_print_paper')?.value||'A4';
+    p.accent=document.getElementById('unified_print_accent')?.value||'#4f46e5';
+    p.showLogo=!!document.getElementById('unified_show_logo')?.checked;
+    p.showPaymentBreakdown=!!document.getElementById('unified_show_pay')?.checked;
+    p.showWorkflow=!!document.getElementById('unified_show_work')?.checked;
+    p.showSignatures=!!document.getElementById('unified_show_sign')?.checked;
+    p.invoiceTitle=document.getElementById('unified_print_title')?.value||'فاتورة / أمر شغل';
+    p.footer=document.getElementById('unified_print_footer')?.value||'شكرًا لتعاملكم معنا';
+    p.terms=document.getElementById('unified_print_terms')?.value||'';
+    S('company',c);
+    alert('تم حفظ قالب الطباعة وسيتم استخدامه في كل المطبوعات الموحدة.');
+  };
+
+  window.previewPrintTemplate=function(k){
+    const c=getCompany(),p=c.printSettings;
+    const old=p.template;p.template=k;S('company',c);
+    printSimpleReport('معاينة قالب الطباعة — '+(THEMES[k]?.label||k),`
+      <div class="cards"><div class="card">نموذج الفاتورة<b>inkore ERP</b></div><div class="card">العميل<b>عميل تجريبي</b></div><div class="card">الإجمالي<b>12,500 ج.م</b></div></div>
+      <table><thead><tr><th>البيان</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+      <tbody><tr><td>طباعة سبلميشن</td><td>100 متر</td><td>30</td><td>3,000 ج.م</td></tr><tr><td>خدمة إضافية</td><td>1</td><td>9,500</td><td>9,500 ج.م</td></tr></tbody></table>
+      <div class="box">هذا نموذج معاينة فقط. الإعدادات الحالية ستُستخدم في المطبوعات.</div>`);
+    // Keep the selected preview as the actual selection; user can change it from settings.
+  };
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='settings')setTimeout(injectUnifiedTemplateSettings,120);
+    return r;
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(injectUnifiedTemplateSettings,500));
+})();
+</script>
+
+
+<script id="inkore-disaster-recovery-v9">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const KEYS=[
+    'company','cashbox','instapay','vodacash','bankAccount','clients','orders','expenses',
+    'partners','assets','electricity','employees','attendance','calenderOps','suppliers',
+    'supplierTransactions','fabricBatches','payrollClosings','treasuryClosings','bankDeposits',
+    'rawMaterials','stockMoves','users','securityInitialized'
+  ];
+  const META_PREFIX=P+'__sync_';
+  const backupKey='inkore_erp_disaster_backup_v1';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const nowISO=()=>new Date().toISOString();
+
+  function readBackupData(){
+    const data={};
+    KEYS.forEach(k=>{
+      const raw=localStorage.getItem(P+k);
+      if(raw!==null){try{data[k]=JSON.parse(raw)}catch(_){data[k]=raw}}
+    });
+    return data;
+  }
+
+  async function sha256(text){
+    const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(x=>x.toString(16).padStart(2,'0')).join('');
+  }
+
+  async function makeBackupPayload(source='local'){
+    const appData=readBackupData();
+    const serial=JSON.stringify(appData);
+    return {
+      format:'inkore-erp-backup',
+      version:9,
+      createdAt:nowISO(),
+      source,
+      app:'inkore ERP',
+      companyId:'b300c956-18fc-4654-a90f-a065e0b2749f',
+      includedKeys:Object.keys(appData),
+      sha256:await sha256(serial),
+      data:appData
+    };
+  }
+
+  function downloadJSON(payload,filename){
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filename;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+
+  async function internalSnapshot(label='نسخة تلقائية'){
+    try{
+      const payload=await makeBackupPayload('local-auto');
+      const history=JSON.parse(localStorage.getItem(backupKey)||'[]');
+      history.unshift({label,createdAt:payload.createdAt,sha256:payload.sha256,data:payload.data});
+      localStorage.setItem(backupKey,JSON.stringify(history.slice(0,3)));
+    }catch(e){console.warn('Auto backup failed',e);}
+  }
+
+  async function exportBackup(source='local'){
+    let cloudOk=false;
+    if(source==='cloud' && typeof window.inkorePull==='function'){
+      try{cloudOk=await window.inkorePull(false);}catch(_){}
+    }
+    const payload=await makeBackupPayload(cloudOk?'cloud-latest':'local');
+    downloadJSON(payload,`inkore_backup_${new Date().toISOString().replace(/[:.]/g,'-')}.json`);
+    const box=document.getElementById('backup_last_status');
+    if(box)box.textContent='آخر نسخة: '+new Date().toLocaleString('ar-EG')+' — '+(cloudOk?'من أحدث بيانات السحابة':'من بيانات الجهاز');
+  }
+
+  async function validatePayload(payload){
+    if(!payload || payload.format!=='inkore-erp-backup' || !payload.data || typeof payload.data!=='object') throw new Error('ملف النسخة الاحتياطية غير صالح');
+    const digest=await sha256(JSON.stringify(payload.data));
+    if(payload.sha256 && payload.sha256!==digest) throw new Error('النسخة الاحتياطية تالفة أو تم تعديلها');
+    return true;
+  }
+
+  async function restoreFile(file){
+    if(!file)return;
+    const text=await file.text();
+    const payload=JSON.parse(text);
+    await validatePayload(payload);
+
+    if(!confirm('سيتم استبدال بيانات الجهاز الحالية ببيانات النسخة الاحتياطية. سيتم أخذ نسخة تلقائية من البيانات الحالية أولاً. هل تريد المتابعة؟')) return;
+    await internalSnapshot('قبل الاستعادة');
+
+    const currentUser=G('currentUser');
+    Object.entries(payload.data).forEach(([k,v])=>S(k,v));
+    if(currentUser)S('currentUser',currentUser);
+    localStorage.removeItem(P+'__sync_dirty');
+
+    if(typeof window.inkoreSyncNow==='function'){
+      try{await window.inkoreSyncNow();}catch(_){}
+    }
+    alert('تمت استعادة النسخة الاحتياطية بنجاح. سيتم إعادة تحميل النظام.');
+    location.reload();
+  }
+
+  window.downloadInkoreBackup=async function(){
+    try{await exportBackup('local')}catch(e){alert('تعذر إنشاء النسخة الاحتياطية: '+e.message)}
+  };
+  window.downloadInkoreCloudBackup=async function(){
+    try{await exportBackup('cloud')}catch(e){alert('تعذر إنشاء نسخة السحابة: '+e.message)}
+  };
+  window.restoreInkoreBackup=function(input){
+    const file=input?.files?.[0];
+    restoreFile(file).catch(e=>alert('تعذر استعادة النسخة: '+e.message)).finally(()=>{if(input)input.value='';});
+  };
+  window.downloadInternalInkoreBackup=async function(){
+    try{
+      const history=JSON.parse(localStorage.getItem(backupKey)||'[]');
+      if(!history.length)return alert('لا توجد نسخة تلقائية محفوظة.');
+      const x=history[0];
+      downloadJSON({format:'inkore-erp-backup',version:9,createdAt:x.createdAt,source:'local-auto',app:'inkore ERP',sha256:x.sha256,data:x.data},`inkore_internal_backup_${x.createdAt.replace(/[:.]/g,'-')}.json`);
+    }catch(e){alert('تعذر تصدير النسخة التلقائية: '+e.message)}
+  };
+
+  function injectBackupUI(){
+    const page=document.getElementById('page-settings');
+    if(!page||document.getElementById('inkore_backup_box'))return;
+    const box=document.createElement('div');
+    box.id='inkore_backup_box';
+    box.className='bg-white p-6 rounded-2xl border border-emerald-200 shadow-sm mt-6';
+    box.innerHTML=`
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-black text-slate-900">النسخ الاحتياطي واستعادة النظام</h3>
+          <p class="text-xs text-slate-500 mt-1">نسخة كاملة من بيانات النظام قابلة للحفظ خارج الجهاز واستعادتها وقت الحاجة.</p>
+        </div>
+        <span id="backup_last_status" class="text-[11px] text-emerald-700 font-bold">جاهز للنسخ الاحتياطي</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
+        <button onclick="downloadInkoreBackup()" class="bg-slate-900 text-white p-3 rounded-xl font-black">
+          <i class="fa-solid fa-download ml-1"></i> تحميل نسخة احتياطية
+        </button>
+        <button onclick="downloadInkoreCloudBackup()" class="bg-emerald-600 text-white p-3 rounded-xl font-black">
+          <i class="fa-solid fa-cloud-arrow-down ml-1"></i> نسخة من أحدث بيانات السحابة
+        </button>
+        <button onclick="downloadInternalInkoreBackup()" class="bg-indigo-600 text-white p-3 rounded-xl font-black">
+          <i class="fa-solid fa-box-archive ml-1"></i> تصدير آخر نسخة تلقائية
+        </button>
+      </div>
+
+      <div class="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+        <div class="font-black text-amber-900 mb-2">استعادة البيانات</div>
+        <div class="flex flex-wrap items-center gap-3">
+          <input id="inkore_restore_file" type="file" accept=".json,application/json"
+            onchange="restoreInkoreBackup(this)" class="text-xs border bg-white rounded-lg p-2">
+          <span class="text-[11px] text-amber-800">قبل الاستعادة يتم أخذ نسخة تلقائية من البيانات الحالية.</span>
+        </div>
+      </div>
+
+      <div class="mt-4 p-4 rounded-xl bg-slate-50 border">
+        <div class="font-black mb-2">ما الذي تحتويه النسخة؟</div>
+        <div class="text-xs text-slate-600 leading-6">
+          العملاء، الفواتير، التحصيلات، الخزائن، المصروفات، العمال، الحضور، الرواتب والتقفيلات،
+          الموردين، المخزون، الخامات، الإعدادات، المستخدمين، والأرصدة.
+          <br><b>نصيحة:</b> بعد تنزيل النسخة، احتفظ بها على Google Drive أو USB أو جهاز آخر، وليس على نفس الجهاز فقط.
+        </div>
+      </div>
+    `;
+    page.appendChild(box);
+  }
+
+  async function runHealthCheck(){
+    const checks=[];
+    const required=[
+      ['company','بيانات المؤسسة'],['clients','العملاء'],['orders','الفواتير'],['expenses','المصروفات'],
+      ['employees','العمال'],['attendance','الحضور'],['payrollClosings','تقفيلات الرواتب'],
+      ['suppliers','الموردون'],['rawMaterials','المخزون'],['stockMoves','حركات المخزون'],
+      ['bankDeposits','توريدات البنك'],['treasuryClosings','تقفيلات الخزينة'],['users','المستخدمون']
+    ];
+    required.forEach(([k,n])=>checks.push({n,ok:localStorage.getItem(P+k)!==null}));
+    const fns=['handleLogin','handleLogout','inkoreSyncNow','commitLinearInvoice','renderAttendanceFinal','renderPayrollFinal','saveFinancialOpening','printSelectedClientInvoice','printEnhancedClientStatement'];
+    fns.forEach(n=>checks.push({n,ok:typeof window[n]==='function'}));
+    const bad=checks.filter(x=>!x.ok);
+    const msg=bad.length?`وجدت ${bad.length} عناصر تحتاج مراجعة:\n`+bad.map(x=>'- '+x.n).join('\n'):'فحص الواجهة الأساسي ناجح: الحقول والدوال الرئيسية موجودة.';
+    alert(msg);
+  }
+  window.runInkoreHealthCheck=runHealthCheck;
+
+  // Take a rolling local checkpoint once per browser session and before leaving.
+  document.addEventListener('DOMContentLoaded',async()=>{
+    setTimeout(injectBackupUI,350);
+    try{
+      const marker=P+'__backup_session_v1';
+      if(!sessionStorage.getItem(marker)){
+        await internalSnapshot('بداية الجلسة');
+        sessionStorage.setItem(marker,'1');
+      }
+    }catch(_){}
+  });
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='settings')setTimeout(injectBackupUI,100);
+    return r;
+  };
+})();
+</script>
+
 </body>
 </html>
 
