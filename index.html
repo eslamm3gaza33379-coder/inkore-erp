@@ -1348,6 +1348,7 @@ function todayStr() {
 
     function handleLogout() {
       document.getElementById('login_error_box').classList.add('hidden');
+      saveDB('currentUser',{username:'',role:''});
       document.getElementById('login-modal').classList.remove('hidden');
     }
 
@@ -3736,163 +3737,232 @@ function todayStr() {
 })();
 
 </script>
-<script id="inkore-cloud-sync-v1">
+<script id="inkore-final-audit-v1">
+(function(){
+  'use strict';
+  const P='inkore_erp_stable_v1_';
+  const DB=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const SAVE=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const N=v=>Number(v)||0;
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+  const code=s=>{const x=String(s||'');if(x==='حاضر'||x==='present')return'present';if(x==='تأخير'||x==='late')return'late';if(x==='نصف يوم'||x==='half')return'half';if(x==='إجازة بإذن'||x==='leave')return'leave';if(x==='غائب'||x==='غائب بدون إذن'||x==='absent')return'absent';return''};
+  const text=s=>({present:'حاضر',late:'تأخير',half:'نصف يوم',leave:'إجازة بإذن',absent:'غائب بدون إذن','':'غير مسجل'})[code(s)]||'غير مسجل';
+  const emps=()=>DB('employees')||[];
+  const emp=id=>emps().find(e=>String(e.id)===String(id));
+  function saturdayOf(v){const d=new Date((v||today())+'T00:00:00');const day=d.getDay();const back=day===6?0:day+1;d.setDate(d.getDate()-back);return d.toISOString().slice(0,10);}
+  function week(start){const d=new Date((start||saturdayOf())+'T00:00:00');return Array.from({length:6},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x.toISOString().slice(0,10)});}
+  function attendanceFor(e,date){return (DB('attendance')||[]).find(a=>{const id=String(a.employeeId||a.empId||a.employee_id||'');return ((id&&id===String(e.id))||(!id&&a.empName===e.name))&&String(a.date)===date;});}
+  function priorCarry(e,start){
+    const ws=new Date((start||saturdayOf())+'T00:00:00');ws.setDate(ws.getDate()-1);const cutoff=ws.toISOString().slice(0,10);
+    const closes=(DB('payrollClosings')||[]).filter(x=>String(x.employeeId||x.empId)===String(e.id)&&String(x.weekEnd||'')===cutoff).sort((a,b)=>String(b.closedAt||b.date||'').localeCompare(String(a.closedAt||a.date||'')));
+    return closes.length?N(closes[0].carryOver):0;
+  }
+  function calc(e,start){
+    const dates=week(start),rows=dates.map(date=>({date,a:attendanceFor(e,date)}));
+    const weekly=N(e.weeklySalary??e.weekly_base),hours=N(e.workHoursPerDay)||8,otRate=N(e.otRate)||40,dayRate=weekly/6;
+    let present=0,half=0,absent=0,leave=0,lateMin=0,ot=0;
+    rows.forEach(r=>{const s=code(r.a?.status||r.a?.statusCode);if(s==='present'||s==='late')present++;else if(s==='half')half++;else if(s==='absent')absent++;else if(s==='leave')leave++;lateMin+=N(r.a?.lateMin);ot+=N(r.a?.ot);});
+    const paidDays=present+half*0.5;
+    const attendanceValue=paidDays*dayRate;
+    const lateValue=(lateMin/60)*(dayRate/hours);
+    const otValue=ot*otRate;
+    const carryIn=priorCarry(e,dates[0]);
+    const gross=attendanceValue+otValue+N(e.holidayPay)+carryIn;
+    const deductions=lateValue+N(e.advances)+N(e.otherDeductions);
+    const net=Math.max(0,gross-deductions);
+    return {start:dates[0],end:dates[5],rows,weekly,dayRate,hours,otRate,present,half,absent,leave,lateMin,ot,paidDays,attendanceValue,lateValue,otValue,carryIn,gross,deductions,net};
+  }
+  window.inkoreCalcPayrollFinal=calc;
+
+  function refreshSelectors(){
+    const list=emps(), ids=['att_emp_select','att_report_emp','att_report_emp_page','payroll_report_emp'];
+    ids.forEach(id=>{const el=document.getElementById(id);if(!el)return;const old=String(el.value||'');el.innerHTML='<option value="">اختر العامل</option>'+list.filter(e=>e?.id&&e?.name).map(e=>`<option value="${esc(e.id)}">${esc(e.name)}</option>`).join('');if(old&&list.some(e=>String(e.id)===old))el.value=old;});
+  }
+  window.refreshEmployeeSelectorsFinal=refreshSelectors;
+  window.populateEmployeeReportSelectors=refreshSelectors;
+
+  window.recordAttendance=function(){
+    const id=document.getElementById('att_emp_select')?.value||'';const e=emp(id);if(!e)return alert('اختر العامل أولاً');
+    const date=document.getElementById('att_date')?.value||today();const status=document.getElementById('att_status')?.value||'حاضر';
+    const late=Math.max(0,N(document.getElementById('att_late_min')?.value));const cin=document.getElementById('att_check_in')?.value||'';const cout=document.getElementById('att_check_out')?.value||'';const manualOT=Math.max(0,N(document.getElementById('att_ot')?.value));
+    let ot=manualOT;
+    if(cin&&cout){const a=cin.split(':').map(Number),b=cout.split(':').map(Number);if(a.length===2&&b.length===2&&b[0]*60+b[1]>a[0]*60+a[1]){const worked=(b[0]*60+b[1]-a[0]*60-a[1])/60;ot=Math.max(0,Math.round((worked-(N(e.workHoursPerDay)||8))*2)/2);}}
+    const list=DB('attendance')||[];const same=a=>String(a.employeeId||a.empId||a.employee_id||'')===String(e.id)&&String(a.date)===date;let rec=list.find(same);
+    if(!rec){rec={id:Date.now()+Math.random()};list.unshift(rec);}
+    Object.assign(rec,{id:rec.id,date,employeeId:e.id,empId:e.id,empName:e.name,status,statusCode:code(status),lateMin:late,checkIn:cin,checkOut:cout,ot,updatedAt:new Date().toISOString()});
+    SAVE('attendance',list);refreshSelectors();if(typeof renderAttendanceFinal==='function')renderAttendanceFinal();if(typeof renderPayrollFinal==='function')renderPayrollFinal();
+  };
+  window.renderAttendanceFinal=function(){
+    refreshSelectors();const body=document.getElementById('attendance_table_body');if(!body)return;const from=document.getElementById('att_filter_from')?.value||'',to=document.getElementById('att_filter_to')?.value||'';
+    const rows=(DB('attendance')||[]).filter(a=>(!from||String(a.date)>=from)&&(!to||String(a.date)<=to)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    body.innerHTML=rows.map(a=>{const e=emp(a.employeeId||a.empId||a.employee_id);const name=e?.name||a.empName||'غير معروف';return `<tr><td class="p-3 font-mono">${esc(a.date)}</td><td class="p-3 font-bold">${esc(name)}</td><td class="p-3">${esc(text(a.status||a.statusCode))}</td><td class="p-3 font-mono">${N(a.lateMin)} د</td><td class="p-3 font-mono">${N(a.ot)} س</td><td class="p-3 text-center"><button onclick="editAttendanceFinal(${a.id})" class="text-blue-600"><i class="fa-solid fa-pen-to-square"></i></button></td><td class="p-3 text-center"><button onclick="deleteAttendanceFinal(${a.id})" class="text-rose-500"><i class="fa-solid fa-trash"></i></button></td></tr>`;}).join('')||'<tr><td colspan="7" class="p-6 text-center text-slate-400">لا توجد سجلات حضور</td></tr>';
+  };
+  window.renderAttendanceLog=window.renderAttendanceFinal;window.renderAttendance=window.renderAttendanceFinal;
+
+  window.renderPayrollFinal=function(){
+    refreshSelectors();const body=document.getElementById('weekly_hr_table_body');if(!body)return;
+    let bar=document.getElementById('inkore_week_bar');if(!bar){const page=document.getElementById('page-weekly_hr');if(page){bar=document.createElement('div');bar.id='inkore_week_bar';bar.className='bg-indigo-50 border border-indigo-200 p-4 rounded-2xl mb-6 text-xs';page.insertBefore(bar,page.children[2]||null);}}
+    if(bar){bar.innerHTML='<div class="flex flex-wrap items-end gap-3"><div><label class="block font-bold mb-1">بداية الأسبوع</label><input id="payroll_week_start" type="date" class="border p-2.5 rounded-lg font-mono font-bold bg-white"></div><div class="font-black text-indigo-900">السبت → الخميس</div><div class="text-slate-600">الجمعة إجازة أسبوعية وغير محسوبة.</div><button type="button" id="inkore_this_week" class="bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold">الأسبوع الحالي</button></div>';const input=document.getElementById('payroll_week_start');if(input&&!input.value)input.value=saturdayOf();document.getElementById('inkore_this_week')?.addEventListener('click',()=>{input.value=saturdayOf();window.renderPayrollFinal();});}
+    const start=document.getElementById('payroll_week_start')?.value||saturdayOf();let due=0,paid=0,carry=0;
+    body.innerHTML=emps().map(e=>{const d=calc(e,start);const p=N(e.currentPaid);due+=d.net;paid+=p;carry+=Math.max(0,d.net-p);const closed=(DB('payrollClosings')||[]).some(x=>String(x.employeeId||x.empId)===String(e.id)&&String(x.weekStart)===d.start);return `<tr><td class="p-3.5 font-black">${esc(e.name||'-')}<br><span class="text-slate-400 font-normal">${esc(e.role||'')}</span></td><td class="p-3.5 font-mono">${d.weekly.toLocaleString('en-US')} ج.م<br><span class="text-[10px]">6 أيام عمل</span></td><td class="p-3.5 text-center">${d.present} حاضر<br>${d.half} نصف<br>${d.absent} غياب<br>${d.leave} إجازة</td><td class="p-3.5 font-mono"><b>${d.paidDays}</b> يوم<br>${d.attendanceValue.toLocaleString('en-US',{maximumFractionDigits:2})} ج.م</td><td class="p-3.5 font-mono">${d.lateMin} د<br><span class="text-rose-600">- ${d.lateValue.toLocaleString('en-US',{maximumFractionDigits:2})}</span></td><td class="p-3.5 font-mono">${d.ot} س<br><span class="text-emerald-700">+ ${d.otValue.toLocaleString('en-US',{maximumFractionDigits:2})}</span></td><td class="p-3.5 font-black text-indigo-800">${d.net.toLocaleString('en-US',{maximumFractionDigits:2})} ج.م</td><td class="p-3.5"><input type="number" min="0" value="${p}" onchange="updateEmpField(${JSON.stringify(e.id)},'currentPaid',this.value)" class="w-24 border rounded p-1 font-mono text-center"></td><td class="p-3.5">${p<d.net?'له '+(d.net-p).toLocaleString('en-US',{maximumFractionDigits:2}):p>d.net?'عليه '+(p-d.net).toLocaleString('en-US',{maximumFractionDigits:2}):'خالص'}</td><td class="p-3.5 text-center">${closed?'<span class="text-emerald-700 font-bold">مقفول</span>':`<button onclick="showAutoEmployeeDetail(${JSON.stringify(e.id)})" class="bg-slate-100 px-2 py-1 rounded-lg">كشف</button> <button onclick="closeEmployeeWeekFinal(${JSON.stringify(e.id)})" class="bg-indigo-600 text-white px-3 py-1 rounded-lg font-bold">تقفيل</button>`}</td></tr>`;}).join('')||'<tr><td colspan="10" class="p-6 text-center text-slate-400">لا يوجد عمال مسجلون</td></tr>';
+    document.getElementById('total_weekly_salaries_due')&&(document.getElementById('total_weekly_salaries_due').innerText=due.toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م');
+    document.getElementById('total_weekly_salaries_paid')&&(document.getElementById('total_weekly_salaries_paid').innerText=paid.toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م');
+    document.getElementById('total_weekly_salaries_carry')&&(document.getElementById('total_weekly_salaries_carry').innerText=carry.toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م');
+  };
+  window.renderWeeklyHR=window.renderPayrollFinal;
+  window.updateEmpField=function(id,field,val){const e=emp(id);if(!e)return;e[field]=Math.max(0,N(val));SAVE('employees',emps());window.renderPayrollFinal();};
+  window.showAutoEmployeeDetail=function(id){const e=emp(id);if(!e)return alert('العامل غير موجود');const d=calc(e,document.getElementById('payroll_week_start')?.value||saturdayOf());const w=window.open('','_blank','width=1100,height=800');if(!w)return;w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>كشف العامل</title><style>body{font-family:Arial;padding:25px}h2,h3{margin:8px 0}table{width:100%;border-collapse:collapse;margin-top:15px}th,td{border:1px solid #ddd;padding:8px}th{background:#f1f5f9}</style></head><body><h2>inkore ERP</h2><h3>كشف العامل: ${esc(e.name)}</h3><p>الفترة: ${d.start} → ${d.end} (السبت → الخميس)</p><p>أيام الحضور: ${d.present} | نصف يوم: ${d.half} | غياب: ${d.absent} | التأخير: ${d.lateMin} دقيقة | الإضافي: ${d.ot} ساعة</p><p>قيمة الحضور: ${d.attendanceValue.toFixed(2)} | خصم التأخير: ${d.lateValue.toFixed(2)} | الإضافي: ${d.otValue.toFixed(2)} | صافي المستحق: ${d.net.toFixed(2)} ج.م</p><table><thead><tr><th>التاريخ</th><th>العامل</th><th>الحالة</th><th>الحضور</th><th>الانصراف</th><th>التأخير</th><th>الإضافي</th></tr></thead><tbody>${d.rows.map(r=>`<tr><td>${r.date}</td><td>${esc(e.name)}</td><td>${esc(text(r.a?.status||r.a?.statusCode))}</td><td>${esc(r.a?.checkIn||'-')}</td><td>${esc(r.a?.checkOut||'-')}</td><td>${N(r.a?.lateMin)} د</td><td>${N(r.a?.ot)} س</td></tr>`).join('')}</tbody></table></body></html>`);w.document.close();setTimeout(()=>w.print(),250);};
+  window.closeEmployeeWeekFinal=function(id){const e=emp(id);if(!e)return;const start=document.getElementById('payroll_week_start')?.value||saturdayOf(),d=calc(e,start);const closings=DB('payrollClosings')||[];if(closings.some(x=>String(x.employeeId||x.empId)===String(e.id)&&String(x.weekStart)===d.start))return alert('الأسبوع مقفول بالفعل لهذا العامل.');const paid=N(e.currentPaid);closings.unshift({id:Date.now()+Math.random(),weekStart:d.start,weekEnd:d.end,employeeId:e.id,empName:e.name,weeklySalary:d.weekly,present:d.present,half:d.half,absent:d.absent,leave:d.leave,paidDays:d.paidDays,attendanceValue:d.attendanceValue,lateMin:d.lateMin,lateDeduction:d.lateValue,overtimeHours:d.ot,overtimePay:d.otValue,holidayPay:N(e.holidayPay),advances:N(e.advances),otherDeductions:N(e.otherDeductions),carryIn:d.carryIn,gross:d.gross,deductions:d.deductions,netDue:d.net,currentPaid:paid,carryOver:Math.max(0,d.net-paid),locked:true,closedAt:new Date().toISOString()});SAVE('payrollClosings',closings);e.currentPaid=0;e.advances=0;e.holidayPay=0;e.carryOver=Math.max(0,d.net-paid);SAVE('employees',emps());window.renderPayrollFinal();alert(`تم تقفيل أسبوع ${e.name}\n${d.start} → ${d.end}\nأيام الحضور: ${d.present}\nنصف يوم: ${d.half}\nالغياب: ${d.absent}\nالصافي: ${d.net.toFixed(2)} ج.م`);};
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{refreshSelectors();if(document.getElementById('attendance_table_body'))window.renderAttendanceFinal();if(document.getElementById('weekly_hr_table_body'))window.renderPayrollFinal();},200));
+})();
+</script>
+<script id="inkore-cloud-sync-v2">
 (function(){
   'use strict';
   const PREFIX='inkore_erp_stable_v1_';
   const COMPANY_ID='b300c956-18fc-4654-a90f-a065e0b2749f';
-  const SYNC_URL='https://beufbjctxavjxeiqzgxp.supabase.co/functions/v1/inkore-sync';
+  const SYNC_URL='https://beufbjctxavjxeiqzgxp.supabase.co/functions/v1/inkore-sync-v2';
+  const SUPABASE_PUBLISHABLE_KEY='sb_publishable_3SM1DFazXCVuFHO5cvzKSg_AH8APyhB';
   const KEYS=['company','cashbox','instapay','vodacash','bankAccount','clients','orders','expenses','partners','assets','electricity','employees','attendance','calenderOps','suppliers','supplierTransactions','fabricBatches','payrollClosings','treasuryClosings','bankDeposits','rawMaterials','stockMoves','users','securityInitialized'];
-  let syncing=false, syncTimer=null, serverVersion=Number(localStorage.getItem(PREFIX+'__sync_version')||0), lastPullAt=0;
+  const META_DIRTY=PREFIX+'__sync_dirty';
+  const META_VERSION=PREFIX+'__sync_version';
+  let syncing=false, timer=null, serverVersion=Number(localStorage.getItem(META_VERSION)||0), lastPullAt=0;
 
-  const setStatus=(text,kind)=>{
+  function currentUser(){ try{return JSON.parse(localStorage.getItem(PREFIX+'currentUser')||'null')||{};}catch(_){return {};} }
+  function credentials(){
+    const u=currentUser();
+    const username=String(u.username||'').trim();
+    const passwordHash=String(u.passwordHash||'').trim().toLowerCase();
+    return username && passwordHash ? {username,passwordHash}:null;
+  }
+  function readState(){
+    const out={};
+    for(const k of KEYS){ try{const v=localStorage.getItem(PREFIX+k); if(v!==null) out[k]=JSON.parse(v);}catch(_){} }
+    return out;
+  }
+  function writeState(data){
+    if(!data||typeof data!=='object')return;
+    syncing=true;
+    try{
+      for(const k of KEYS){ if(Object.prototype.hasOwnProperty.call(data,k)) localStorage.setItem(PREFIX+k,JSON.stringify(data[k])); }
+    }finally{
+      setTimeout(()=>{syncing=false;},0);
+    }
+  }
+  function markDirty(){ if(!syncing) localStorage.setItem(META_DIRTY,'1'); }
+  function clearDirty(){ localStorage.removeItem(META_DIRTY); }
+  function isDirty(){ return localStorage.getItem(META_DIRTY)==='1'; }
+  function setStatus(text,kind){
     const el=document.getElementById('inkore_sync_status');
     const btn=document.getElementById('inkore_sync_btn');
     const icon=document.getElementById('inkore_sync_icon');
     const label=document.getElementById('inkore_sync_text');
     if(el) el.textContent=text;
-    if(el){el.className='text-[10px] px-2 py-1 rounded-lg border '+(kind==='ok'?'bg-emerald-900/40 border-emerald-700 text-emerald-200':kind==='err'?'bg-rose-900/40 border-rose-700 text-rose-200':'bg-slate-800 border-slate-700 text-slate-300');}
-    if(btn) btn.disabled=kind==='busy';
-    if(btn) btn.classList.toggle('opacity-60',kind==='busy');
+    if(el) el.className='text-[10px] px-2 py-1 rounded-lg border '+(kind==='ok'?'bg-emerald-900/40 border-emerald-700 text-emerald-200':kind==='err'?'bg-rose-900/40 border-rose-700 text-rose-200':kind==='busy'?'bg-slate-800 border-slate-700 text-slate-300':'bg-slate-800 border-slate-700 text-slate-300');
+    if(btn){btn.disabled=kind==='busy';btn.classList.toggle('opacity-60',kind==='busy');}
     if(icon) icon.className='fa-solid '+(kind==='busy'?'fa-rotate fa-spin':kind==='ok'?'fa-cloud-check':kind==='err'?'fa-triangle-exclamation':'fa-cloud-arrow-up');
     if(label) label.textContent=kind==='busy'?'جارٍ المزامنة…':'مزامنة';
-  };
-
-  function readState(){
-    const data={};
-    for(const k of KEYS){
-      try{
-        const raw=localStorage.getItem(PREFIX+k);
-        if(raw!==null) data[k]=JSON.parse(raw);
-      }catch(_){ }
-    }
-    return data;
   }
-  function writeState(data){
-    if(!data||typeof data!=='object') return;
-    syncing=true;
-    try{
-      for(const k of KEYS){
-        if(Object.prototype.hasOwnProperty.call(data,k)) localStorage.setItem(PREFIX+k,JSON.stringify(data[k]));
-      }
-    } finally { setTimeout(()=>{syncing=false;},0); }
-  }
-  function credentials(){
-    const u=(()=>{try{return JSON.parse(localStorage.getItem(PREFIX+'currentUser')||'null')}catch(_){return null}})()||{};
-    const username=String(u.username||'').trim();
-    const passwordHash=String(u.passwordHash||'').trim().toLowerCase();
-    return username&&passwordHash?{username,passwordHash}:null;
-  }
-  async function api(action, data){
+  async function api(action,data){
     const c=credentials();
-    if(!c) throw new Error('سجّل الدخول أولاً للمزامنة');
-    const res=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({companyId:COMPANY_ID,action,username:c.username,passwordHash:c.passwordHash,data})});
-    let body=null; try{body=await res.json();}catch(_){ }
-    if(!res.ok || !body?.ok) throw new Error(body?.error||('خطأ اتصال '+res.status));
+    if(!c) throw new Error('سجّل الدخول أولاً');
+    const res=await fetch(SYNC_URL,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_PUBLISHABLE_KEY,'x-inkore-client':'inkore-erp-web'},body:JSON.stringify({companyId:COMPANY_ID,action,username:c.username,passwordHash:c.passwordHash,data:data||null,clientVersion:serverVersion})});
+    let body=null;try{body=await res.json();}catch(_){}
+    if(!res.ok||!body?.ok)throw new Error(body?.error||('خطأ اتصال '+res.status));
     return body;
   }
-  function schedulePush(){
-    if(syncing || !credentials()) return;
-    clearTimeout(syncTimer);
-    syncTimer=setTimeout(()=>inkorePush(false),1200);
+  function redraw(){
+    try{if(typeof refreshTreasuryBars==='function')refreshTreasuryBars();}catch(_){}
+    try{if(typeof renderAttendanceFinal==='function')renderAttendanceFinal();}catch(_){}
+    try{if(typeof renderPayrollFinal==='function')renderPayrollFinal();}catch(_){}
+    try{if(typeof refreshEmployeeSelectorsFinal==='function')refreshEmployeeSelectorsFinal();}catch(_){}
+    try{if(typeof applyPermissions==='function')applyPermissions();}catch(_){}
   }
-
-  window.inkorePush=async function(manual){
-    if(syncing) return;
-    setStatus('جاري الرفع…','busy');
-    try{
-      const r=await api('push',readState());
-      serverVersion=Number(r.version||serverVersion);
-      localStorage.setItem(PREFIX+'__sync_version',String(serverVersion));
-      lastPullAt=Date.now();
-      setStatus('متزامن ✓','ok');
-      if(manual) alert('تم رفع بيانات هذا الجهاز إلى السحابة بنجاح.');
-      return true;
-    }catch(e){
-      setStatus('فشل المزامنة','err');
-      if(manual) alert('تعذر المزامنة: '+e.message);
-      return false;
-    }
-  };
-
-  window.inkorePull=async function(manual,afterLogin){
-    if(syncing) return;
+  async function pull(manual){
+    if(syncing)return false;
     setStatus('جاري التنزيل…','busy');
     try{
       const r=await api('pull');
       const remote=r.data;
-      const local=readState();
-      if(remote && typeof remote==='object'){
-        writeState(remote);
-        serverVersion=Number(r.version||0);
-        localStorage.setItem(PREFIX+'__sync_version',String(serverVersion));
-        lastPullAt=Date.now();
-        setStatus('متزامن ✓','ok');
-        if(manual) alert('تم تنزيل أحدث بيانات من السحابة على هذا الجهاز.');
-        if(afterLogin && JSON.stringify(local)!==JSON.stringify(remote)){
-          setTimeout(()=>location.reload(),250);
-        } else {
-          try{ if(typeof refreshTreasuryBars==='function') refreshTreasuryBars(); }catch(_){ }
-          try{ if(typeof renderAttendanceFinal==='function') renderAttendanceFinal(); }catch(_){ }
-          try{ if(typeof renderPayrollFinal==='function') renderPayrollFinal(); }catch(_){ }
-          try{ if(typeof renderUsersList==='function') renderUsersList(); }catch(_){ }
-        }
+      const v=Number(r.version||0);
+      if(remote&&typeof remote==='object'&&v>=serverVersion){
+        writeState(remote);serverVersion=v;localStorage.setItem(META_VERSION,String(v));clearDirty();lastPullAt=Date.now();redraw();setStatus('متزامن ✓','ok');
+        if(manual)alert('تم تنزيل أحدث بيانات من السحابة بنجاح.');
         return true;
       }
-      // No cloud state yet: publish this device's clean/local state.
-      setStatus('لا توجد نسخة سحابية','ok');
-      return await inkorePush(false);
-    }catch(e){
-      setStatus('غير متصل','err');
-      if(manual) alert('تعذر الاتصال بالسحابة: '+e.message);
-      return false;
+      setStatus('متزامن ✓','ok');return true;
+    }catch(e){setStatus('فشل المزامنة','err');if(manual)alert('تعذر تنزيل البيانات: '+e.message);return false;}
+  }
+  async function push(manual){
+    if(syncing)return false;
+    setStatus('جاري الرفع…','busy');
+    try{
+      const r=await api('push',readState());
+      serverVersion=Number(r.version||serverVersion+1);localStorage.setItem(META_VERSION,String(serverVersion));clearDirty();lastPullAt=Date.now();setStatus('متزامن ✓','ok');
+      if(manual)alert('تم رفع البيانات وحفظها على السحابة بنجاح.');
+      return true;
+    }catch(e){setStatus('فشل المزامنة','err');if(manual)alert('تعذر رفع البيانات: '+e.message);return false;}
+  }
+  async function syncNow(){
+    if(!credentials()){setStatus('سجّل الدخول','');alert('سجّل الدخول أولاً ثم اضغط مزامنة.');return false;}
+    // Any unsaved local edits take priority for this device; otherwise pull newer server state.
+    if(isDirty()){
+      const ok=await push(false);if(!ok)return false;
+      return await pull(true);
     }
-  };
+    return await pull(true);
+  }
+  window.inkorePush=push;
+  window.inkorePull=pull;
+  window.inkoreSyncNow=syncNow;
 
-  window.inkoreSyncNow=async function(){
-    if(!credentials()) return alert('سجّل الدخول أولاً ثم اضغط مزامنة.');
-    // Push current changes first, then pull the server copy so manual sync never silently discards local edits.
-    const pushed=await inkorePush(false);
-    if(pushed) await inkorePull(true,false);
-  };
-
-  // Observe all application localStorage saves and upload them automatically after a short debounce.
   const originalSetItem=Storage.prototype.setItem;
   Storage.prototype.setItem=function(key,value){
     originalSetItem.call(this,key,value);
-    if(this===localStorage && String(key).startsWith(PREFIX) && !String(key).includes('__sync_') && !syncing){ schedulePush(); }
+    if(this===localStorage&&String(key).startsWith(PREFIX)&&!String(key).startsWith(PREFIX+'__sync_')&&!syncing){markDirty();clearTimeout(timer);timer=setTimeout(()=>{if(credentials())push(false);},1500);}
   };
 
-  // Rewrap the final login handler so a successful login immediately downloads shared company data.
-  const oldLogin=window.handleLogin;
-  if(typeof oldLogin==='function'){
+  // Login must stay local and must NEVER be logged out by a background sync request.
+  // Cloud sync starts only after a successful local login and runs in the background.
+  const existingLogin=window.handleLogin;
+  if(typeof existingLogin==='function'){
     window.handleLogin=async function(){
-      const result=await oldLogin.apply(this,arguments);
-      try{
-        const u=(function(){try{return JSON.parse(localStorage.getItem(PREFIX+'currentUser')||'null')}catch(_){return null}})()||{};
-        if(u.username && u.passwordHash) await inkorePull(false,true);
-      }catch(_){ setStatus('غير متصل','err'); }
+      const modal=document.getElementById('login-modal');
+      const before=currentUser();
+      let result;
+      try {
+        result=await existingLogin.apply(this,arguments);
+      } catch(err) {
+        console.error('Login error:',err);
+        return;
+      }
+      const after=currentUser();
+      if(after&&after.username){
+        // Keep the user logged in even if cloud sync is unavailable.
+        if(modal) modal.classList.add('hidden');
+        setStatus('متصل محليًا','ok');
+        setTimeout(async()=>{
+          try { await pull(false); } catch(e) { console.warn('Background sync skipped:',e); }
+          try { redraw(); } catch(_) {}
+        },300);
+      } else if(before&&before.username){
+        // Do not force a logout here.
+        if(modal) modal.classList.add('hidden');
+      }
       return result;
     };
   }
-
-  // Logout should clear the local session, but never delete ERP business data.
-  const logoutButton=document.querySelector('button[onclick="handleLogout()"]');
-  if(logoutButton){
-    logoutButton.onclick=function(){
-      try{localStorage.setItem(PREFIX+'currentUser',JSON.stringify({username:'',role:''}));}catch(_){ }
-      document.getElementById('login_error_box')?.classList.add('hidden');
-      document.getElementById('login-modal')?.classList.remove('hidden');
-    };
-  }
-
-  // Start automatic pull for an already-signed-in session and keep devices reasonably fresh.
+  // Restore last activity for an existing session so a page refresh never causes an immediate logout.
+  try { if(currentUser().username) lastActivity=Date.now(); } catch(_) {}
   setTimeout(async()=>{
-    const c=credentials();
-    if(c) await inkorePull(false,false);
-    else setStatus('سجّل الدخول','');
+    if(credentials()) await pull(false); else setStatus('سجّل الدخول','');
   },700);
-  setInterval(()=>{ if(credentials() && !document.hidden && Date.now()-lastPullAt>15000) inkorePull(false,false); },15000);
+  setInterval(async()=>{
+    if(!credentials()||document.hidden||syncing)return;
+    if(isDirty()) await push(false);
+    else if(Date.now()-lastPullAt>12000) await pull(false);
+  },5000);
 })();
 </script>
 </body>
