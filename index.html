@@ -5863,6 +5863,168 @@ function todayStr() {
 })();
 </script>
 
+
+<script id="inkore-customer-name-size-v10">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
+
+  function company(){
+    const c=G('company')||{};
+    c.printSettings=c.printSettings||{};
+    const p=c.printSettings;
+    if(p.customerNameFontSize===undefined)p.customerNameFontSize=14;
+    return c;
+  }
+
+  function injectCustomerNameSetting(){
+    const page=document.getElementById('page-settings');
+    if(!page || document.getElementById('inkore_customer_name_size_box')) return;
+    const c=company(), p=c.printSettings;
+    const box=document.createElement('div');
+    box.id='inkore_customer_name_size_box';
+    box.className='bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm mt-6';
+    box.innerHTML=`
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-black">حجم اسم العميل في الطباعة</h3>
+          <p class="text-xs text-slate-500 mt-1">حدد حجم اسم العميل بشكل مستقل في الفاتورة وكشف الحساب.</p>
+        </div>
+        <button type="button" onclick="saveCustomerNamePrintSize()" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black">حفظ</button>
+      </div>
+
+      <div class="mt-5 max-w-md">
+        <label class="font-bold text-xs">حجم الخط
+          <div class="flex items-center gap-3 mt-2">
+            <input id="customer_name_print_size" type="range" min="10" max="36" step="1"
+              value="${N(p.customerNameFontSize)||14}" oninput="document.getElementById('customer_name_print_size_value').textContent=this.value+'px'"
+              class="w-full">
+            <span id="customer_name_print_size_value" class="min-w-16 text-center font-mono font-black bg-slate-100 rounded-lg px-2 py-2">${N(p.customerNameFontSize)||14}px</span>
+          </div>
+        </label>
+        <div class="mt-4 rounded-xl border bg-slate-50 p-4 text-center">
+          <div class="text-xs text-slate-500 mb-1">معاينة اسم العميل</div>
+          <div id="customer_name_preview" style="font-size:${N(p.customerNameFontSize)||14}px" class="font-black">ياسر الراوي</div>
+        </div>
+      </div>
+    `;
+    page.appendChild(box);
+
+    const slider=document.getElementById('customer_name_print_size');
+    slider?.addEventListener('input',function(){
+      const pv=document.getElementById('customer_name_preview');
+      if(pv)pv.style.fontSize=this.value+'px';
+    });
+  }
+
+  window.saveCustomerNamePrintSize=function(){
+    const c=company(), p=c.printSettings;
+    p.customerNameFontSize=Math.min(36,Math.max(10,N(document.getElementById('customer_name_print_size')?.value)||14));
+    S('company',c);
+    injectCustomerNameSetting();
+    alert('تم حفظ حجم اسم العميل في المطبوعات.');
+  };
+
+  // Unified helper: all premium customer-facing printouts use this size.
+  function customerNameStyle(){
+    return `style="font-size:${N(company().printSettings.customerNameFontSize)||14}px;font-weight:900"`;
+  }
+  window.inkoreCustomerNameStyle=customerNameStyle;
+
+  // Replace the latest customer invoice printer with an adjusted version.
+  const oldInvoice=window.printSelectedClientInvoice;
+  window.printSelectedClientInvoice=function(){
+    const id=document.getElementById('print_invoice_select')?.value||'';
+    if(!id) return alert('اختر الفاتورة أولاً');
+    const o=(G('orders')||[]).find(x=>String(x.id)===String(id));
+    if(!o)return alert('الفاتورة غير موجودة');
+    const c=company(),p=c.printSettings||{},pay=o.paymentBreakdown||{};
+    const status=[o.steps?.delivered?'تم التسليم':null,o.steps?.press?'تم الكبس':null,o.steps?.print?'تمت الطباعة':null,o.steps?.design?'قيد التصميم':null].filter(Boolean).join(' • ')||'لم يبدأ';
+    const over=N(o.overpayment),due=N(o.due);
+
+    // Reuse the existing unified print engine created by v8.
+    if(typeof window.printDocument!=='function'){
+      return typeof oldInvoice==='function' ? oldInvoice() : alert('محرك الطباعة غير متاح');
+    }
+
+    let html=`
+      <div class="head">
+        <div class="brandrow">${p.showLogo!==false&&c.logoData?`<img src="${c.logoData}" class="logo">`:'<div class="logo-fallback">iK</div>'}
+          <div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="muted">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div>
+        </div>
+        <div><div class="doc-title">${E(p.invoiceTitle||'فاتورة / أمر شغل')}</div><div class="meta">رقم: ${E(o.orderNum||'-')}<br>التاريخ: ${E(o.date||'-')}</div></div>
+      </div>
+      <div class="cards">
+        <div class="card">العميل<b ${customerNameStyle()}>${E(o.clientName||'-')}</b></div>
+        <div class="card">الكمية<b>${F(o.linearMeters)} متر</b></div>
+        <div class="card">الحالة<b>${E(status)}</b></div>
+      </div>
+      <table><thead><tr><th>البيان</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+      <tbody><tr><td>${E(o.desc||'طباعة')}</td><td>${F(o.linearMeters)} متر</td><td>${F(o.saleRate)} ج.م</td><td>${F(o.grossSale||o.totalSale)} ج.م</td></tr></tbody></table>
+      <div class="totals">
+        <div class="box">الخصم: <b>${M(o.discount)}</b><br><span class="big">الصافي: ${M(o.totalSale)}</span></div>
+        <div class="box">المدفوع: <b>${M(o.paid)}</b><br>${due>0?`<span class="warn">المتبقي: ${M(due)}</span>`:over>0?`<span class="ok">رصيد دائن للعميل: ${M(over)}</span>`:'<span class="ok">الفاتورة خالصة</span>'}</div>
+      </div>`;
+    if(p.showPaymentBreakdown!==false)html+=`<div class="box"><b>توزيع السداد:</b> كاش ${M(pay.cash)} — إنستاباي ${M(pay.insta)} — فودافون كاش ${M(pay.voda)}</div>`;
+    if(p.showWorkflow!==false)html+=`<div class="box"><b>مسار التشغيل:</b> ${E(status)}</div>`;
+    if(o.notes)html+=`<div class="box"><b>ملاحظات:</b> ${E(o.notes)}</div>`;
+    if(p.terms)html+=`<div class="box"><b>الشروط:</b> ${E(p.terms)}</div>`;
+    if(p.showSignatures!==false)html+=`<div class="signs"><div class="sign">توقيع العميل / المستلم<br><br></div><div class="sign">توقيع وتسليم المطبعة<br><br></div></div>`;
+    html+=`<div class="footer">${E(p.footer||'شكرًا لتعاملكم معنا')}</div>`;
+
+    window.printDocument('فاتورة '+(o.orderNum||''),html);
+  };
+
+  // Customer statement: font size for the name in the header.
+  const oldStatement=window.printEnhancedClientStatement;
+  window.printEnhancedClientStatement=function(name){
+    const c=company(),p=c.printSettings||{},orders=(G('orders')||[]).filter(o=>o.clientName===name).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    if(typeof window.printDocument!=='function') return typeof oldStatement==='function'?oldStatement(name):alert('محرك الطباعة غير متاح');
+
+    const total=orders.reduce((s,o)=>s+N(o.totalSale),0);
+    const paid=orders.reduce((s,o)=>s+N(o.paid),0);
+    const due=orders.reduce((s,o)=>s+N(o.due),0);
+    const credit=orders.reduce((s,o)=>s+N(o.overpayment),0);
+    const totalMeters=orders.reduce((s,o)=>s+N(o.linearMeters),0);
+    const rows=orders.map(o=>`<tr><td>${E(o.date)}</td><td>${E(o.orderNum)}</td><td>${E(o.desc||'-')}</td><td>${F(o.linearMeters)} متر</td><td>${M(o.totalSale)}</td><td class="ok">${M(o.paid)}</td><td class="warn">${M(o.due)}</td><td class="ok">${M(o.overpayment)}</td></tr>`).join('')||'<tr><td colspan="8">لا توجد فواتير</td></tr>';
+
+    const html=`
+      <div class="head">
+        <div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="muted">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div>
+        <div><div class="doc-title">كشف حساب عميل</div><div class="meta">العميل: <b ${customerNameStyle()}>${E(name)}</b><br>التاريخ: ${new Date().toLocaleDateString('en-GB')}</div></div>
+      </div>
+      <div class="cards">
+        <div class="card">عدد الفواتير<b>${orders.length}</b></div>
+        <div class="card">إجمالي الأمتار<b>${F(totalMeters)} متر</b></div>
+        <div class="card">إجمالي المبيعات<b>${M(total)}</b></div>
+        <div class="card">إجمالي المدفوع<b>${M(paid)}</b></div>
+      </div>
+      <table><thead><tr><th>التاريخ</th><th>الفاتورة</th><th>البيان</th><th>الأمتار</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>رصيد دائن</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><th colspan="3">الإجمالي</th><th>${F(totalMeters)} متر</th><th>${M(total)}</th><th>${M(paid)}</th><th>${M(due)}</th><th>${M(credit)}</th></tr></tfoot></table>
+      <div class="totals"><div class="box">المستحق على العميل<br><span class="big">${M(due)}</span></div><div class="box">الرصيد الدائن للعميل<br><span class="big ok">${M(credit)}</span></div></div>
+      ${p.showSignatures!==false?`<div class="signs"><div class="sign">توقيع العميل / المستلم</div><div class="sign">توقيع المراجعة / الحسابات</div></div>`:''}
+      <div class="footer">${E(p.footer||'شكرًا لتعاملكم معنا')}</div>`;
+    window.printDocument('كشف حساب '+name,html);
+  };
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='settings')setTimeout(injectCustomerNameSetting,120);
+    return r;
+  };
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(injectCustomerNameSetting,550));
+})();
+</script>
+
 </body>
 </html>
 
