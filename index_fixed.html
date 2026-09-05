@@ -1348,6 +1348,7 @@ function todayStr() {
 
     function handleLogout() {
       document.getElementById('login_error_box').classList.add('hidden');
+      saveDB('currentUser',{username:'',role:''});
       document.getElementById('login-modal').classList.remove('hidden');
     }
 
@@ -3922,20 +3923,38 @@ function todayStr() {
     if(this===localStorage&&String(key).startsWith(PREFIX)&&!String(key).startsWith(PREFIX+'__sync_')&&!syncing){markDirty();clearTimeout(timer);timer=setTimeout(()=>{if(credentials())push(false);},1500);}
   };
 
-  // Ensure any successful local login carries the password hash needed by the sync gateway.
+  // Login must stay local and must NEVER be logged out by a background sync request.
+  // Cloud sync starts only after a successful local login and runs in the background.
   const existingLogin=window.handleLogin;
   if(typeof existingLogin==='function'){
     window.handleLogin=async function(){
+      const modal=document.getElementById('login-modal');
       const before=currentUser();
-      const result=await existingLogin.apply(this,arguments);
+      let result;
+      try {
+        result=await existingLogin.apply(this,arguments);
+      } catch(err) {
+        console.error('Login error:',err);
+        return;
+      }
       const after=currentUser();
-      if(after.username&&after.passwordHash){setStatus('جاري التنزيل…','busy');setTimeout(async()=>{
-        const ok=await pull(false);
-        if(ok) redraw();
-      },50);} else if(before.username){setStatus('غير متصل','err');}
+      if(after&&after.username){
+        // Keep the user logged in even if cloud sync is unavailable.
+        if(modal) modal.classList.add('hidden');
+        setStatus('متصل محليًا','ok');
+        setTimeout(async()=>{
+          try { await pull(false); } catch(e) { console.warn('Background sync skipped:',e); }
+          try { redraw(); } catch(_) {}
+        },300);
+      } else if(before&&before.username){
+        // Do not force a logout here.
+        if(modal) modal.classList.add('hidden');
+      }
       return result;
     };
   }
+  // Restore last activity for an existing session so a page refresh never causes an immediate logout.
+  try { if(currentUser().username) lastActivity=Date.now(); } catch(_) {}
   setTimeout(async()=>{
     if(credentials()) await pull(false); else setStatus('سجّل الدخول','');
   },700);
