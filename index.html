@@ -4751,6 +4751,277 @@ function todayStr() {
 })();
 </script>
 
+
+<script id="inkore-final-invoice-print-fix">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const DB=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const SAVE=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const arr=k=>DB(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const nowStr=()=>{const d=new Date();return d.toISOString().slice(0,10)};
+
+  function ensureInvoicePrintPanel(){
+    const page=document.getElementById('page-invoices');
+    if(!page || document.getElementById('inkore_invoice_print_panel')) return;
+    const h2=page.querySelector('h2');
+    if(!h2) return;
+
+    const box=document.createElement('div');
+    box.id='inkore_invoice_print_panel';
+    box.className='bg-white border border-indigo-200 rounded-2xl p-4 mb-6 shadow-sm text-xs';
+    box.innerHTML=`
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 class="font-black text-base text-slate-900">طباعة فواتير العملاء</h3>
+          <p class="text-slate-500 mt-1">اختر العميل ثم اطبع كشف حساب كامل أو فاتورة واحدة.</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <label class="font-bold">اسم العميل
+          <select id="print_client_select" onchange="refreshInvoicePrintChoices()" class="w-full border bg-slate-50 p-2.5 rounded-lg mt-1 font-bold"></select>
+        </label>
+        <label class="font-bold md:col-span-2">الفاتورة
+          <select id="print_invoice_select" class="w-full border bg-slate-50 p-2.5 rounded-lg mt-1 font-mono"></select>
+        </label>
+        <div class="flex gap-2">
+          <button onclick="printSelectedClientStatement()" class="flex-1 bg-slate-900 text-white px-4 py-2.5 rounded-lg font-bold">
+            <i class="fa-solid fa-file-invoice-dollar ml-1"></i> كشف حساب
+          </button>
+          <button onclick="printSelectedClientInvoice()" class="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg font-bold">
+            <i class="fa-solid fa-receipt ml-1"></i> فاتورة
+          </button>
+        </div>
+      </div>
+    `;
+    h2.insertAdjacentElement('afterend',box);
+    refreshInvoicePrintChoices();
+  }
+
+  window.refreshInvoicePrintChoices=function(){
+    const clients=arr('clients');
+    const orders=arr('orders');
+    const cs=document.getElementById('print_client_select');
+    const os=document.getElementById('print_invoice_select');
+    if(!cs||!os)return;
+
+    const oldClient=cs.value;
+    cs.innerHTML='<option value="">اختر العميل</option>'+clients.map(c=>`<option value="${E(c.name)}">${E(c.name)}</option>`).join('');
+    if(oldClient && clients.some(c=>c.name===oldClient)) cs.value=oldClient;
+    else if(clients.length===1) cs.value=clients[0].name;
+
+    const selected=cs.value;
+    const oldOrder=os.value;
+    const list=orders.filter(o=>o.clientName===selected);
+    os.innerHTML='<option value="">اختر الفاتورة</option>'+list.map(o=>`<option value="${E(String(o.id))}">${E(o.orderNum||('فاتورة '+o.id))} — ${E(o.date||'')} — ${F(o.totalSale)} ج.م</option>`).join('');
+    if(oldOrder && list.some(o=>String(o.id)===oldOrder)) os.value=oldOrder;
+    else if(list.length===1) os.value=String(list[0].id);
+  };
+
+  window.printSelectedClientStatement=function(){
+    const name=document.getElementById('print_client_select')?.value||'';
+    if(!name)return alert('اختر العميل أولاً');
+    if(typeof window.printEnhancedClientStatement==='function'){
+      window.printEnhancedClientStatement(name);
+    }else{
+      alert('وظيفة كشف حساب العميل غير متاحة');
+    }
+  };
+
+  window.printSelectedClientInvoice=function(){
+    const id=document.getElementById('print_invoice_select')?.value||'';
+    if(!id)return alert('اختر الفاتورة أولاً');
+    const o=arr('orders').find(x=>String(x.id)===String(id));
+    if(!o)return alert('الفاتورة غير موجودة');
+    printOneInvoice(o);
+  };
+
+  function printOneInvoice(o){
+    const comp=DB('company')||{};
+    const p=o.paymentBreakdown||{};
+    const status=o.steps?.delivered?'تم التسليم':o.steps?.press?'تم الكبس':o.steps?.print?'تمت الطباعة':o.steps?.design?'قيد التصميم':'غير محدد';
+    const w=window.open('','_blank','width=1000,height=800');
+    if(!w)return;
+    w.document.write(`<html dir="rtl" lang="ar"><head><meta charset="utf-8">
+      <title>فاتورة ${E(o.orderNum||'')}</title>
+      <style>
+        body{font-family:Arial,sans-serif;background:#fff;color:#111827;padding:28px}
+        .head{display:flex;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:15px;margin-bottom:18px}
+        .brand{font-size:24px;font-weight:800}.muted{color:#6b7280;font-size:12px}
+        .box{border:1px solid #d1d5db;border-radius:10px;padding:12px;margin:10px 0}
+        .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+        table{width:100%;border-collapse:collapse;margin-top:15px}
+        th,td{border:1px solid #d1d5db;padding:9px;text-align:right}
+        th{background:#f3f4f6}
+        .total{font-size:18px;font-weight:800}.green{color:#047857}.red{color:#b91c1c}
+        @media print{button{display:none}}
+      </style></head><body>
+      <div class="head">
+        <div><div class="brand">${E(comp.name||'inkore ERP')}</div><div class="muted">${E(comp.address||'')} ${comp.phone?(' — '+E(comp.phone)):''}</div></div>
+        <div><b>فاتورة / أمر شغل</b><br><span class="muted">رقم: ${E(o.orderNum||'-')}<br>التاريخ: ${E(o.date||'-')}</span></div>
+      </div>
+      <div class="grid">
+        <div class="box"><b>العميل:</b><br>${E(o.clientName||'-')}</div>
+        <div class="box"><b>الخدمة:</b><br>${E(o.desc||'-')}</div>
+      </div>
+      <table>
+        <thead><tr><th>البند</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+        <tbody><tr><td>${E(o.desc||'طباعة')}</td><td>${F(o.linearMeters)} متر</td><td>${F(o.saleRate)} ج.م/م</td><td>${F(o.grossSale||o.totalSale)} ج.م</td></tr></tbody>
+      </table>
+      <div class="box">
+        <div>الخصم: <b>${F(o.discount)} ج.م</b></div>
+        <div class="total">صافي الفاتورة: ${F(o.totalSale)} ج.م</div>
+        <div class="green">المسدد: ${F(o.paid)} ج.م</div>
+        <div class="red">المتبقي: ${F(o.due)} ج.م</div>
+      </div>
+      <div class="box">
+        <b>توزيع السداد:</b>
+        كاش ${F(p.cash)} ج.م — إنستاباي ${F(p.insta)} ج.م — فودافون كاش ${F(p.voda)} ج.م
+      </div>
+      <div class="box"><b>حالة التشغيل:</b> ${E(status)}</div>
+      <div class="muted">طُبع في ${E(nowStr())}</div>
+    </body></html>`);
+    w.document.close();
+    setTimeout(()=>w.print(),350);
+  }
+
+  // Clean final invoice save function. This replaces the broken legacy override.
+  window.commitLinearInvoice=function(){
+    const editId=document.getElementById('edit_order_id')?.value||'';
+    const clientName=document.getElementById('inv_client_select')?.value||'';
+    if(!clientName)return alert('اختر العميل');
+
+    const meters=N(document.getElementById('inv_linear_meters')?.value);
+    const rate=N(document.getElementById('inv_sale_rate')?.value);
+    if(meters<=0 || rate<0)return alert('أدخل المتر والسعر بشكل صحيح');
+
+    const gross=Math.round(meters*rate);
+    const discount=Math.max(0,N(document.getElementById('inv_discount')?.value));
+    if(discount>gross)return alert('الخصم لا يمكن أن يتجاوز إجمالي الفاتورة');
+
+    const totalSale=gross-discount;
+    const cash=N(document.getElementById('inv_pay_cash')?.value);
+    const insta=N(document.getElementById('inv_pay_insta')?.value);
+    const voda=N(document.getElementById('inv_pay_voda')?.value);
+    const paid=cash+insta+voda;
+    if(paid>totalSale)return alert('إجمالي المدفوع أكبر من الإجمالي بعد الخصم');
+    const due=totalSale-paid;
+
+    const useProtect=!!document.getElementById('inv_need_protect_paper')?.checked;
+    const wastePaperM=Math.max(0,N(document.getElementById('inv_waste_paper_m')?.value));
+    const comp=DB('company')||{};
+    const inkMl=Math.max(0,N(document.getElementById('inv_ink_ml')?.value));
+    const materialCost=Math.round((inkMl/1000)*N(comp.inkCostPerLiter)+wastePaperM*N(comp.wastePaperCostPerMeter));
+    const profit=totalSale-materialCost;
+    const steps={
+      design:!!document.getElementById('step_design')?.checked,
+      print:!!document.getElementById('step_print')?.checked,
+      press:!!document.getElementById('step_press')?.checked,
+      delivered:!!document.getElementById('step_delivered')?.checked
+    };
+
+    let orders=arr('orders');
+    let clients=arr('clients');
+
+    const stockMoveSafe=(...args)=>{try{if(typeof window.stockMove==='function')window.stockMove(...args)}catch(_){}}; 
+    const treasurySafe=(...args)=>{try{if(typeof window.adjustTreasury==='function')window.adjustTreasury(...args)}catch(_){}}; 
+
+    try{
+      if(editId){
+        const o=orders.find(x=>String(x.id)===String(editId));
+        if(!o)return alert('الفاتورة غير موجودة');
+
+        const oldClient=clients.find(c=>c.name===o.clientName);
+        if(oldClient)oldClient.debt=Math.max(0,N(oldClient.debt)-N(o.due));
+        const oldPay=o.paymentBreakdown||{};
+        if(N(oldPay.cash))treasurySafe('الصندوق (كاش)',-N(oldPay.cash));
+        if(N(oldPay.insta))treasurySafe('إنستاباي',-N(oldPay.insta));
+        if(N(oldPay.voda))treasurySafe('فودافون كاش',-N(oldPay.voda));
+        if(o.useProtectPaper&&N(o.linearMeters))stockMoveSafe('ورق حماية',N(o.linearMeters),'إرجاع','تعديل '+(o.orderNum||''),'عكس الاستهلاك القديم');
+        if(useProtect)stockMoveSafe('ورق حماية',-meters,'صرف',o.orderNum||'','ورق حماية لأمر الشغل');
+
+        Object.assign(o,{
+          clientName,
+          desc:document.getElementById('inv_service_desc')?.value.trim()||'',
+          linearMeters:meters,
+          paperWidth:document.getElementById('inv_paper_width')?.value||'152',
+          useProtectPaper:useProtect,
+          inkMl,
+          wastePaperM,
+          saleRate:rate,
+          grossSale:gross,
+          discount,
+          totalSale,
+          materialCost,
+          profit,
+          paid,
+          due,
+          steps,
+          paymentBreakdown:{cash,insta,voda},
+          updatedAt:new Date().toISOString()
+        });
+
+        const nc=clients.find(c=>c.name===clientName);
+        if(nc)nc.debt=N(nc.debt)+due;
+        SAVE('clients',clients);
+        if(cash)treasurySafe('الصندوق (كاش)',cash);
+        if(insta)treasurySafe('إنستاباي',insta);
+        if(voda)treasurySafe('فودافون كاش',voda);
+        SAVE('orders',orders);
+        alert('تم تعديل الفاتورة بنجاح.');
+      }else{
+        const orderNum=typeof window.nextInvoiceNumber==='function'?window.nextInvoiceNumber():('INK-'+String(orders.length+1).padStart(5,'0'));
+        if(useProtect)stockMoveSafe('ورق حماية',-meters,'صرف',orderNum,'ورق حماية لأمر الشغل');
+
+        const o={
+          id:Date.now()+Math.random(),
+          clientName,orderNum,date:typeof window.now==='function'?window.now():nowStr(),
+          desc:document.getElementById('inv_service_desc')?.value.trim()||'',
+          linearMeters:meters,paperWidth:document.getElementById('inv_paper_width')?.value||'152',
+          useProtectPaper:useProtect,inkMl,wastePaperM,saleRate:rate,grossSale:gross,
+          discount,totalSale,materialCost,profit,paid,due,steps,paymentBreakdown:{cash,insta,voda}
+        };
+        orders.unshift(o);
+
+        const c=clients.find(x=>x.name===clientName);
+        if(c){c.debt=N(c.debt)+due;SAVE('clients',clients)}
+        if(cash)treasurySafe('الصندوق (كاش)',cash);
+        if(insta)treasurySafe('إنستاباي',insta);
+        if(voda)treasurySafe('فودافون كاش',voda);
+        SAVE('orders',orders);
+
+        alert('تم حفظ أمر الشغل برقم '+orderNum);
+        if(typeof window.resetInvoiceForm==='function')window.resetInvoiceForm();
+      }
+
+      if(typeof window.renderOrdersTable==='function')window.renderOrdersTable();
+      if(typeof window.refreshTreasuryBars==='function')window.refreshTreasuryBars();
+      if(typeof window.renderClients==='function')window.renderClients();
+      refreshInvoicePrintChoices();
+      if(typeof window.inkoreSyncNow==='function'){try{window.inkoreSyncNow()}catch(_){}}
+    }catch(err){
+      console.error(err);
+      alert(err?.message||'تعذر حفظ العملية');
+    }
+  };
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='invoices')setTimeout(ensureInvoicePrintPanel,120);
+    return r;
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(ensureInvoicePrintPanel,250);
+  });
+})();
+</script>
+
 </body>
 </html>
 
