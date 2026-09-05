@@ -44,6 +44,18 @@
 })();
 </script>
 
+
+<style id="inkore-annual-year-select-fix">
+  #inkore_annual_year,
+  #annual_closing_year {
+    min-height: 44px;
+    cursor: pointer;
+    position: relative;
+    z-index: 20;
+    background-color: #fff;
+  }
+</style>
+
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col justify-between text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
 
@@ -6560,7 +6572,7 @@ function todayStr() {
         <button onclick="saveInkoreAnnualClosing()" class="bg-violet-600 text-white px-5 py-2.5 rounded-xl font-black">حفظ التقفيل السنوي</button>
       </div>
       <div class="grid md:grid-cols-3 gap-3 mt-5 text-xs">
-        <label class="font-bold">السنة<select id="inkore_annual_year" class="w-full border p-2.5 rounded-lg mt-1">${[y-2,y-1,y,new Date().getFullYear()].map(v=>`<option value="${v}" ${v===y?'selected':''}>${v}</option>`).join('')}</select></label>
+        <label class="font-bold">السنة<select id="inkore_annual_year" class="w-full border p-2.5 rounded-lg mt-1">${Array.from({length:51},(_,i)=>2000+i).map(v=>`<option value="${v}" ${v===y?'selected':''}>${v}</option>`).join('')}</select></label>
         <label class="font-bold">ملاحظات<input id="inkore_annual_notes" class="w-full border p-2.5 rounded-lg mt-1"></label>
         <div id="inkore_annual_summary" class="bg-slate-50 border rounded-lg p-3">اختر السنة لعرض الملخص.</div>
       </div>
@@ -6677,6 +6689,312 @@ function todayStr() {
   document.addEventListener('change',e=>{
     if(e.target?.id==='inkore_annual_year')renderAnnualSummary();
   });
+})();
+</script>
+
+
+<script id="inkore-professional-annual-close-v14">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
+  const today=()=>new Date().toISOString().slice(0,10);
+
+  function period(y){
+    return {start:`${y}-01-01`, end:`${y}-12-31`};
+  }
+  function inYear(date,y){
+    const d=String(date||'').slice(0,10), p=period(y);
+    return d>=p.start&&d<=p.end;
+  }
+
+  function financialSnapshot(y){
+    const orders=A('orders').filter(o=>inYear(o.date,y));
+    const expenses=A('expenses').filter(o=>inYear(o.date||o.expenseDate,y));
+    const supplierTx=A('supplierTransactions').filter(o=>inYear(o.date||o.tx_date,y));
+    const payroll=A('payrollClosings').filter(o=>String(o.weekStart||'').slice(0,4)===String(y));
+    const deposits=A('bankDeposits').filter(o=>inYear(o.date||o.depositDate,y));
+
+    const sales=orders.reduce((s,o)=>s+N(o.totalSale),0);
+    const receipts=orders.reduce((s,o)=>s+N(o.paid),0);
+    const expensesTotal=expenses.reduce((s,o)=>s+N(o.amount),0);
+    const supplierPayments=supplierTx
+      .filter(o=>['payment','سداد','سداد مورد'].some(x=>String(o.type||o.tx_type||'').toLowerCase().includes(String(x).toLowerCase())))
+      .reduce((s,o)=>s+N(o.amount),0);
+    const payrollPaid=payroll.reduce((s,o)=>s+N(o.currentPaid??o.paid_amount),0);
+    const depositsTotal=deposits.reduce((s,o)=>s+N(o.amount),0);
+
+    const c=A('company');
+    const fb=(c&&c.finOpeningBalances)||{cash:0,instapay:0,vodafone:0,bank:0};
+    const opening=N(fb.cash)+N(fb.instapay)+N(fb.vodafone)+N(fb.bank);
+
+    return {
+      invoices:orders.length, sales, receipts, expenses:expensesTotal,
+      supplierPayments, payrollPaid, depositsTotal, opening,
+      bookNet:receipts-expensesTotal-supplierPayments-payrollPaid,
+      closingByAccount:{
+        cash:N(G('cashbox')), instapay:N(G('instapay')), vodafone:N(G('vodacash')), bank:N(G('bankAccount'))
+      }
+    };
+  }
+
+  function stockSnapshot(){
+    return A('rawMaterials').map(m=>({
+      id:m.id,name:m.name,sku:m.sku||'',unit:m.unit||'متر',
+      bookQty:N(m.currentStock??m.stock??m.quantity),
+      price:N(m.purchasePrice??m.purchase_price),
+    }));
+  }
+
+  function injectProAnnualUI(){
+    const page=document.getElementById('page-settings');
+    if(!page || document.getElementById('inkore_pro_annual_box'))return;
+
+    const box=document.createElement('div');
+    box.id='inkore_pro_annual_box';
+    box.className='bg-white p-6 rounded-2xl border border-violet-200 shadow-sm mt-6';
+    const currentYear=new Date().getFullYear();
+    box.innerHTML=`
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-xl font-black">التقفيل السنوي الاحترافي</h3>
+          <p class="text-xs text-slate-500 mt-1">مراجعة مالية + جرد مخزون + مطابقة أرصدة الخزائن + تقرير سنوي وأرشيف ثابت.</p>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" onclick="generateAnnualClosingReport()" class="bg-slate-900 text-white px-4 py-2.5 rounded-xl font-black">عرض التقرير</button>
+          <button type="button" onclick="printAnnualClosingProfessional()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-black">طباعة التقرير</button>
+          <button type="button" onclick="saveProfessionalAnnualClosing()" class="bg-violet-600 text-white px-4 py-2.5 rounded-xl font-black">اعتماد التقفيل</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-5 text-xs">
+        <label class="font-bold">السنة
+          <select id="pro_annual_year" class="w-full border p-2.5 rounded-lg mt-1">
+            ${Array.from({length:51},(_,i)=>2000+i).map(v=>`<option value="${v}" ${v===currentYear?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </label>
+        <label class="font-bold">رصيد افتتاحي مدخل يدويًا
+          <input id="pro_annual_opening_adjustment" type="number" step="0.01" class="w-full border p-2.5 rounded-lg mt-1" value="0">
+        </label>
+        <label class="font-bold">مطابقة نقدية فعلية
+          <input id="pro_annual_actual_cash" type="number" step="0.01" class="w-full border p-2.5 rounded-lg mt-1" value="0">
+        </label>
+        <label class="font-bold">ملاحظات المراجعة
+          <input id="pro_annual_notes" class="w-full border p-2.5 rounded-lg mt-1" placeholder="مثال: تم الجرد بحضور الإدارة">
+        </label>
+      </div>
+
+      <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border rounded-2xl p-4 bg-slate-50">
+          <div class="font-black mb-3">مطابقة الأرصدة</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="font-bold">الصندوق الفعلي<input id="pro_close_cash" type="number" step="0.01" class="w-full border p-2 rounded-lg mt-1" value="${N(G('cashbox'))}"></label>
+            <label class="font-bold">إنستاباي الفعلي<input id="pro_close_insta" type="number" step="0.01" class="w-full border p-2 rounded-lg mt-1" value="${N(G('instapay'))}"></label>
+            <label class="font-bold">فودافون كاش الفعلي<input id="pro_close_voda" type="number" step="0.01" class="w-full border p-2 rounded-lg mt-1" value="${N(G('vodacash'))}"></label>
+            <label class="font-bold">البنك الفعلي<input id="pro_close_bank" type="number" step="0.01" class="w-full border p-2 rounded-lg mt-1" value="${N(G('bankAccount'))}"></label>
+          </div>
+        </div>
+
+        <div class="border rounded-2xl p-4 bg-emerald-50">
+          <div class="font-black mb-3">قواعد التقفيل</div>
+          <div class="text-xs leading-7">
+            <div>✓ يتم حفظ نسخة Snapshot من السنة.</div>
+            <div>✓ يتم تسجيل فرق الجرد وعدم تغييره تلقائيًا.</div>
+            <div>✓ يتم تسجيل أرصدة الخزائن الفعلية عند الإقفال.</div>
+            <div>✓ السنة بعد الاعتماد تظهر كـ <b>مقفولة</b>.</div>
+            <div>✓ لا يتم حذف الحركات الأصلية من النظام.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="pro_annual_report_preview" class="mt-5"></div>
+      <div class="mt-5"><h4 class="font-black mb-2">أرشيف التقفيلات السنوية</h4><div id="pro_annual_archive"></div></div>
+    `;
+    page.appendChild(box);
+
+    renderProfessionalAnnualArchive();
+    generateAnnualClosingReport();
+  }
+
+  function getCountRows(){
+    const snap=stockSnapshot();
+    return snap.map(m=>{
+      const q=prompt(`الجرد الفعلي للصنف: ${m.name}\nالرصيد الدفتري: ${m.bookQty} ${m.unit}`, String(m.bookQty));
+      if(q===null)return {...m,countedQty:m.bookQty,difference:0,note:''};
+      const counted=N(q);
+      const difference=counted-m.bookQty;
+      return {...m,countedQty:counted,difference,note:''};
+    });
+  }
+
+  // Store editable count grid in DOM rather than using prompts during save.
+  function renderProfessionalAnnualReport(){
+    const preview=document.getElementById('pro_annual_report_preview');if(!preview)return;
+    const y=N(document.getElementById('pro_annual_year')?.value)||new Date().getFullYear();
+    const f=financialSnapshot(y);
+    const stock=stockSnapshot();
+    const rows=stock.map(m=>`
+      <tr>
+        <td class="p-2 border">${E(m.name)}</td><td class="p-2 border">${E(m.unit)}</td>
+        <td class="p-2 border">${F(m.bookQty)}</td>
+        <td class="p-2 border"><input data-pro-stock="${E(m.id)}" type="number" step="0.01" value="${F(m.bookQty)}" class="w-24 border rounded p-1 text-center"></td>
+        <td class="p-2 border"><span data-pro-diff="${E(m.id)}">0</span></td>
+        <td class="p-2 border"><input data-pro-stock-note="${E(m.id)}" class="w-32 border rounded p-1"></td>
+      </tr>`).join('');
+
+    preview.innerHTML=`
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs mb-4">
+        <div class="p-3 rounded-xl bg-indigo-50 border">المبيعات<b class="block text-lg">${M(f.sales)}</b></div>
+        <div class="p-3 rounded-xl bg-emerald-50 border">المقبوضات<b class="block text-lg">${M(f.receipts)}</b></div>
+        <div class="p-3 rounded-xl bg-rose-50 border">المصروفات<b class="block text-lg">${M(f.expenses)}</b></div>
+        <div class="p-3 rounded-xl bg-amber-50 border">سداد الموردين<b class="block text-lg">${M(f.supplierPayments)}</b></div>
+        <div class="p-3 rounded-xl bg-purple-50 border">رواتب مدفوعة<b class="block text-lg">${M(f.payrollPaid)}</b></div>
+        <div class="p-3 rounded-xl bg-sky-50 border">صافي الحركة<b class="block text-lg">${M(f.bookNet)}</b></div>
+      </div>
+      <div class="overflow-auto border rounded-xl">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-100"><tr><th class="p-2">الخامة</th><th class="p-2">الوحدة</th><th class="p-2">دفتر</th><th class="p-2">جرد فعلي</th><th class="p-2">الفرق</th><th class="p-2">ملاحظة</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="6" class="p-5 text-center text-slate-400">لا توجد خامات.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="mt-4 text-xs p-3 bg-slate-50 border rounded-xl">
+        <b>الأرصدة الحالية بالنظام:</b>
+        كاش ${M(f.closingByAccount.cash)} — إنستاباي ${M(f.closingByAccount.instapay)} —
+        فودافون ${M(f.closingByAccount.vodafone)} — بنك ${M(f.closingByAccount.bank)}
+      </div>`;
+
+    preview.querySelectorAll('[data-pro-stock]').forEach(inp=>{
+      inp.addEventListener('input',()=>{
+        const id=inp.dataset.proStock, tr=inp.closest('tr'), book=N(tr.children[2]?.textContent), diff=N(inp.value)-book;
+        tr.querySelector('[data-pro-diff]')?.replaceChildren(document.createTextNode(F(diff)));
+      });
+    });
+  }
+
+  window.generateAnnualClosingReport=renderProfessionalAnnualReport;
+
+  function collectProfessionalStock(){
+    return stockSnapshot().map(m=>{
+      const i=document.querySelector(`[data-pro-stock="${CSS.escape(String(m.id))}"]`);
+      const n=document.querySelector(`[data-pro-stock-note="${CSS.escape(String(m.id))}"]`);
+      const counted=i?N(i.value):m.bookQty;
+      return {...m,countedQty:counted,difference:counted-m.bookQty,note:n?.value||''};
+    });
+  }
+
+  function renderProfessionalAnnualArchive(){
+    const box=document.getElementById('pro_annual_archive');if(!box)return;
+    const ar=A('annualClosings').sort((a,b)=>b.year-a.year);
+    box.innerHTML=ar.map(x=>`
+      <div class="p-3 border rounded-xl mb-2 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div><b>سنة ${E(x.year)}</b> — ${x.locked?'مقفولة':'مفتوحة'} — ${new Date(x.closedAt||Date.now()).toLocaleString('ar-EG')}</div>
+        <div class="flex gap-2">
+          <button onclick="printProfessionalAnnualById(${JSON.stringify(x.id)})" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg">طباعة</button>
+          ${x.locked?`<button onclick="reopenProfessionalAnnual(${JSON.stringify(x.id)})" class="bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg">إعادة فتح</button>`:''}
+        </div>
+      </div>`).join('')||'<div class="text-xs text-slate-400">لا يوجد تقفيل سنوي حتى الآن.</div>';
+  }
+
+  window.saveProfessionalAnnualClosing=function(){
+    const y=N(document.getElementById('pro_annual_year')?.value);
+    if(!y)return alert('اختر السنة');
+    const ar=A('annualClosings');
+    const old=ar.find(x=>N(x.year)===y&&x.locked);
+    if(old && !confirm('السنة مقفولة بالفعل. إعادة اعتمادها سيضيف نسخة جديدة للأرشيف. هل تريد المتابعة؟'))return;
+
+    const stock=collectProfessionalStock();
+    const fin=financialSnapshot(y);
+    const bookValue=stock.reduce((s,m)=>s+N(m.bookQty)*N(m.price),0);
+    const actualValue=stock.reduce((s,m)=>s+N(m.countedQty)*N(m.price),0);
+    const adjustment=N(document.getElementById('pro_annual_opening_adjustment')?.value);
+    const actualCash=N(document.getElementById('pro_annual_actual_cash')?.value);
+
+    ar.unshift({
+      id:Date.now()+Math.random(),year:y,closedAt:new Date().toISOString(),locked:true,
+      notes:document.getElementById('pro_annual_notes')?.value||'',
+      financial:{...fin,openingAdjusted:adjustment,actualCash,closingDifference:actualCash-(fin.opening+fin.bookNet+adjustment)},
+      stockItems:stock,totalBookValue:bookValue,totalCountedValue:actualValue,stockDifferenceValue:actualValue-bookValue,
+      closingBalances:{
+        cash:N(document.getElementById('pro_close_cash')?.value),
+        instapay:N(document.getElementById('pro_close_insta')?.value),
+        vodafone:N(document.getElementById('pro_close_voda')?.value),
+        bank:N(document.getElementById('pro_close_bank')?.value)
+      }
+    });
+    S('annualClosings',ar);
+    renderProfessionalAnnualArchive();
+    alert(`تم اعتماد التقفيل السنوي لسنة ${y} وحفظه كأرشيف ثابت.`);
+  };
+
+  window.reopenProfessionalAnnual=function(id){
+    const ar=A('annualClosings'),x=ar.find(v=>String(v.id)===String(id));
+    if(!x)return alert('الأرشيف غير موجود');
+    if(!confirm(`إعادة فتح سنة ${x.year} للتعديل؟ سيتم الاحتفاظ بالنسخة القديمة في الأرشيف.`))return;
+    x.locked=false;x.reopenedAt=new Date().toISOString();
+    S('annualClosings',ar);renderProfessionalAnnualArchive();
+    alert('تم فتح السنة للتعديل، والنسخة السابقة ما زالت محفوظة.');
+  };
+
+  function annualPrintHTML(x){
+    const c=G('company')||{}, f=x.financial||{};
+    const rows=(x.stockItems||[]).map(m=>`<tr><td>${E(m.name)}</td><td>${E(m.unit)}</td><td>${F(m.bookQty)}</td><td>${F(m.countedQty)}</td><td>${F(m.difference)}</td><td>${M(N(m.countedQty)*N(m.price))}</td></tr>`).join('');
+    return `<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>التقرير السنوي ${x.year}</title>
+      <style>@page{size:A4;margin:12mm}body{font-family:Arial;color:#172033;margin:0}.sheet{max-width:900px;margin:auto}
+      .head{display:flex;justify-content:space-between;border-bottom:3px solid #4f46e5;padding:0 0 12px;margin-bottom:15px}
+      h1{margin:0;font-size:24px}.muted{color:#667085;font-size:11px}.title{color:#4f46e5;font-size:19px;font-weight:800}
+      .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.box{border:1px solid #e5e7eb;border-radius:10px;padding:10px}
+      table{width:100%;border-collapse:collapse;margin-top:15px}th,td{border:1px solid #dbe1ea;padding:7px;font-size:11px}th{background:#f5f7fb}
+      .ok{color:#047857}.bad{color:#b91c1c}.foot{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;text-align:center;font-size:10px;color:#667085}
+      .signs{display:grid;grid-template-columns:1fr 1fr;gap:50px;margin-top:50px}.sign{border-top:1px solid #172033;padding-top:8px;text-align:center;font-size:10px}</style>
+      </head><body><div class="sheet">
+      <div class="head"><div><h1>${E(c.name||'inkore ERP')}</h1><div class="muted">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div><div><div class="title">التقرير السنوي والتقفيل</div><div class="muted">السنة: ${E(x.year)}<br>اعتماد: ${E(new Date(x.closedAt||Date.now()).toLocaleString('ar-EG'))}</div></div></div>
+      <div class="grid"><div class="box">المبيعات<br><b>${M(f.sales)}</b></div><div class="box">المقبوضات<br><b class="ok">${M(f.receipts)}</b></div><div class="box">المصروفات<br><b class="bad">${M(f.expenses)}</b></div><div class="box">صافي الحركة<br><b>${M(f.bookNet)}</b></div></div>
+      <div class="grid"><div class="box">سداد الموردين<br><b>${M(f.supplierPayments)}</b></div><div class="box">الرواتب المدفوعة<br><b>${M(f.payrollPaid)}</b></div><div class="box">توريدات البنك<br><b>${M(f.depositsTotal)}</b></div><div class="box">رصيد افتتاحي<br><b>${M(f.opening)}</b></div></div>
+      <div class="box">فرق المطابقة النقدية: <b>${M(f.closingDifference)}</b></div>
+      <h3>جرد المخزون</h3>
+      <table><thead><tr><th>الخامة</th><th>الوحدة</th><th>دفتر</th><th>فعلي</th><th>فرق</th><th>قيمة الفعلي</th></tr></thead><tbody>${rows||'<tr><td colspan="6">لا توجد خامات</td></tr>'}</tbody></table>
+      <div class="grid"><div class="box">قيمة المخزون الدفتري<br><b>${M(x.totalBookValue)}</b></div><div class="box">قيمة الجرد الفعلي<br><b>${M(x.totalCountedValue)}</b></div><div class="box">فرق الجرد<br><b>${M(x.stockDifferenceValue)}</b></div><div class="box">الملاحظات<br><b>${E(x.notes||'-')}</b></div></div>
+      <div class="signs"><div class="sign">اعتماد الحسابات</div><div class="sign">اعتماد الإدارة</div></div>
+      <div class="foot">${E((c.printSettings||{}).footer||'inkore ERP')} — تقرير سنوي معتمد</div>
+      </div></body></html>`;
+  }
+
+  window.printProfessionalAnnualById=function(id){
+    const x=A('annualClosings').find(v=>String(v.id)===String(id));if(!x)return alert('الأرشيف غير موجود');
+    const w=window.open('','_blank','width=1100,height=900');if(!w)return;
+    w.document.write(annualPrintHTML(x));w.document.close();setTimeout(()=>w.print(),300);
+  };
+
+  window.printAnnualClosingProfessional=function(){
+    const y=N(document.getElementById('pro_annual_year')?.value);
+    const x={
+      id:'preview',year:y,locked:false,closedAt:new Date().toISOString(),
+      notes:document.getElementById('pro_annual_notes')?.value||'معاينة قبل الاعتماد',
+      financial:financialSnapshot(y),
+      stockItems:collectProfessionalStock(),
+      totalBookValue:collectProfessionalStock().reduce((s,m)=>s+N(m.bookQty)*N(m.price),0),
+      totalCountedValue:collectProfessionalStock().reduce((s,m)=>s+N(m.countedQty)*N(m.price),0),
+    };
+    x.stockDifferenceValue=x.totalCountedValue-x.totalBookValue;
+    x.financial.closingDifference=N(document.getElementById('pro_annual_actual_cash')?.value)-(x.financial.opening+x.financial.bookNet+N(document.getElementById('pro_annual_opening_adjustment')?.value));
+    const w=window.open('','_blank','width=1100,height=900');if(!w)return;
+    w.document.write(annualPrintHTML(x));w.document.close();setTimeout(()=>w.print(),300);
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(injectProAnnualUI,1100));
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='settings')setTimeout(injectProAnnualUI,150);
+    return r;
+  };
 })();
 </script>
 
