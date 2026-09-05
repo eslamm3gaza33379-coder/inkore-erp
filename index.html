@@ -5544,14 +5544,15 @@ function todayStr() {
 
   window.printEnhancedClientStatement=function(name){
     const c=getCompany(),p=c.printSettings||{},orders=(G('orders')||[]).filter(o=>o.clientName===name).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-    const total=orders.reduce((s,o)=>s+N(o.totalSale),0),paid=orders.reduce((s,o)=>s+N(o.paid),0),due=orders.reduce((s,o)=>s+N(o.due),0),credit=orders.reduce((s,o)=>s+N(o.overpayment),0);
-    const rows=orders.map(o=>`<tr><td>${E(o.date)}</td><td>${E(o.orderNum)}</td><td>${E(o.desc||'-')}</td><td>${M(o.totalSale)}</td><td class="ok">${M(o.paid)}</td><td class="warn">${M(o.due)}</td><td class="ok">${M(o.overpayment)}</td></tr>`).join('')||'<tr><td colspan="7">لا توجد فواتير</td></tr>';
+    const total=orders.reduce((s,o)=>s+N(o.totalSale),0),paid=orders.reduce((s,o)=>s+N(o.paid),0),due=orders.reduce((s,o)=>s+N(o.due),0),credit=orders.reduce((s,o)=>s+N(o.overpayment),0);const totalMeters=orders.reduce((s,o)=>s+N(o.linearMeters),0);
+    const rows=orders.map(o=>`<tr><td>${E(o.date)}</td><td>${E(o.orderNum)}</td><td>${E(o.desc||'-')}</td><td>${F(o.linearMeters)} متر</td><td>${M(o.totalSale)}</td><td class="ok">${M(o.paid)}</td><td class="warn">${M(o.due)}</td><td class="ok">${M(o.overpayment)}</td></tr>`).join('')||'<tr><td colspan="8">لا توجد فواتير</td></tr>';
     let html=`
       <div class="head"><div><div class="brand">${E(c.name||'inkore ERP')}</div><div class="muted">${E(c.address||'')} ${c.phone?(' — '+E(c.phone)):''}</div></div>
       <div><div class="doc-title">كشف حساب عميل</div><div class="meta">العميل: <b>${E(name)}</b><br>التاريخ: ${new Date().toLocaleDateString('en-GB')}</div></div></div>
-      <div class="cards"><div class="card">عدد الفواتير<b>${orders.length}</b></div><div class="card">إجمالي المبيعات<b>${M(total)}</b></div><div class="card">إجمالي المدفوع<b>${M(paid)}</b></div></div>
-      <table><thead><tr><th>التاريخ</th><th>الفاتورة</th><th>البيان</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>رصيد دائن</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="totals"><div class="box">المستحق على العميل<br><span class="big">${M(due)}</span></div><div class="box">الرصيد الدائن للعميل<br><span class="big ok">${M(credit)}</span></div></div>`;
+      <div class="cards"><div class="card">عدد الفواتير<b>${orders.length}</b></div><div class="card">إجمالي الأمتار<b>${F(totalMeters)} متر</b></div><div class="card">إجمالي المبيعات<b>${M(total)}</b></div><div class="card">إجمالي المدفوع<b>${M(paid)}</b></div></div>
+      <table><thead><tr><th>التاريخ</th><th>الفاتورة</th><th>البيان</th><th>الأمتار</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>رصيد دائن</th></tr></thead><tbody>${rows}</tbody>
+      <tfoot><tr><th colspan="3">الإجمالي</th><th>${F(totalMeters)} متر</th><th>${M(total)}</th><th>${M(paid)}</th><th>${M(due)}</th><th>${M(credit)}</th></tr></tfoot></table>
+      <div class="box">إجمالي الأمتار<br><span class="big">${F(totalMeters)} متر</span></div><div class="totals"><div class="box">المستحق على العميل<br><span class="big">${M(due)}</span></div><div class="box">الرصيد الدائن للعميل<br><span class="big ok">${M(credit)}</span></div></div>`;
     if(p.showSignatures!==false)html+=`<div class="signs"><div class="sign">توقيع العميل / المستلم</div><div class="sign">توقيع المراجعة / الحسابات</div></div>`;
     html+=`<div class="footer">${E(p.footer||'شكرًا لتعاملكم معنا')}</div>`;
     printDocument('كشف حساب '+name,html);
