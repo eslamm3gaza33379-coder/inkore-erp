@@ -7481,6 +7481,299 @@ function todayStr() {
 })();
 </script>
 
+
+<script id="inkore-supplier-materials-visible-v17">
+(function(){
+  'use strict';
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const F=v=>N(v).toLocaleString('en-US',{maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
+
+  const mats=()=>A('rawMaterials');
+  const sups=()=>A('suppliers');
+
+  function defaultUnit(name){
+    const x=String(name||'').toLowerCase();
+    if(/حماية|protect|سكراب|هالك/.test(x)) return 'كجم';
+    if(/ورق|paper/.test(x)) return 'متر مربع';
+    return 'متر';
+  }
+
+  function addLine(prefill={}){
+    const body=document.getElementById('supplier_material_lines_visible');
+    if(!body)return;
+    const row=document.createElement('div');
+    row.className='grid grid-cols-1 md:grid-cols-6 gap-2 items-end p-3 rounded-xl border bg-slate-50 mb-2';
+    row.innerHTML=`
+      <label class="text-[11px] font-bold md:col-span-2">الخامة
+        <select class="sv-material w-full border bg-white p-2 rounded-lg mt-1">
+          <option value="">اختر الخامة</option>
+          ${mats().map(m=>`<option value="${E(m.id)}">${E(m.name)} — ${E(m.unit||defaultUnit(m.name))}</option>`).join('')}
+        </select>
+      </label>
+      <label class="text-[11px] font-bold">الوحدة
+        <select class="sv-unit w-full border bg-white p-2 rounded-lg mt-1">
+          <option value="متر مربع">متر مربع</option><option value="متر">متر</option>
+          <option value="كجم">كجم</option><option value="قطعة">قطعة</option>
+        </select>
+      </label>
+      <label class="text-[11px] font-bold">الكمية
+        <input class="sv-qty w-full border bg-white p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(prefill.qty)}" placeholder="مثال 250">
+      </label>
+      <label class="text-[11px] font-bold">سعر الوحدة
+        <input class="sv-price w-full border bg-white p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(prefill.price)}" placeholder="مثال 120">
+      </label>
+      <div class="flex items-center gap-2">
+        <div class="text-xs font-black flex-1">الإجمالي<br><span class="sv-total">0 ج.م</span></div>
+        <button type="button" class="sv-remove bg-rose-50 text-rose-700 border border-rose-200 px-2 py-2 rounded-lg font-black">×</button>
+      </div>`;
+    body.appendChild(row);
+
+    const ms=row.querySelector('.sv-material'),u=row.querySelector('.sv-unit'),
+          q=row.querySelector('.sv-qty'),p=row.querySelector('.sv-price');
+    ms.addEventListener('change',()=>{
+      const m=mats().find(x=>String(x.id)===String(ms.value));
+      u.value=defaultUnit(m?.name);
+      if(m && !N(p.value))p.value=N(m.purchasePrice??m.purchase_price);
+      recalc();
+    });
+    [u,q,p].forEach(x=>x.addEventListener('input',recalc));
+    row.querySelector('.sv-remove').addEventListener('click',()=>{row.remove();recalc()});
+    if(prefill.materialId)ms.value=String(prefill.materialId);
+    if(prefill.unit)u.value=prefill.unit;
+    recalc();
+  }
+
+  function recalc(){
+    let total=0;
+    document.querySelectorAll('#supplier_material_lines_visible > div').forEach(row=>{
+      const q=N(row.querySelector('.sv-qty')?.value),p=N(row.querySelector('.sv-price')?.value),t=q*p;
+      total+=t;
+      const e=row.querySelector('.sv-total');if(e)e.textContent=M(t);
+    });
+    const totalEl=document.getElementById('supplier_material_total_visible');
+    if(totalEl)totalEl.textContent=M(total);
+    const invoiceAmt=document.getElementById('sup_invoice_amt');
+    if(invoiceAmt && total>0) invoiceAmt.value=total.toFixed(2);
+  }
+
+  function installVisiblePanel(){
+    if(document.getElementById('inkore_supplier_materials_visible'))return;
+    const sel=document.getElementById('sup_invoice_select');
+    if(!sel)return;
+
+    let card=sel;
+    // Walk to the actual orange supplier-invoice card.
+    for(let i=0;i<6 && card.parentElement;i++){
+      const p=card.parentElement;
+      if((p.innerText||'').includes('تسجيل فاتورة توريد جديدة')){card=p;break;}
+      card=p;
+    }
+
+    const panel=document.createElement('div');
+    panel.id='inkore_supplier_materials_visible';
+    panel.className='mt-4 p-4 rounded-2xl border border-indigo-200 bg-indigo-50/50';
+    panel.innerHTML=`
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div>
+          <div class="font-black text-sm">أصناف فاتورة التوريد ودخولها للمخزون</div>
+          <div class="text-[11px] text-slate-500 mt-1">
+            هنا تسجل الكمية والسعر لكل خامة وصلت من المورد، وعند اعتماد الفاتورة تدخل الكمية للمخزون تلقائيًا.
+          </div>
+        </div>
+        <button type="button" id="supplier_add_line_visible" class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-black">+ إضافة خامة</button>
+      </div>
+      <div id="supplier_material_lines_visible"></div>
+      <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="text-xs">
+          <span class="text-slate-500">إجمالي أصناف الفاتورة:</span>
+          <b id="supplier_material_total_visible" class="text-indigo-700">${M(0)}</b>
+        </div>
+        <div class="text-[11px] text-slate-600">
+          الورق = <b>متر مربع</b> — ورق الحماية = <b>كجم</b>
+        </div>
+      </div>`;
+    card.appendChild(panel);
+    document.getElementById('supplier_add_line_visible').addEventListener('click',()=>addLine());
+    addLine();
+  }
+
+  function refreshScrapSupplier(){
+    const s=document.getElementById('scrap_buyer_select');
+    if(!s)return;
+    const old=s.value;
+    s.innerHTML='<option value="">اختر المورد</option>'+sups().map(x=>`<option value="${E(x.id)}">${E(x.name)}</option>`).join('');
+    if(old && sups().some(x=>String(x.id)===String(old)))s.value=old;
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(()=>{installVisiblePanel();refreshScrapSupplier()},700);
+  });
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='suppliers')setTimeout(()=>{installVisiblePanel();refreshScrapSupplier()},100);
+    return r;
+  };
+})();
+</script>
+
+
+<script id="inkore-supplier-materials-correct-placement-v18">
+(function(){
+  'use strict';
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function findPageSuppliers(){
+    return document.getElementById('page-suppliers');
+  }
+
+  function removeMisplacedPanels(){
+    const page=findPageSuppliers();
+    document.querySelectorAll('#supplier_material_lines_v16, #supplier_material_lines_visible, #inkore_supplier_material_invoice_v16, #inkore_supplier_materials_visible').forEach(el=>{
+      const panel=el.closest('#inkore_supplier_material_invoice_v16,#inkore_supplier_materials_visible')||el;
+      if(!page || !page.contains(panel)) panel.remove();
+    });
+  }
+
+  function supplierInvoiceCard(){
+    const page=findPageSuppliers();
+    if(!page)return null;
+    const sel=page.querySelector('#sup_invoice_select');
+    if(!sel)return null;
+    return sel.closest('.bg-orange-50\\/70') || sel.parentElement?.parentElement || null;
+  }
+
+  function createCorrectPanel(){
+    const page=findPageSuppliers();
+    const card=supplierInvoiceCard();
+    if(!page||!card)return false;
+
+    // If an earlier patch created a correct panel, don't duplicate it.
+    if(page.querySelector('#inkore_supplier_materials_correct_v18')) return true;
+
+    // Remove panels created by earlier patches, but only inside supplier page.
+    page.querySelectorAll('#inkore_supplier_material_invoice_v16,#inkore_supplier_materials_visible').forEach(x=>x.remove());
+
+    const panel=document.createElement('div');
+    panel.id='inkore_supplier_materials_correct_v18';
+    panel.className='mt-4 p-4 rounded-2xl border border-indigo-200 bg-indigo-50/60';
+    panel.innerHTML=`
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div>
+          <div class="font-black text-sm text-slate-900">أصناف فاتورة التوريد</div>
+          <div class="text-[11px] text-slate-500 mt-1">
+            سجّل هنا الخامات التي وصلت من المورد: الخامة، الوحدة، الكمية، وسعر الوحدة.
+            عند اعتماد الحركة تضاف الكميات للمخزون.
+          </div>
+        </div>
+        <button type="button" id="supplier_add_line_correct_v18" class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-black">+ إضافة خامة</button>
+      </div>
+      <div id="supplier_material_lines_correct_v18"></div>
+      <div class="mt-3 flex flex-wrap justify-between items-center text-xs">
+        <b>إجمالي أصناف الفاتورة: <span id="supplier_material_total_correct_v18" class="text-indigo-700">0 ج.م</span></b>
+        <span>الورق: <b>متر مربع</b> — ورق الحماية: <b>كجم</b></span>
+      </div>
+    `;
+    card.appendChild(panel);
+
+    document.getElementById('supplier_add_line_correct_v18').addEventListener('click',()=>addLine());
+    addLine();
+    return true;
+  }
+
+  function defaultUnit(name){
+    const x=String(name||'').toLowerCase();
+    if(/حماية|protect/.test(x))return 'كجم';
+    if(/ورق|paper/.test(x))return 'متر مربع';
+    return 'متر';
+  }
+
+  function addLine(){
+    const box=document.getElementById('supplier_material_lines_correct_v18');
+    if(!box)return;
+    const row=document.createElement('div');
+    row.className='grid grid-cols-1 md:grid-cols-6 gap-2 items-end p-3 rounded-xl border bg-white mb-2';
+    row.innerHTML=`
+      <label class="text-[11px] font-bold md:col-span-2">الخامة
+        <select class="c18-mat w-full border p-2 rounded-lg mt-1">
+          <option value="">اختر الخامة</option>
+          ${A('rawMaterials').map(m=>`<option value="${E(m.id)}">${E(m.name)} — ${E(m.unit||defaultUnit(m.name))}</option>`).join('')}
+        </select>
+      </label>
+      <label class="text-[11px] font-bold">الوحدة
+        <select class="c18-unit w-full border p-2 rounded-lg mt-1">
+          <option value="متر مربع">متر مربع</option><option value="متر">متر</option><option value="كجم">كجم</option><option value="قطعة">قطعة</option>
+        </select>
+      </label>
+      <label class="text-[11px] font-bold">الكمية
+        <input class="c18-qty w-full border p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" placeholder="مثال 250">
+      </label>
+      <label class="text-[11px] font-bold">سعر الوحدة
+        <input class="c18-price w-full border p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" placeholder="مثال 120">
+      </label>
+      <div class="flex items-center gap-2">
+        <div class="text-xs font-black flex-1">الإجمالي<br><span class="c18-total">0 ج.م</span></div>
+        <button type="button" class="c18-remove bg-rose-50 text-rose-700 border border-rose-200 px-2 py-2 rounded-lg font-black">×</button>
+      </div>`;
+    box.appendChild(row);
+
+    const mat=row.querySelector('.c18-mat'),unit=row.querySelector('.c18-unit'),qty=row.querySelector('.c18-qty'),price=row.querySelector('.c18-price');
+    mat.addEventListener('change',()=>{
+      const m=A('rawMaterials').find(x=>String(x.id)===String(mat.value));
+      unit.value=defaultUnit(m?.name);
+      if(m && !N(price.value)) price.value=N(m.purchasePrice??m.purchase_price);
+      recalc();
+    });
+    [unit,qty,price].forEach(x=>x.addEventListener('input',recalc));
+    row.querySelector('.c18-remove').addEventListener('click',()=>{row.remove();recalc()});
+    recalc();
+  }
+
+  function recalc(){
+    let total=0;
+    document.querySelectorAll('#supplier_material_lines_correct_v18 > div').forEach(row=>{
+      const t=N(row.querySelector('.c18-qty')?.value)*N(row.querySelector('.c18-price')?.value);
+      total+=t;
+      const e=row.querySelector('.c18-total');if(e)e.textContent=N(t).toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م';
+    });
+    const e=document.getElementById('supplier_material_total_correct_v18');if(e)e.textContent=total.toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م';
+    const invoice=document.getElementById('sup_invoice_amt');
+    if(invoice && total>0)invoice.value=total.toFixed(2);
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    setTimeout(()=>{
+      removeMisplacedPanels();
+      createCorrectPanel();
+    },600);
+  });
+
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    setTimeout(()=>{
+      if(page==='suppliers'){
+        removeMisplacedPanels();
+        createCorrectPanel();
+      }else{
+        removeMisplacedPanels();
+      }
+    },150);
+    return r;
+  };
+})();
+</script>
+
 </body>
 </html>
 
