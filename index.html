@@ -7868,6 +7868,129 @@ function todayStr() {
 })();
 </script>
 
+
+<script id="inkore-financial-audit-v21">
+(function(){
+  'use strict';
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const today=()=>new Date().toISOString().slice(0,10);
+
+  function inRange(v,from,to){
+    const d=String(v||'').slice(0,10);
+    return (!from||d>=from)&&(!to||d<=to);
+  }
+  function orderPaid(o){
+    const p=o.paymentBreakdown||{};
+    return N(o.paid)||N(p.cash)+N(p.insta)+N(p.voda);
+  }
+
+  function auditData(from,to){
+    const orders=A('orders').filter(o=>inRange(o.date,from,to));
+    const expenses=A('expenses').filter(x=>inRange(x.date||x.expenseDate,from,to));
+    const supplierTx=A('supplierTransactions').filter(x=>inRange(x.date||x.tx_date,from,to));
+    const payroll=A('payrollClosings').filter(x=>inRange(x.closedAt||x.weekStart,from,to));
+    const deposits=A('bankDeposits').filter(x=>inRange(x.date||x.depositDate,from,to));
+
+    const sales=orders.reduce((s,o)=>s+N(o.totalSale),0);
+    const receipts=orders.reduce((s,o)=>s+orderPaid(o),0);
+    const directExpenses=expenses.reduce((s,x)=>s+N(x.amount),0);
+    let supplierPurchases=0,supplierPayments=0,scrapCredits=0;
+    supplierTx.forEach(t=>{
+      const typ=String(t.type||t.tx_type||'');
+      const a=N(t.amount);
+      if(/فاتورة توريد|purchase|توريد/.test(typ))supplierPurchases+=a;
+      else if(/سداد مورد|payment|سداد/.test(typ))supplierPayments+=a;
+      if(t.referenceType==='scrap_sale'||/بيع هالك|scrap/.test(typ))scrapCredits+=a;
+    });
+    const payrollPaid=payroll.reduce((s,x)=>s+N(x.currentPaid??x.actualPaid??x.paid_amount),0);
+    const opening=(G('company')?.finOpeningBalances)||{cash:0,instapay:0,vodafone:0,bank:0};
+    const openingTotal=N(opening.cash)+N(opening.instapay)+N(opening.vodafone)+N(opening.bank);
+    const closingBook=N(G('cashbox'))+N(G('instapay'))+N(G('vodacash'))+N(G('bankAccount'));
+    const net=receipts-directExpenses-supplierPayments-payrollPaid;
+    return {sales,receipts,directExpenses,supplierPurchases,supplierPayments,scrapCredits,payrollPaid,openingTotal,closingBook,expected:openingTotal+net,diff:closingBook-(openingTotal+net)};
+  }
+
+  function supplierAudit(){
+    return A('suppliers').map(s=>{
+      const tx=A('supplierTransactions').filter(t=>String(t.supplierId)===String(s.id));
+      let invoiced=0,paid=0,scrap=0;
+      tx.forEach(t=>{
+        const typ=String(t.type||t.tx_type||'');
+        const a=N(t.amount);
+        if(/فاتورة توريد|purchase|توريد/.test(typ))invoiced+=a;
+        else if(/سداد مورد|payment|سداد/.test(typ))paid+=a;
+        if(t.referenceType==='scrap_sale'||/بيع هالك|scrap/.test(typ))scrap+=a;
+      });
+      const calc=Math.max(0,invoiced-paid-scrap);
+      return {name:s.name,booked:N(s.remainingDue??s.balance??s.debt),calc};
+    });
+  }
+
+  function clientAudit(){
+    return A('clients').map(c=>{
+      const os=A('orders').filter(o=>o.clientName===c.name);
+      const due=os.reduce((s,o)=>s+N(o.due),0), credit=os.reduce((s,o)=>s+N(o.overpayment),0);
+      return {name:c.name,bookedDue:N(c.debt),calcDue:due,bookedCredit:N(c.credit),calcCredit:credit};
+    });
+  }
+
+  function renderAudit(){
+    const box=document.getElementById('inkore_financial_audit_result'); if(!box)return;
+    const from=document.getElementById('inkore_audit_from')?.value||'';
+    const to=document.getElementById('inkore_audit_to')?.value||today();
+    const f=auditData(from,to);
+    const sa=supplierAudit().filter(x=>Math.abs(x.booked-x.calc)>0.009);
+    const ca=clientAudit().filter(x=>Math.abs(x.bookedDue-x.calcDue)>0.009||Math.abs(x.bookedCredit-x.calcCredit)>0.009);
+    const negativeStock=A('rawMaterials').filter(m=>N(m.currentStock??m.stock??m.qty)<0);
+    const ok=Math.abs(f.diff)<0.01 && sa.length===0 && ca.length===0 && negativeStock.length===0;
+    box.innerHTML=`
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div class="p-3 bg-indigo-50 border rounded-xl">المبيعات<b class="block">${M(f.sales)}</b></div>
+        <div class="p-3 bg-emerald-50 border rounded-xl">التحصيلات<b class="block">${M(f.receipts)}</b></div>
+        <div class="p-3 bg-rose-50 border rounded-xl">المصروفات<b class="block">${M(f.directExpenses)}</b></div>
+        <div class="p-3 bg-amber-50 border rounded-xl">سداد الموردين<b class="block">${M(f.supplierPayments)}</b></div>
+        <div class="p-3 bg-purple-50 border rounded-xl">الرواتب<b class="block">${M(f.payrollPaid)}</b></div>
+      </div>
+      <div class="mt-3 p-3 rounded-xl ${Math.abs(f.diff)<.01?'bg-emerald-50 border border-emerald-200':'bg-rose-50 border border-rose-200'} text-xs">
+        <b>مطابقة الخزائن:</b> المتوقع ${M(f.expected)} — الفعلي ${M(f.closingBook)} — الفرق <b>${M(f.diff)}</b>
+      </div>
+      <div class="mt-3 grid md:grid-cols-3 gap-3 text-xs">
+        <div class="border rounded-xl p-3"><b>فروقات الموردين: ${sa.length}</b>${sa.map(x=>`<div class="mt-2">${E(x.name)}: مسجل ${M(x.booked)} / محسوب ${M(x.calc)}</div>`).join('')||'<div class="text-emerald-700 mt-2">لا توجد فروقات</div>'}</div>
+        <div class="border rounded-xl p-3"><b>فروقات العملاء: ${ca.length}</b>${ca.map(x=>`<div class="mt-2">${E(x.name)}</div>`).join('')||'<div class="text-emerald-700 mt-2">لا توجد فروقات</div>'}</div>
+        <div class="border rounded-xl p-3"><b>المخزون: ${negativeStock.length?negativeStock.length+' أرصدة سالبة':'سليم'}</b>${negativeStock.map(x=>`<div class="mt-2 text-rose-700">${E(x.name)}</div>`).join('')}</div>
+      </div>
+      <div class="mt-3 p-3 rounded-xl ${ok?'bg-emerald-50 border border-emerald-200':'bg-amber-50 border border-amber-200'}">${ok?'المراجعة الأساسية لا تظهر فروقات.':'يوجد فرق أو أكثر يحتاج مراجعة.'}</div>`;
+  }
+
+  function injectAudit(){
+    const page=document.getElementById('page-reports');
+    if(!page||document.getElementById('inkore_financial_audit_box'))return;
+    const b=document.createElement('div');
+    b.id='inkore_financial_audit_box';
+    b.className='bg-white p-5 rounded-2xl border shadow-sm mt-5';
+    b.innerHTML=`<div class="flex flex-wrap justify-between items-center gap-3"><div><h3 class="text-lg font-black">مراجعة الحسابات قبل التقفيل</h3><p class="text-xs text-slate-500 mt-1">فحص سريع للفواتير والتحصيلات والموردين والعملاء والخزائن والمخزون.</p></div><button id="inkore_run_audit" class="bg-slate-900 text-white px-4 py-2 rounded-xl font-bold">تشغيل المراجعة</button></div>
+      <div class="grid md:grid-cols-2 gap-3 mt-3 text-xs"><label>من<input id="inkore_audit_from" type="date" value="${new Date(new Date().getFullYear(),0,1).toISOString().slice(0,10)}" class="w-full border p-2 rounded-lg mt-1"></label><label>إلى<input id="inkore_audit_to" type="date" value="${today()}" class="w-full border p-2 rounded-lg mt-1"></label></div>
+      <div id="inkore_financial_audit_result" class="mt-4"></div>`;
+    page.appendChild(b);
+    b.querySelector('#inkore_run_audit').addEventListener('click',renderAudit);
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(injectAudit,700));
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='reports')setTimeout(injectAudit,120);
+    return r;
+  };
+})();
+</script>
+
 </body>
 </html>
 
