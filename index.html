@@ -7624,150 +7624,244 @@ function todayStr() {
 </script>
 
 
-<script id="inkore-supplier-materials-correct-placement-v18">
+<style id="inkore-supplier-pro-ui-v20">
+  #inkore_supplier_workspace_v20{margin-top:18px}
+  #inkore_supplier_workspace_v20 .v20-card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 4px 14px rgba(15,23,42,.04)}
+  #inkore_supplier_workspace_v20 .v20-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid #eef2f7}
+  #inkore_supplier_workspace_v20 .v20-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+  #inkore_supplier_workspace_v20 .v20-col-4{grid-column:span 4}
+  #inkore_supplier_workspace_v20 .v20-col-3{grid-column:span 3}
+  #inkore_supplier_workspace_v20 .v20-col-2{grid-column:span 2}
+  #inkore_supplier_workspace_v20 .v20-col-12{grid-column:span 12}
+  #inkore_supplier_workspace_v20 input,#inkore_supplier_workspace_v20 select{min-height:42px}
+  #inkore_supplier_workspace_v20 .v20-label{font-size:11px;font-weight:800;color:#334155}
+  #inkore_supplier_workspace_v20 .v20-help{font-size:10px;color:#64748b}
+  #inkore_supplier_workspace_v20 .v20-total{font-size:22px;font-weight:900;color:#4338ca}
+  @media(max-width:900px){
+    #inkore_supplier_workspace_v20 .v20-col-4,#inkore_supplier_workspace_v20 .v20-col-3,#inkore_supplier_workspace_v20 .v20-col-2{grid-column:span 12}
+  }
+</style>
+
+<script id="inkore-supplier-pro-ui-v20">
 (function(){
   'use strict';
+
   const P='inkore_erp_stable_v1_';
   const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
   const A=k=>G(k)||[];
   const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
   const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
 
-  function findPageSuppliers(){
-    return document.getElementById('page-suppliers');
-  }
-
-  function removeMisplacedPanels(){
-    const page=findPageSuppliers();
-    document.querySelectorAll('#supplier_material_lines_v16, #supplier_material_lines_visible, #inkore_supplier_material_invoice_v16, #inkore_supplier_materials_visible').forEach(el=>{
-      const panel=el.closest('#inkore_supplier_material_invoice_v16,#inkore_supplier_materials_visible')||el;
-      if(!page || !page.contains(panel)) panel.remove();
-    });
-  }
-
-  function supplierInvoiceCard(){
-    const page=findPageSuppliers();
-    if(!page)return null;
-    const sel=page.querySelector('#sup_invoice_select');
-    if(!sel)return null;
-    return sel.closest('.bg-orange-50\\/70') || sel.parentElement?.parentElement || null;
-  }
-
-  function createCorrectPanel(){
-    const page=findPageSuppliers();
-    const card=supplierInvoiceCard();
-    if(!page||!card)return false;
-
-    // If an earlier patch created a correct panel, don't duplicate it.
-    if(page.querySelector('#inkore_supplier_materials_correct_v18')) return true;
-
-    // Remove panels created by earlier patches, but only inside supplier page.
-    page.querySelectorAll('#inkore_supplier_material_invoice_v16,#inkore_supplier_materials_visible').forEach(x=>x.remove());
-
-    const panel=document.createElement('div');
-    panel.id='inkore_supplier_materials_correct_v18';
-    panel.className='mt-4 p-4 rounded-2xl border border-indigo-200 bg-indigo-50/60';
-    panel.innerHTML=`
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div>
-          <div class="font-black text-sm text-slate-900">أصناف فاتورة التوريد</div>
-          <div class="text-[11px] text-slate-500 mt-1">
-            سجّل هنا الخامات التي وصلت من المورد: الخامة، الوحدة، الكمية، وسعر الوحدة.
-            عند اعتماد الحركة تضاف الكميات للمخزون.
-          </div>
-        </div>
-        <button type="button" id="supplier_add_line_correct_v18" class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-black">+ إضافة خامة</button>
-      </div>
-      <div id="supplier_material_lines_correct_v18"></div>
-      <div class="mt-3 flex flex-wrap justify-between items-center text-xs">
-        <b>إجمالي أصناف الفاتورة: <span id="supplier_material_total_correct_v18" class="text-indigo-700">0 ج.م</span></b>
-        <span>الورق: <b>متر مربع</b> — ورق الحماية: <b>كجم</b></span>
-      </div>
-    `;
-    card.appendChild(panel);
-
-    document.getElementById('supplier_add_line_correct_v18').addEventListener('click',()=>addLine());
-    addLine();
-    return true;
-  }
-
-  function defaultUnit(name){
+  function unitFor(name){
     const x=String(name||'').toLowerCase();
-    if(/حماية|protect/.test(x))return 'كجم';
-    if(/ورق|paper/.test(x))return 'متر مربع';
+    if(/حماية|protect/.test(x)) return 'كجم';
+    if(/ورق|paper/.test(x)) return 'متر مربع';
     return 'متر';
   }
 
-  function addLine(){
-    const box=document.getElementById('supplier_material_lines_correct_v18');
+  function supplierList(){return A('suppliers')}
+  function materialList(){return A('rawMaterials')}
+
+  function removeOldSupplierItemPanels(){
+    document.querySelectorAll('#inkore_supplier_materials_visible,#inkore_supplier_materials_correct_v18,#inkore_supplier_material_invoice_v16').forEach(el=>{
+      el.remove();
+    });
+  }
+
+  function findSupplierPage(){
+    return document.getElementById('page-suppliers');
+  }
+
+  function buildWorkspace(){
+    const page=findSupplierPage();
+    if(!page || document.getElementById('inkore_supplier_workspace_v20')) return;
+
+    removeOldSupplierItemPanels();
+
+    // Keep the existing main supplier form/cards. Put one clean item workspace
+    // immediately after the supplier invoice card.
+    const mainInvoiceSelect=page.querySelector('#sup_invoice_select');
+    let invoiceCard=mainInvoiceSelect?.closest('.bg-orange-50\\/70');
+    if(!invoiceCard) invoiceCard=mainInvoiceSelect?.closest('.rounded-2xl') || mainInvoiceSelect?.parentElement?.parentElement;
+    if(!invoiceCard)return;
+
+    const ws=document.createElement('div');
+    ws.id='inkore_supplier_workspace_v20';
+    ws.innerHTML=`
+      <div class="v20-card">
+        <div class="v20-head">
+          <div>
+            <div class="font-black text-lg text-slate-900">أصناف فاتورة التوريد</div>
+            <div class="v20-help mt-1">سجّل كل خامة وصلت من المورد في نفس الفاتورة، والكمية تدخل المخزون عند اعتماد الحركة.</div>
+          </div>
+          <button type="button" id="v20_add_line" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-black">+ إضافة خامة</button>
+        </div>
+
+        <div class="p-4">
+          <div id="v20_lines"></div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+            <div class="bg-slate-50 border rounded-xl p-3">
+              <div class="v20-label">إجمالي الأصناف</div>
+              <div id="v20_items_total" class="v20-total mt-1">0 ج.م</div>
+            </div>
+
+            <label class="v20-label">
+              رقم الفاتورة / المرجع
+              <input id="v20_invoice_ref" class="w-full border bg-white p-2.5 rounded-lg mt-1" placeholder="اختياري">
+            </label>
+
+            <label class="v20-label">
+              ملاحظات
+              <input id="v20_invoice_notes" class="w-full border bg-white p-2.5 rounded-lg mt-1" placeholder="اختياري">
+            </label>
+
+            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-[11px] leading-5">
+              <b>الوحدات القياسية:</b><br>
+              الورق = متر مربع<br>
+              ورق الحماية = كجم
+            </div>
+          </div>
+
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            <button type="button" id="v20_clear_lines" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">مسح أصناف الإدخال</button>
+            <button type="button" id="v20_apply_lines" class="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black">تحديث قيمة الفاتورة</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    invoiceCard.insertAdjacentElement('afterend',ws);
+
+    document.getElementById('v20_add_line').addEventListener('click',()=>addLine());
+    document.getElementById('v20_clear_lines').addEventListener('click',()=>{
+      document.getElementById('v20_lines').innerHTML='';
+      addLine();
+    });
+    document.getElementById('v20_apply_lines').addEventListener('click',()=>{
+      recalc();
+      const amount=document.getElementById('sup_invoice_amt');
+      if(amount)amount.value=total().toFixed(2);
+      alert('تم تحديث قيمة فاتورة التوريد من أصناف الفاتورة.');
+    });
+
+    addLine();
+    // Make the old generic invoice amount area clearly secondary, since the item list is the source.
+    const amount=document.getElementById('sup_invoice_amt');
+    if(amount){
+      amount.placeholder='إجمالي تلقائي من الأصناف';
+      amount.readOnly=true;
+      amount.title='يتم حسابه تلقائيًا من أصناف فاتورة التوريد';
+      amount.classList.add('bg-slate-50');
+    }
+  }
+
+  function addLine(data={}){
+    const box=document.getElementById('v20_lines');
     if(!box)return;
     const row=document.createElement('div');
-    row.className='grid grid-cols-1 md:grid-cols-6 gap-2 items-end p-3 rounded-xl border bg-white mb-2';
+    row.className='grid grid-cols-1 md:grid-cols-12 gap-2 items-end p-3 rounded-xl border bg-slate-50 mb-2';
     row.innerHTML=`
-      <label class="text-[11px] font-bold md:col-span-2">الخامة
-        <select class="c18-mat w-full border p-2 rounded-lg mt-1">
+      <label class="v20-label md:col-span-4">الخامة
+        <select class="v20-material w-full border bg-white p-2.5 rounded-lg mt-1">
           <option value="">اختر الخامة</option>
-          ${A('rawMaterials').map(m=>`<option value="${E(m.id)}">${E(m.name)} — ${E(m.unit||defaultUnit(m.name))}</option>`).join('')}
+          ${materialList().map(m=>`<option value="${E(m.id)}">${E(m.name)}</option>`).join('')}
         </select>
       </label>
-      <label class="text-[11px] font-bold">الوحدة
-        <select class="c18-unit w-full border p-2 rounded-lg mt-1">
-          <option value="متر مربع">متر مربع</option><option value="متر">متر</option><option value="كجم">كجم</option><option value="قطعة">قطعة</option>
+
+      <label class="v20-label md:col-span-2">الوحدة
+        <select class="v20-unit w-full border bg-white p-2.5 rounded-lg mt-1">
+          <option value="متر مربع">متر مربع</option>
+          <option value="متر">متر</option>
+          <option value="كجم">كجم</option>
+          <option value="قطعة">قطعة</option>
         </select>
       </label>
-      <label class="text-[11px] font-bold">الكمية
-        <input class="c18-qty w-full border p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" placeholder="مثال 250">
+
+      <label class="v20-label md:col-span-2">الكمية
+        <input class="v20-qty w-full border bg-white p-2.5 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(data.qty)}" placeholder="0">
       </label>
-      <label class="text-[11px] font-bold">سعر الوحدة
-        <input class="c18-price w-full border p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" placeholder="مثال 120">
+
+      <label class="v20-label md:col-span-2">سعر الوحدة
+        <input class="v20-price w-full border bg-white p-2.5 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(data.price)}" placeholder="0">
       </label>
-      <div class="flex items-center gap-2">
-        <div class="text-xs font-black flex-1">الإجمالي<br><span class="c18-total">0 ج.م</span></div>
-        <button type="button" class="c18-remove bg-rose-50 text-rose-700 border border-rose-200 px-2 py-2 rounded-lg font-black">×</button>
-      </div>`;
+
+      <div class="md:col-span-1 text-xs font-black">
+        الإجمالي<br><span class="v20-line-total">0 ج.م</span>
+      </div>
+
+      <div class="md:col-span-1">
+        <button type="button" class="v20-remove w-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-2.5 rounded-lg font-black">حذف</button>
+      </div>
+    `;
     box.appendChild(row);
 
-    const mat=row.querySelector('.c18-mat'),unit=row.querySelector('.c18-unit'),qty=row.querySelector('.c18-qty'),price=row.querySelector('.c18-price');
-    mat.addEventListener('change',()=>{
-      const m=A('rawMaterials').find(x=>String(x.id)===String(mat.value));
-      unit.value=defaultUnit(m?.name);
-      if(m && !N(price.value)) price.value=N(m.purchasePrice??m.purchase_price);
+    const material=row.querySelector('.v20-material');
+    const unit=row.querySelector('.v20-unit');
+    const qty=row.querySelector('.v20-qty');
+    const price=row.querySelector('.v20-price');
+
+    material.addEventListener('change',()=>{
+      const m=materialList().find(x=>String(x.id)===String(material.value));
+      unit.value=unitFor(m?.name);
+      if(m && !N(price.value))price.value=N(m.purchasePrice??m.purchase_price);
       recalc();
     });
-    [unit,qty,price].forEach(x=>x.addEventListener('input',recalc));
-    row.querySelector('.c18-remove').addEventListener('click',()=>{row.remove();recalc()});
+    [unit,qty,price].forEach(el=>el.addEventListener('input',recalc));
+    row.querySelector('.v20-remove').addEventListener('click',()=>{row.remove();recalc()});
+
+    if(data.materialId)material.value=String(data.materialId);
+    if(data.unit)unit.value=data.unit;
     recalc();
   }
 
+  function rows(){
+    return [...document.querySelectorAll('#v20_lines > div')].map(row=>{
+      const materialId=row.querySelector('.v20-material')?.value||'';
+      const m=materialList().find(x=>String(x.id)===String(materialId));
+      const unit=row.querySelector('.v20-unit')?.value||unitFor(m?.name);
+      const qty=N(row.querySelector('.v20-qty')?.value);
+      const price=N(row.querySelector('.v20-price')?.value);
+      return {row,materialId,material:m,unit,qty,price,total:qty*price};
+    }).filter(x=>x.materialId && x.qty>0);
+  }
+  function total(){return rows().reduce((s,x)=>s+x.total,0)}
   function recalc(){
-    let total=0;
-    document.querySelectorAll('#supplier_material_lines_correct_v18 > div').forEach(row=>{
-      const t=N(row.querySelector('.c18-qty')?.value)*N(row.querySelector('.c18-price')?.value);
-      total+=t;
-      const e=row.querySelector('.c18-total');if(e)e.textContent=N(t).toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م';
+    let sum=0;
+    document.querySelectorAll('#v20_lines > div').forEach(row=>{
+      const q=N(row.querySelector('.v20-qty')?.value),p=N(row.querySelector('.v20-price')?.value),t=q*p;
+      sum+=t;
+      const el=row.querySelector('.v20-line-total');if(el)el.textContent=M(t);
     });
-    const e=document.getElementById('supplier_material_total_correct_v18');if(e)e.textContent=total.toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م';
-    const invoice=document.getElementById('sup_invoice_amt');
-    if(invoice && total>0)invoice.value=total.toFixed(2);
+    const t=document.getElementById('v20_items_total');if(t)t.textContent=M(sum);
+  }
+
+  // Prevent the current scrap workflow from presenting an external junk trader.
+  function refreshScrapSupplierSelect(){
+    const sel=document.getElementById('scrap_supplier_select') || document.getElementById('scrap_buyer_select');
+    if(!sel)return;
+    sel.innerHTML='<option value="">اختر المورد</option>'+supplierList().map(s=>`<option value="${E(s.id)}">${E(s.name)}</option>`).join('');
   }
 
   document.addEventListener('DOMContentLoaded',()=>{
     setTimeout(()=>{
-      removeMisplacedPanels();
-      createCorrectPanel();
-    },600);
+      // only touch supplier page
+      if(document.getElementById('page-suppliers')){
+        buildWorkspace();
+        refreshScrapSupplierSelect();
+      }
+    },900);
   });
 
   const oldShow=window.showPage;
   window.showPage=function(page){
     const r=typeof oldShow==='function'?oldShow(page):undefined;
-    setTimeout(()=>{
-      if(page==='suppliers'){
-        removeMisplacedPanels();
-        createCorrectPanel();
-      }else{
-        removeMisplacedPanels();
-      }
+    if(page==='suppliers')setTimeout(()=>{
+      buildWorkspace();
+      refreshScrapSupplierSelect();
     },150);
     return r;
   };
