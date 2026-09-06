@@ -7482,391 +7482,12 @@ function todayStr() {
 </script>
 
 
-<script id="inkore-supplier-materials-visible-v17">
-(function(){
-  'use strict';
-  const P='inkore_erp_stable_v1_';
-  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
-  const A=k=>G(k)||[];
-  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
-  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const F=v=>N(v).toLocaleString('en-US',{maximumFractionDigits:2});
-  const M=v=>F(v)+' ج.م';
-
-  const mats=()=>A('rawMaterials');
-  const sups=()=>A('suppliers');
-
-  function defaultUnit(name){
-    const x=String(name||'').toLowerCase();
-    if(/حماية|protect|سكراب|هالك/.test(x)) return 'كجم';
-    if(/ورق|paper/.test(x)) return 'متر مربع';
-    return 'متر';
-  }
-
-  function addLine(prefill={}){
-    const body=document.getElementById('supplier_material_lines_visible');
-    if(!body)return;
-    const row=document.createElement('div');
-    row.className='grid grid-cols-1 md:grid-cols-6 gap-2 items-end p-3 rounded-xl border bg-slate-50 mb-2';
-    row.innerHTML=`
-      <label class="text-[11px] font-bold md:col-span-2">الخامة
-        <select class="sv-material w-full border bg-white p-2 rounded-lg mt-1">
-          <option value="">اختر الخامة</option>
-          ${mats().map(m=>`<option value="${E(m.id)}">${E(m.name)} — ${E(m.unit||defaultUnit(m.name))}</option>`).join('')}
-        </select>
-      </label>
-      <label class="text-[11px] font-bold">الوحدة
-        <select class="sv-unit w-full border bg-white p-2 rounded-lg mt-1">
-          <option value="متر مربع">متر مربع</option><option value="متر">متر</option>
-          <option value="كجم">كجم</option><option value="قطعة">قطعة</option>
-        </select>
-      </label>
-      <label class="text-[11px] font-bold">الكمية
-        <input class="sv-qty w-full border bg-white p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(prefill.qty)}" placeholder="مثال 250">
-      </label>
-      <label class="text-[11px] font-bold">سعر الوحدة
-        <input class="sv-price w-full border bg-white p-2 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(prefill.price)}" placeholder="مثال 120">
-      </label>
-      <div class="flex items-center gap-2">
-        <div class="text-xs font-black flex-1">الإجمالي<br><span class="sv-total">0 ج.م</span></div>
-        <button type="button" class="sv-remove bg-rose-50 text-rose-700 border border-rose-200 px-2 py-2 rounded-lg font-black">×</button>
-      </div>`;
-    body.appendChild(row);
-
-    const ms=row.querySelector('.sv-material'),u=row.querySelector('.sv-unit'),
-          q=row.querySelector('.sv-qty'),p=row.querySelector('.sv-price');
-    ms.addEventListener('change',()=>{
-      const m=mats().find(x=>String(x.id)===String(ms.value));
-      u.value=defaultUnit(m?.name);
-      if(m && !N(p.value))p.value=N(m.purchasePrice??m.purchase_price);
-      recalc();
-    });
-    [u,q,p].forEach(x=>x.addEventListener('input',recalc));
-    row.querySelector('.sv-remove').addEventListener('click',()=>{row.remove();recalc()});
-    if(prefill.materialId)ms.value=String(prefill.materialId);
-    if(prefill.unit)u.value=prefill.unit;
-    recalc();
-  }
-
-  function recalc(){
-    let total=0;
-    document.querySelectorAll('#supplier_material_lines_visible > div').forEach(row=>{
-      const q=N(row.querySelector('.sv-qty')?.value),p=N(row.querySelector('.sv-price')?.value),t=q*p;
-      total+=t;
-      const e=row.querySelector('.sv-total');if(e)e.textContent=M(t);
-    });
-    const totalEl=document.getElementById('supplier_material_total_visible');
-    if(totalEl)totalEl.textContent=M(total);
-    const invoiceAmt=document.getElementById('sup_invoice_amt');
-    if(invoiceAmt && total>0) invoiceAmt.value=total.toFixed(2);
-  }
-
-  function installVisiblePanel(){
-    if(document.getElementById('inkore_supplier_materials_visible'))return;
-    const sel=document.getElementById('sup_invoice_select');
-    if(!sel)return;
-
-    let card=sel;
-    // Walk to the actual orange supplier-invoice card.
-    for(let i=0;i<6 && card.parentElement;i++){
-      const p=card.parentElement;
-      if((p.innerText||'').includes('تسجيل فاتورة توريد جديدة')){card=p;break;}
-      card=p;
-    }
-
-    const panel=document.createElement('div');
-    panel.id='inkore_supplier_materials_visible';
-    panel.className='mt-4 p-4 rounded-2xl border border-indigo-200 bg-indigo-50/50';
-    panel.innerHTML=`
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div>
-          <div class="font-black text-sm">أصناف فاتورة التوريد ودخولها للمخزون</div>
-          <div class="text-[11px] text-slate-500 mt-1">
-            هنا تسجل الكمية والسعر لكل خامة وصلت من المورد، وعند اعتماد الفاتورة تدخل الكمية للمخزون تلقائيًا.
-          </div>
-        </div>
-        <button type="button" id="supplier_add_line_visible" class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-black">+ إضافة خامة</button>
-      </div>
-      <div id="supplier_material_lines_visible"></div>
-      <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <div class="text-xs">
-          <span class="text-slate-500">إجمالي أصناف الفاتورة:</span>
-          <b id="supplier_material_total_visible" class="text-indigo-700">${M(0)}</b>
-        </div>
-        <div class="text-[11px] text-slate-600">
-          الورق = <b>متر مربع</b> — ورق الحماية = <b>كجم</b>
-        </div>
-      </div>`;
-    card.appendChild(panel);
-    document.getElementById('supplier_add_line_visible').addEventListener('click',()=>addLine());
-    addLine();
-  }
-
-  function refreshScrapSupplier(){
-    const s=document.getElementById('scrap_buyer_select');
-    if(!s)return;
-    const old=s.value;
-    s.innerHTML='<option value="">اختر المورد</option>'+sups().map(x=>`<option value="${E(x.id)}">${E(x.name)}</option>`).join('');
-    if(old && sups().some(x=>String(x.id)===String(old)))s.value=old;
-  }
-
-  document.addEventListener('DOMContentLoaded',()=>{
-    setTimeout(()=>{installVisiblePanel();refreshScrapSupplier()},700);
-  });
-
-  const oldShow=window.showPage;
-  window.showPage=function(page){
-    const r=typeof oldShow==='function'?oldShow(page):undefined;
-    if(page==='suppliers')setTimeout(()=>{installVisiblePanel();refreshScrapSupplier()},100);
-    return r;
-  };
-})();
-</script>
 
 
-<style id="inkore-supplier-pro-ui-v20">
-  #inkore_supplier_workspace_v20{margin-top:18px}
-  #inkore_supplier_workspace_v20 .v20-card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 4px 14px rgba(15,23,42,.04)}
-  #inkore_supplier_workspace_v20 .v20-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid #eef2f7}
-  #inkore_supplier_workspace_v20 .v20-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
-  #inkore_supplier_workspace_v20 .v20-col-4{grid-column:span 4}
-  #inkore_supplier_workspace_v20 .v20-col-3{grid-column:span 3}
-  #inkore_supplier_workspace_v20 .v20-col-2{grid-column:span 2}
-  #inkore_supplier_workspace_v20 .v20-col-12{grid-column:span 12}
-  #inkore_supplier_workspace_v20 input,#inkore_supplier_workspace_v20 select{min-height:42px}
-  #inkore_supplier_workspace_v20 .v20-label{font-size:11px;font-weight:800;color:#334155}
-  #inkore_supplier_workspace_v20 .v20-help{font-size:10px;color:#64748b}
-  #inkore_supplier_workspace_v20 .v20-total{font-size:22px;font-weight:900;color:#4338ca}
-  @media(max-width:900px){
-    #inkore_supplier_workspace_v20 .v20-col-4,#inkore_supplier_workspace_v20 .v20-col-3,#inkore_supplier_workspace_v20 .v20-col-2{grid-column:span 12}
-  }
-</style>
 
-<script id="inkore-supplier-pro-ui-v20">
-(function(){
-  'use strict';
 
-  const P='inkore_erp_stable_v1_';
-  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
-  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
-  const A=k=>G(k)||[];
-  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
-  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
-  const M=v=>F(v)+' ج.م';
 
-  function unitFor(name){
-    const x=String(name||'').toLowerCase();
-    if(/حماية|protect/.test(x)) return 'كجم';
-    if(/ورق|paper/.test(x)) return 'متر مربع';
-    return 'متر';
-  }
 
-  function supplierList(){return A('suppliers')}
-  function materialList(){return A('rawMaterials')}
-
-  function removeOldSupplierItemPanels(){
-    document.querySelectorAll('#inkore_supplier_materials_visible,#inkore_supplier_materials_correct_v18,#inkore_supplier_material_invoice_v16').forEach(el=>{
-      el.remove();
-    });
-  }
-
-  function findSupplierPage(){
-    return document.getElementById('page-suppliers');
-  }
-
-  function buildWorkspace(){
-    const page=findSupplierPage();
-    if(!page || document.getElementById('inkore_supplier_workspace_v20')) return;
-
-    removeOldSupplierItemPanels();
-
-    // Keep the existing main supplier form/cards. Put one clean item workspace
-    // immediately after the supplier invoice card.
-    const mainInvoiceSelect=page.querySelector('#sup_invoice_select');
-    let invoiceCard=mainInvoiceSelect?.closest('.bg-orange-50\\/70');
-    if(!invoiceCard) invoiceCard=mainInvoiceSelect?.closest('.rounded-2xl') || mainInvoiceSelect?.parentElement?.parentElement;
-    if(!invoiceCard)return;
-
-    const ws=document.createElement('div');
-    ws.id='inkore_supplier_workspace_v20';
-    ws.innerHTML=`
-      <div class="v20-card">
-        <div class="v20-head">
-          <div>
-            <div class="font-black text-lg text-slate-900">أصناف فاتورة التوريد</div>
-            <div class="v20-help mt-1">سجّل كل خامة وصلت من المورد في نفس الفاتورة، والكمية تدخل المخزون عند اعتماد الحركة.</div>
-          </div>
-          <button type="button" id="v20_add_line" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-black">+ إضافة خامة</button>
-        </div>
-
-        <div class="p-4">
-          <div id="v20_lines"></div>
-
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
-            <div class="bg-slate-50 border rounded-xl p-3">
-              <div class="v20-label">إجمالي الأصناف</div>
-              <div id="v20_items_total" class="v20-total mt-1">0 ج.م</div>
-            </div>
-
-            <label class="v20-label">
-              رقم الفاتورة / المرجع
-              <input id="v20_invoice_ref" class="w-full border bg-white p-2.5 rounded-lg mt-1" placeholder="اختياري">
-            </label>
-
-            <label class="v20-label">
-              ملاحظات
-              <input id="v20_invoice_notes" class="w-full border bg-white p-2.5 rounded-lg mt-1" placeholder="اختياري">
-            </label>
-
-            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-[11px] leading-5">
-              <b>الوحدات القياسية:</b><br>
-              الورق = متر مربع<br>
-              ورق الحماية = كجم
-            </div>
-          </div>
-
-          <div class="mt-4 flex flex-wrap justify-end gap-2">
-            <button type="button" id="v20_clear_lines" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">مسح أصناف الإدخال</button>
-            <button type="button" id="v20_apply_lines" class="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-black">تحديث قيمة الفاتورة</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    invoiceCard.insertAdjacentElement('afterend',ws);
-
-    document.getElementById('v20_add_line').addEventListener('click',()=>addLine());
-    document.getElementById('v20_clear_lines').addEventListener('click',()=>{
-      document.getElementById('v20_lines').innerHTML='';
-      addLine();
-    });
-    document.getElementById('v20_apply_lines').addEventListener('click',()=>{
-      recalc();
-      const amount=document.getElementById('sup_invoice_amt');
-      if(amount)amount.value=total().toFixed(2);
-      alert('تم تحديث قيمة فاتورة التوريد من أصناف الفاتورة.');
-    });
-
-    addLine();
-    // Make the old generic invoice amount area clearly secondary, since the item list is the source.
-    const amount=document.getElementById('sup_invoice_amt');
-    if(amount){
-      amount.placeholder='إجمالي تلقائي من الأصناف';
-      amount.readOnly=true;
-      amount.title='يتم حسابه تلقائيًا من أصناف فاتورة التوريد';
-      amount.classList.add('bg-slate-50');
-    }
-  }
-
-  function addLine(data={}){
-    const box=document.getElementById('v20_lines');
-    if(!box)return;
-    const row=document.createElement('div');
-    row.className='grid grid-cols-1 md:grid-cols-12 gap-2 items-end p-3 rounded-xl border bg-slate-50 mb-2';
-    row.innerHTML=`
-      <label class="v20-label md:col-span-4">الخامة
-        <select class="v20-material w-full border bg-white p-2.5 rounded-lg mt-1">
-          <option value="">اختر الخامة</option>
-          ${materialList().map(m=>`<option value="${E(m.id)}">${E(m.name)}</option>`).join('')}
-        </select>
-      </label>
-
-      <label class="v20-label md:col-span-2">الوحدة
-        <select class="v20-unit w-full border bg-white p-2.5 rounded-lg mt-1">
-          <option value="متر مربع">متر مربع</option>
-          <option value="متر">متر</option>
-          <option value="كجم">كجم</option>
-          <option value="قطعة">قطعة</option>
-        </select>
-      </label>
-
-      <label class="v20-label md:col-span-2">الكمية
-        <input class="v20-qty w-full border bg-white p-2.5 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(data.qty)}" placeholder="0">
-      </label>
-
-      <label class="v20-label md:col-span-2">سعر الوحدة
-        <input class="v20-price w-full border bg-white p-2.5 rounded-lg mt-1 font-mono" type="number" min="0" step="0.01" value="${N(data.price)}" placeholder="0">
-      </label>
-
-      <div class="md:col-span-1 text-xs font-black">
-        الإجمالي<br><span class="v20-line-total">0 ج.م</span>
-      </div>
-
-      <div class="md:col-span-1">
-        <button type="button" class="v20-remove w-full bg-rose-50 text-rose-700 border border-rose-200 px-2 py-2.5 rounded-lg font-black">حذف</button>
-      </div>
-    `;
-    box.appendChild(row);
-
-    const material=row.querySelector('.v20-material');
-    const unit=row.querySelector('.v20-unit');
-    const qty=row.querySelector('.v20-qty');
-    const price=row.querySelector('.v20-price');
-
-    material.addEventListener('change',()=>{
-      const m=materialList().find(x=>String(x.id)===String(material.value));
-      unit.value=unitFor(m?.name);
-      if(m && !N(price.value))price.value=N(m.purchasePrice??m.purchase_price);
-      recalc();
-    });
-    [unit,qty,price].forEach(el=>el.addEventListener('input',recalc));
-    row.querySelector('.v20-remove').addEventListener('click',()=>{row.remove();recalc()});
-
-    if(data.materialId)material.value=String(data.materialId);
-    if(data.unit)unit.value=data.unit;
-    recalc();
-  }
-
-  function rows(){
-    return [...document.querySelectorAll('#v20_lines > div')].map(row=>{
-      const materialId=row.querySelector('.v20-material')?.value||'';
-      const m=materialList().find(x=>String(x.id)===String(materialId));
-      const unit=row.querySelector('.v20-unit')?.value||unitFor(m?.name);
-      const qty=N(row.querySelector('.v20-qty')?.value);
-      const price=N(row.querySelector('.v20-price')?.value);
-      return {row,materialId,material:m,unit,qty,price,total:qty*price};
-    }).filter(x=>x.materialId && x.qty>0);
-  }
-  function total(){return rows().reduce((s,x)=>s+x.total,0)}
-  function recalc(){
-    let sum=0;
-    document.querySelectorAll('#v20_lines > div').forEach(row=>{
-      const q=N(row.querySelector('.v20-qty')?.value),p=N(row.querySelector('.v20-price')?.value),t=q*p;
-      sum+=t;
-      const el=row.querySelector('.v20-line-total');if(el)el.textContent=M(t);
-    });
-    const t=document.getElementById('v20_items_total');if(t)t.textContent=M(sum);
-  }
-
-  // Prevent the current scrap workflow from presenting an external junk trader.
-  function refreshScrapSupplierSelect(){
-    const sel=document.getElementById('scrap_supplier_select') || document.getElementById('scrap_buyer_select');
-    if(!sel)return;
-    sel.innerHTML='<option value="">اختر المورد</option>'+supplierList().map(s=>`<option value="${E(s.id)}">${E(s.name)}</option>`).join('');
-  }
-
-  document.addEventListener('DOMContentLoaded',()=>{
-    setTimeout(()=>{
-      // only touch supplier page
-      if(document.getElementById('page-suppliers')){
-        buildWorkspace();
-        refreshScrapSupplierSelect();
-      }
-    },900);
-  });
-
-  const oldShow=window.showPage;
-  window.showPage=function(page){
-    const r=typeof oldShow==='function'?oldShow(page):undefined;
-    if(page==='suppliers')setTimeout(()=>{
-      buildWorkspace();
-      refreshScrapSupplierSelect();
-    },150);
-    return r;
-  };
-})();
-</script>
 
 
 <script id="inkore-financial-audit-v21">
@@ -7988,6 +7609,182 @@ function todayStr() {
     if(page==='reports')setTimeout(injectAudit,120);
     return r;
   };
+})();
+</script>
+
+
+<style id="inkore-master-stability-v22">
+  #inkore_system_audit_v22 .ok{color:#047857;font-weight:800}
+  #inkore_system_audit_v22 .bad{color:#b91c1c;font-weight:800}
+  #inkore_master_notice{position:fixed;bottom:18px;right:18px;z-index:200;background:#0f172a;color:#fff;padding:9px 13px;border-radius:10px;font-size:11px;box-shadow:0 8px 24px rgba(15,23,42,.2);display:none}
+</style>
+
+
+
+
+
+
+<style id="inkore-supplier-clean-v23">
+  #inkore_supplier_materials_canonical_v23 .item-row{border:1px solid #e2e8f0;background:#f8fafc;border-radius:14px;padding:12px;margin-top:10px}
+  #inkore_supplier_materials_canonical_v23 input,#inkore_supplier_materials_canonical_v23 select{min-height:42px}
+</style>
+<script id="inkore-supplier-clean-v23">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  function pageSuppliers(){return document.getElementById('page-suppliers')}
+  function materials(){return A('rawMaterials')}
+  function suppliers(){return A('suppliers')}
+
+  function cleanContamination(){
+    // Remove every known supplier item panel if it is outside the supplier page.
+    const supplierPage=pageSuppliers();
+    document.querySelectorAll(
+      '#inkore_supplier_materials_visible,#inkore_supplier_material_invoice_v16,'+
+      '#inkore_supplier_materials_correct_v18,#inkore_supplier_workspace_v20,'+
+      '#inkore_master_supplier_box,#inkore_supplier_materials_canonical_v23'
+    ).forEach(el=>{
+      if(!supplierPage || !supplierPage.contains(el)) el.remove();
+    });
+
+    // Defensive cleanup for any old panel that lost its ID but still contains the heading.
+    document.querySelectorAll('body *').forEach(el=>{
+      if(el.id==='page-dashboard') return;
+      const t=(el.innerText||'').trim();
+      if(t.startsWith('أصناف فاتورة التوريد') && t.length<3500){
+        const host=el.closest('.bg-white,.rounded-2xl,.border')||el;
+        if(!supplierPage || !supplierPage.contains(host)) host.remove();
+      }
+    });
+  }
+
+  function invoiceCard(){
+    const page=pageSuppliers();if(!page)return null;
+    const sel=page.querySelector('#sup_invoice_select');if(!sel)return null;
+    return sel.closest('.bg-orange-50\\/70')||sel.closest('.rounded-2xl')||sel.parentElement?.parentElement||null;
+  }
+
+  function unitFor(name){
+    const x=String(name||'').toLowerCase();
+    if(/حماية|protect/.test(x))return 'كجم';
+    if(/ورق|paper/.test(x))return 'متر مربع';
+    return 'متر';
+  }
+
+  function totalRows(){
+    return [...document.querySelectorAll('#supplier_v23_lines > .item-row')].map(r=>{
+      const id=r.querySelector('.v23-mat')?.value||'';
+      const m=materials().find(x=>String(x.id)===String(id));
+      const unit=r.querySelector('.v23-unit')?.value||unitFor(m?.name);
+      const qty=N(r.querySelector('.v23-qty')?.value);
+      const price=N(r.querySelector('.v23-price')?.value);
+      return {id,m,unit,qty,price,total:qty*price,row:r};
+    }).filter(x=>x.id&&x.qty>0);
+  }
+
+  function recalc(){
+    let total=0;
+    document.querySelectorAll('#supplier_v23_lines > .item-row').forEach(r=>{
+      const q=N(r.querySelector('.v23-qty')?.value), p=N(r.querySelector('.v23-price')?.value), t=q*p;
+      total+=t;
+      const x=r.querySelector('.v23-line-total');if(x)x.textContent=M(t);
+    });
+    const t=document.getElementById('supplier_v23_total');if(t)t.textContent=M(total);
+    const invoice=document.getElementById('sup_invoice_amt');
+    if(invoice){invoice.value=total?total.toFixed(2):'';invoice.readOnly=!!total;}
+  }
+
+  function addRow(){
+    const box=document.getElementById('supplier_v23_lines');if(!box)return;
+    const r=document.createElement('div');r.className='item-row grid grid-cols-1 md:grid-cols-12 gap-2 items-end';
+    r.innerHTML=`
+      <label class="md:col-span-4 text-[11px] font-bold">الخامة
+        <select class="v23-mat w-full border bg-white rounded-lg p-2 mt-1">
+          <option value="">اختر الخامة</option>
+          ${materials().map(m=>`<option value="${E(m.id)}">${E(m.name)}</option>`).join('')}
+        </select>
+      </label>
+      <label class="md:col-span-2 text-[11px] font-bold">الوحدة
+        <select class="v23-unit w-full border bg-white rounded-lg p-2 mt-1">
+          <option value="متر مربع">متر مربع</option><option value="متر">متر</option><option value="كجم">كجم</option><option value="قطعة">قطعة</option>
+        </select>
+      </label>
+      <label class="md:col-span-2 text-[11px] font-bold">الكمية
+        <input class="v23-qty w-full border bg-white rounded-lg p-2 mt-1" type="number" min="0" step="0.01" placeholder="0">
+      </label>
+      <label class="md:col-span-2 text-[11px] font-bold">سعر الوحدة
+        <input class="v23-price w-full border bg-white rounded-lg p-2 mt-1" type="number" min="0" step="0.01" placeholder="0">
+      </label>
+      <div class="md:col-span-1 text-[11px] font-black">الإجمالي<br><span class="v23-line-total">0 ج.م</span></div>
+      <button type="button" class="v23-del md:col-span-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg p-2 font-black">حذف</button>`;
+    box.appendChild(r);
+    const m=r.querySelector('.v23-mat'),u=r.querySelector('.v23-unit'),q=r.querySelector('.v23-qty'),p=r.querySelector('.v23-price');
+    m.addEventListener('change',()=>{
+      const item=materials().find(x=>String(x.id)===String(m.value));
+      u.value=unitFor(item?.name);
+      if(item&&!N(p.value))p.value=N(item.purchasePrice??item.purchase_price);
+      recalc();
+    });
+    [u,q,p].forEach(x=>x.addEventListener('input',recalc));
+    r.querySelector('.v23-del').addEventListener('click',()=>{r.remove();recalc()});
+    recalc();
+  }
+
+  function build(){
+    cleanContamination();
+    const page=pageSuppliers();if(!page)return;
+    const card=invoiceCard();if(!card)return;
+    if(document.getElementById('inkore_supplier_materials_canonical_v23'))return;
+
+    const box=document.createElement('div');
+    box.id='inkore_supplier_materials_canonical_v23';
+    box.className='mt-4 p-4 rounded-2xl border border-indigo-200 bg-indigo-50/60';
+    box.innerHTML=`
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
+        <div><h3 class="font-black text-base">أصناف فاتورة التوريد</h3>
+        <p class="text-[11px] text-slate-500 mt-1">سجّل الخامات والكميات وأسعار الشراء هنا. لا يظهر هذا القسم خارج صفحة الموردين.</p></div>
+        <button type="button" id="supplier_v23_add" class="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-black">+ إضافة خامة</button>
+      </div>
+      <div id="supplier_v23_lines"></div>
+      <div class="mt-3 flex flex-wrap justify-between items-center text-xs">
+        <b>إجمالي أصناف الفاتورة: <span id="supplier_v23_total" class="text-indigo-700">${M(0)}</span></b>
+        <span>الورق = متر مربع — ورق الحماية = كجم</span>
+      </div>`;
+    card.insertAdjacentElement('afterend',box);
+    document.getElementById('supplier_v23_add').addEventListener('click',addRow);
+    addRow();
+  }
+
+  function guard(){
+    cleanContamination();
+    // Only construct the supplier items section while the supplier page is active.
+    const active=document.querySelector('.page-view.active');
+    if(active && active.id==='page-suppliers') build();
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(guard,700));
+
+  const previousShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof previousShow==='function'?previousShow(page):undefined;
+    setTimeout(()=>{
+      cleanContamination();
+      if(page==='suppliers') build();
+    },100);
+    return r;
+  };
+
+  // Strong defensive guard against old scripts/plugins injecting after navigation.
+  const observer=new MutationObserver(()=>cleanContamination());
+  document.addEventListener('DOMContentLoaded',()=>observer.observe(document.body,{childList:true,subtree:true}));
 })();
 </script>
 
