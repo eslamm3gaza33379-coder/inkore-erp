@@ -3609,6 +3609,141 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{normalizeInvent
 })();
 </script>
 
+
+<style id="inkore-supplier-fin-edit-v43">
+.inkore-sf43{position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px}
+.inkore-sf43>div{background:#fff;width:min(980px,100%);max-height:92vh;overflow:auto;border-radius:22px;padding:22px;box-shadow:0 25px 80px rgba(15,23,42,.3)}
+</style>
+<script id="inkore-supplier-fin-edit-v43">
+(function(){
+'use strict';
+const P='inkore_erp_stable_v1_';
+const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+const A=k=>G(k)||[];
+const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const M=v=>F(v)+' ج.م';
+const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const today=()=>new Date().toISOString().slice(0,10);
+
+function supplierRows(){
+  return A('suppliers').map(s=>{
+    const tx=A('supplierTransactions').filter(t=>String(t.supplierId)===String(s.id)&&!t.superseded);
+    let inv=0,paid=0,scrap=0,adj=0;
+    tx.forEach(t=>{
+      const typ=String(t.type||t.tx_type||''),a=N(t.amount);
+      if(/فاتورة توريد|purchase|توريد/.test(typ))inv+=a;
+      if(/سداد مورد|payment|سداد/.test(typ))paid+=a;
+      if(t.referenceType==='scrap_sale'||/بيع هالك|scrap/.test(typ))scrap+=a;
+      if(t.referenceType==='supplier_adjustment')adj+=N(t.signedAmount);
+    });
+    const due=Math.max(0,inv-paid-scrap-adj);
+    s.totalInvoiced=inv;s.totalPaid=paid+scrap;s.scrapCredits=scrap;s.remainingDue=due;
+    return s;
+  });
+}
+
+window.renderSuppliers=function(){
+  const body=document.getElementById('suppliers_table_body');
+  if(!body)return;
+  const list=supplierRows();
+  body.innerHTML=list.map(s=>`
+    <tr class="hover:bg-slate-50">
+      <td class="p-3.5 font-bold">${E(s.name)}</td>
+      <td class="p-3.5">${E(s.material||'')} ${s.rate!=null?`(${F(s.rate)} ج.م)`:''}</td>
+      <td class="p-3.5 font-mono">${F(s.totalInvoiced)} ج.م</td>
+      <td class="p-3.5 font-mono text-emerald-600 font-bold">${F(s.totalPaid)} ج.م</td>
+      <td class="p-3.5 font-mono font-bold text-rose-600">${F(s.remainingDue)} ج.م</td>
+      <td class="p-3.5 text-center">
+        <button onclick="editSupplierRecord(${JSON.stringify(s.id)})" class="text-blue-600 mx-1" title="تعديل بيانات المورد"><i class="fa-solid fa-pen-to-square"></i></button>
+        <button onclick="openSupplierFinancialEditorV43(${JSON.stringify(s.id)})" class="text-amber-600 mx-1" title="تعديل الأرقام والحركات المالية"><i class="fa-solid fa-file-invoice-dollar"></i></button>
+        <button onclick="printSupplierDetail(${JSON.stringify(s.id)})" class="text-slate-700 mx-1" title="تقرير المورد"><i class="fa-solid fa-print"></i></button>
+      </td>
+      <td class="p-3.5 text-center"><button onclick="deleteSupplierRecord(${JSON.stringify(s.id)})" class="text-rose-500"><i class="fa-solid fa-trash"></i></button></td>
+    </tr>
+  `).join('') || `<tr><td colspan="7" class="p-6 text-center text-slate-400">لا يوجد موردون مسجلون بعد</td></tr>`;
+
+  const opts=list.map(s=>`<option value="${s.id}">${E(s.name)}</option>`).join('');
+  const scrap=document.getElementById('scrap_buyer_select');
+  const invSel=document.getElementById('sup_invoice_select');
+  if(scrap){scrap.innerHTML=opts+`<option value="0">تاجر خردة خارجي</option>`;}
+  if(invSel){invSel.innerHTML=opts;}
+};
+
+function openSupplierFinancialEditorV43(id){
+  const s=A('suppliers').find(x=>String(x.id)===String(id));
+  if(!s)return alert('المورد غير موجود');
+  const all=A('supplierTransactions').filter(t=>String(t.supplierId)===String(id)&&!t.superseded);
+  const invs=all.filter(t=>/فاتورة توريد|purchase|توريد/.test(String(t.type||t.tx_type||'')));
+  const pays=all.filter(t=>/سداد مورد|payment|سداد/.test(String(t.type||t.tx_type||'')));
+  const scraps=all.filter(t=>t.referenceType==='scrap_sale'||/بيع هالك|scrap/.test(String(t.type||t.tx_type||'')));
+
+  const modal=document.createElement('div');
+  modal.className='inkore-sf43';
+  modal.innerHTML=`<div dir="rtl">
+    <div class="flex justify-between items-center gap-3">
+      <div><h3 class="text-xl font-black">التعديل المالي للمورد: ${E(s.name)}</h3><p class="text-xs text-slate-500 mt-1">أي تعديل مالي يسجل كحركة تصحيح ولا يمسح التاريخ القديم.</p></div>
+      <button id="sf43_close" class="bg-slate-100 px-4 py-2 rounded-lg font-bold">إغلاق</button>
+    </div>
+    <div class="grid md:grid-cols-4 gap-2 mt-4 text-xs">
+      <div class="bg-indigo-50 border rounded-xl p-3">فواتير التوريد<b class="block">${M(invs.reduce((a,t)=>a+N(t.amount),0))}</b></div>
+      <div class="bg-emerald-50 border rounded-xl p-3">السداد<b class="block">${M(pays.reduce((a,t)=>a+N(t.amount),0))}</b></div>
+      <div class="bg-amber-50 border rounded-xl p-3">الهالك<b class="block">${M(scraps.reduce((a,t)=>a+N(t.amount),0))}</b></div>
+      <div class="bg-rose-50 border rounded-xl p-3">المستحق الحالي<b class="block">${M(s.remainingDue)}</b></div>
+    </div>
+
+    <div class="mt-5">
+      <h4 class="font-black mb-2">فواتير التوريد</h4>
+      <div class="overflow-auto border rounded-xl">
+        <table class="w-full text-xs"><thead class="bg-slate-100"><tr><th class="p-2">التاريخ</th><th class="p-2">القيمة</th><th class="p-2">القيمة الجديدة</th><th class="p-2">السبب</th><th class="p-2">تعديل</th></tr></thead>
+        <tbody>${invs.map(t=>`<tr data-id="${E(t.id)}"><td class="p-2 border">${E(t.date||'-')}</td><td class="p-2 border">${M(t.amount)}</td><td class="p-2 border"><input class="sf43-amt border rounded-lg p-2 w-28" type="number" step=".01" min="0" value="${N(t.amount)}"></td><td class="p-2 border"><input class="sf43-note border rounded-lg p-2 w-48" placeholder="سبب التعديل"></td><td class="p-2 border"><button class="sf43-save bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold">حفظ</button></td></tr>`).join('')||'<tr><td colspan="5" class="p-5 text-center">لا توجد فواتير توريد</td></tr>'}</tbody>
+      </table></div>
+    </div>
+
+    <div class="mt-5">
+      <h4 class="font-black mb-2">السداد للمورد</h4>
+      <div class="overflow-auto border rounded-xl">
+        <table class="w-full text-xs"><thead class="bg-slate-100"><tr><th class="p-2">التاريخ</th><th class="p-2">القيمة</th><th class="p-2">القيمة الجديدة</th><th class="p-2">السبب</th><th class="p-2">تعديل</th></tr></thead>
+        <tbody>${pays.map(t=>`<tr data-id="${E(t.id)}"><td class="p-2 border">${E(t.date||'-')}</td><td class="p-2 border">${M(t.amount)}</td><td class="p-2 border"><input class="sf43-amt border rounded-lg p-2 w-28" type="number" step=".01" min="0" value="${N(t.amount)}"></td><td class="p-2 border"><input class="sf43-note border rounded-lg p-2 w-48" placeholder="سبب التعديل"></td><td class="p-2 border"><button class="sf43-save bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold">حفظ</button></td></tr>`).join('')||'<tr><td colspan="5" class="p-5 text-center">لا توجد سداديات</td></tr>'}</tbody>
+      </table></div>
+    </div>
+
+    <div class="mt-5 bg-slate-50 border rounded-xl p-4 text-xs">
+      <b>ملاحظة مهمة:</b> لو غيّرت مبلغ فاتورة توريد، المخزون الموجود بالفعل لا يتغير تلقائيًا لأن الكمية وحركة المخزون حاجة مستقلة عن قيمة المديونية. لو الخطأ في الكمية أو سعر الوحدة، استخدم تعديل حركة المخزون/الفاتورة نفسها.
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#sf43_close').onclick=()=>modal.remove();
+
+  modal.querySelectorAll('.sf43-save').forEach(btn=>{
+    btn.onclick=()=>{
+      const tr=btn.closest('tr'),id=tr?.dataset.id,newAmt=N(tr?.querySelector('.sf43-amt')?.value),note=tr?.querySelector('.sf43-note')?.value.trim();
+      if(!note)return alert('اكتب سبب التعديل');
+      const tx=A('supplierTransactions'),i=tx.findIndex(t=>String(t.id)===String(id));
+      if(i<0)return alert('الحركة غير موجودة');
+      const oldAmt=N(tx[i].amount);
+      if(Math.abs(newAmt-oldAmt)<.001)return alert('القيمة لم تتغير');
+      const old=tx[i];
+      old.superseded=true;old.supersededAt=new Date().toISOString();
+      tx.push({id:Date.now()+Math.random(),date:today(),supplierId:s.id,supplierName:s.name,type:'تصحيح مالي لمورد',tx_type:'supplier_adjustment',amount:Math.abs(newAmt-oldAmt),signedAmount:(
+        /فاتورة توريد|purchase|توريد/.test(String(old.type||old.tx_type||'')) ? newAmt-oldAmt : -(newAmt-oldAmt)
+      ),referenceType:'supplier_adjustment',referenceId:id,originalAmount:oldAmt,newAmount:newAmt,note});
+      S('supplierTransactions',tx);
+      window.rebuildSupplierBalance?.(s.id);
+      window.renderSuppliers();
+      if(window.inkoreSyncNow)window.inkoreSyncNow();
+      alert('تم تسجيل التعديل وإعادة حساب رصيد المورد.');
+      modal.remove();
+    };
+  });
+}
+window.openSupplierFinancialEditorV43=openSupplierFinancialEditorV43;
+
+document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{if(document.getElementById('suppliers_table_body'))window.renderSuppliers()},700));
+})();
+</script>
+
 </body>
 </html>
 
