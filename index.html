@@ -7788,6 +7788,243 @@ function todayStr() {
 })();
 </script>
 
+
+<style id="inkore-employee-management-v24">
+  #inkore_employee_manager_v24 .emp-row{border:1px solid #e2e8f0;border-radius:14px;padding:12px;background:#fff}
+  #inkore_employee_manager_v24 input,#inkore_employee_manager_v24 select{min-height:40px}
+</style>
+
+<script id="inkore-employee-management-v24">
+(function(){
+  'use strict';
+
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const M=v=>F(v)+' ج.م';
+
+  function employees(){return A('employees')}
+  function setEmployees(v){S('employees',v)}
+  function auditLog(){return A('employeeAuditLog')}
+
+  function addAudit(action,employee,before,after){
+    const logs=auditLog();
+    logs.unshift({
+      id:Date.now()+Math.random(),
+      at:new Date().toISOString(),
+      action,employeeId:employee?.id,employeeName:employee?.name,
+      before:before||null,after:after||null
+    });
+    S('employeeAuditLog',logs.slice(0,300));
+  }
+
+  function currentSnapshot(e){
+    return {
+      name:e.name||'',
+      role:e.role||'',
+      weeklySalary:N(e.weeklySalary??e.weekly_base),
+      workHoursPerDay:N(e.workHoursPerDay??e.work_hours_per_day),
+      otMultiplier:e.otMultiplier??null,
+      lateMultiplier:e.lateMultiplier??null,
+      active:e.active!==false,
+      effectiveFrom:e.effectiveFrom||'',
+      notes:e.notes||''
+    };
+  }
+
+  function historyFor(id){
+    return auditLog().filter(x=>String(x.employeeId)===String(id));
+  }
+
+  function openEmployeeEditor(id){
+    const e=employees().find(x=>String(x.id)===String(id));
+    if(!e)return alert('العامل غير موجود');
+    const snap=currentSnapshot(e);
+    const existing=document.getElementById('inkore_employee_edit_modal_v24');
+    if(existing)existing.remove();
+
+    const m=document.createElement('div');
+    m.id='inkore_employee_edit_modal_v24';
+    m.className='fixed inset-0 z-[120] bg-slate-950/70 flex items-center justify-center p-4';
+    m.innerHTML=`
+      <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl p-6 max-h-[92vh] overflow-auto" dir="rtl">
+        <div class="flex items-center justify-between gap-3 mb-5">
+          <div><h3 class="text-xl font-black">تعديل بيانات العامل</h3>
+          <p class="text-xs text-slate-500 mt-1">تعديل بيانات العامل الحالية بدون حذف سجله التاريخي.</p></div>
+          <button type="button" id="emp_edit_close" class="bg-slate-100 rounded-xl px-4 py-2 font-bold">إغلاق</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <label class="font-bold">اسم العامل
+            <input id="emp_e_name" class="w-full border rounded-lg p-2.5 mt-1" value="${E(snap.name)}">
+          </label>
+          <label class="font-bold">الوظيفة
+            <input id="emp_e_role" class="w-full border rounded-lg p-2.5 mt-1" value="${E(snap.role)}">
+          </label>
+          <label class="font-bold">الأساسي الأسبوعي
+            <input id="emp_e_salary" type="number" min="0" step="0.01" class="w-full border rounded-lg p-2.5 mt-1" value="${N(snap.weeklySalary)}">
+          </label>
+          <label class="font-bold">ساعات العمل اليومية
+            <input id="emp_e_hours" type="number" min="0.5" step="0.5" class="w-full border rounded-lg p-2.5 mt-1" value="${N(snap.workHoursPerDay)||8}">
+          </label>
+          <label class="font-bold">معامل الإضافي
+            <input id="emp_e_ot" type="number" min="0" step="0.25" class="w-full border rounded-lg p-2.5 mt-1" value="${snap.otMultiplier??''}" placeholder="مثال 1.5">
+          </label>
+          <label class="font-bold">معامل التأخير
+            <input id="emp_e_late" type="number" min="0" step="0.25" class="w-full border rounded-lg p-2.5 mt-1" value="${snap.lateMultiplier??''}" placeholder="مثال 1">
+          </label>
+          <label class="font-bold">تاريخ سريان التعديل
+            <input id="emp_e_effective" type="date" class="w-full border rounded-lg p-2.5 mt-1" value="${E(snap.effectiveFrom)}">
+          </label>
+          <label class="font-bold">حالة العامل
+            <select id="emp_e_active" class="w-full border rounded-lg p-2.5 mt-1">
+              <option value="1" ${snap.active?'selected':''}>نشط</option>
+              <option value="0" ${!snap.active?'selected':''}>موقوف</option>
+            </select>
+          </label>
+          <label class="font-bold md:col-span-2">ملاحظات
+            <textarea id="emp_e_notes" class="w-full border rounded-lg p-2.5 mt-1 min-h-20">${E(snap.notes)}</textarea>
+          </label>
+        </div>
+
+        <div class="mt-5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs leading-6">
+          <b>مهم:</b> لو حددت تاريخ سريان جديد، نحتفظ بالقيمة الجديدة كتاريخ مرجعي للمستقبل، بينما الأسابيع القديمة تظل محفوظة في الأرشيف.
+        </div>
+
+        <div class="flex justify-end gap-2 mt-5">
+          <button type="button" id="emp_edit_save" class="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-black">حفظ التعديل</button>
+        </div>
+      </div>`;
+    document.body.appendChild(m);
+
+    document.getElementById('emp_edit_close').onclick=()=>m.remove();
+    document.getElementById('emp_edit_save').onclick=()=>{
+      const es=employees(), idx=es.findIndex(x=>String(x.id)===String(id));
+      if(idx<0)return alert('العامل غير موجود');
+      const old=currentSnapshot(es[idx]);
+      const name=document.getElementById('emp_e_name').value.trim();
+      if(!name)return alert('اسم العامل مطلوب');
+      const salary=N(document.getElementById('emp_e_salary').value);
+      const hours=N(document.getElementById('emp_e_hours').value);
+      if(hours<=0)return alert('عدد ساعات العمل يجب أن يكون أكبر من صفر');
+      const otRaw=document.getElementById('emp_e_ot').value.trim();
+      const lateRaw=document.getElementById('emp_e_late').value.trim();
+      const ot=otRaw===''?null:N(otRaw), late=lateRaw===''?null:N(lateRaw);
+      if(ot!==null&&ot<0 || late!==null&&late<0)return alert('المعاملات لا يمكن أن تكون سالبة');
+
+      es[idx]={
+        ...es[idx],
+        name,
+        role:document.getElementById('emp_e_role').value.trim(),
+        weeklySalary:salary,
+        weekly_base:salary,
+        workHoursPerDay:hours,
+        work_hours_per_day:hours,
+        otMultiplier:ot,
+        lateMultiplier:late,
+        active:document.getElementById('emp_e_active').value==='1',
+        effectiveFrom:document.getElementById('emp_e_effective').value||old.effectiveFrom||'',
+        notes:document.getElementById('emp_e_notes').value.trim(),
+        updatedAt:new Date().toISOString()
+      };
+      setEmployees(es);
+      addAudit('تعديل بيانات العامل',es[idx],old,currentSnapshot(es[idx]));
+      m.remove();
+      renderEmployeeManager();
+      if(window.renderWeeklyHR)window.renderWeeklyHR();
+      if(window.renderPayrollMaster)window.renderPayrollMaster();
+      alert('تم حفظ تعديل العامل.');
+    };
+  }
+
+  function disableEmployee(id){
+    const es=employees(),e=es.find(x=>String(x.id)===String(id)); // deliberate local variable to preserve reference
+  }
+
+  window.toggleEmployeeStatusV24=function(id){
+    const es=employees(),idx=es.findIndex(x=>String(x.id)===String(id));if(idx<0)return;
+    const e=es[idx],old=currentSnapshot(e),toActive=e.active===false;
+    const msg=toActive
+      ? `إعادة تفعيل العامل ${e.name}؟`
+      : `إيقاف العامل ${e.name}؟\nلن يظهر في الحضور والرواتب الجديدة، لكن تاريخه لن يُحذف.`;
+    if(!confirm(msg))return;
+    e.active=toActive;e.updatedAt=new Date().toISOString();
+    setEmployees(es);addAudit(toActive?'إعادة تفعيل العامل':'إيقاف العامل',e,old,currentSnapshot(e));
+    renderEmployeeManager();
+    if(window.renderWeeklyHR)window.renderWeeklyHR();
+    if(window.renderPayrollMaster)window.renderPayrollMaster();
+  };
+
+  window.deleteEmployeePermanentV24=function(id){
+    const es=employees(),idx=es.findIndex(x=>String(x.id)===String(id));if(idx<0)return;
+    const e=es[idx];
+    const hasHistory=A('attendance').some(a=>String(a.employeeId||a.empId||'')===String(id)) ||
+                    A('payrollClosings').some(x=>String(x.employeeId||x.empId||'')===String(id)) ||
+                    A('payrollArchive').some(w=>(w.employees||[]).some(a=>String(a.employeeId)===String(id)));
+    if(hasHistory)return alert('لا يمكن حذف العامل نهائيًا لأن له حضورًا أو رواتب محفوظة. استخدم "إيقاف" بدل الحذف.');
+    if(!confirm(`حذف العامل ${e.name} نهائيًا؟ لا يمكن التراجع عن ذلك.`))return;
+    es.splice(idx,1);setEmployees(es);addAudit('حذف نهائي',e,currentSnapshot(e),null);
+    renderEmployeeManager();
+  };
+
+  function renderEmployeeManager(){
+    const container=document.getElementById('inkore_employee_manager_v24');if(!container)return;
+    const es=employees();
+    container.innerHTML=`
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div><h3 class="text-lg font-black">إدارة العمال</h3><p class="text-xs text-slate-500 mt-1">تعديل المرتب، الساعات، معاملات الإضافي والتأخير، وتفعيل/إيقاف العامل.</p></div>
+        <div class="text-xs text-slate-500">نشط: <b>${es.filter(e=>e.active!==false).length}</b> — موقوف: <b>${es.filter(e=>e.active===false).length}</b></div>
+      </div>
+      <div class="space-y-2">
+        ${es.map(e=>{
+          const s=currentSnapshot(e);
+          return `<div class="emp-row">
+            <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-center text-xs">
+              <div class="md:col-span-2"><b class="text-sm">${E(s.name||'-')}</b><div class="text-slate-400">${E(s.role||'')}</div></div>
+              <div><span class="text-slate-500">أساسي</span><br><b>${M(s.weeklySalary)}</b></div>
+              <div><span class="text-slate-500">ساعات</span><br><b>${F(s.workHoursPerDay||8)}</b></div>
+              <div><span class="text-slate-500">إضافي</span><br><b>${s.otMultiplier==null?'غير محدد':'×'+F(s.otMultiplier)}</b></div>
+              <div><span class="text-slate-500">تأخير</span><br><b>${s.lateMultiplier==null?'غير محدد':'×'+F(s.lateMultiplier)}</b></div>
+              <div class="text-left"><span class="${s.active?'text-emerald-700':'text-slate-500'} font-black">${s.active?'نشط':'موقوف'}</span></div>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-3">
+              <button type="button" onclick="openEmployeeEditorV24(${JSON.stringify(e.id)})" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg font-bold">✏️ تعديل</button>
+              <button type="button" onclick="toggleEmployeeStatusV24(${JSON.stringify(e.id)})" class="${s.active?'bg-amber-50 text-amber-700 border border-amber-200':'bg-emerald-50 text-emerald-700 border border-emerald-200'} px-3 py-1.5 rounded-lg font-bold">${s.active?'إيقاف العامل':'إعادة تفعيل'}</button>
+              <button type="button" onclick="deleteEmployeePermanentV24(${JSON.stringify(e.id)})" class="bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1.5 rounded-lg font-bold">🗑️ حذف نهائي</button>
+            </div>
+          </div>`;
+        }).join('')||'<div class="text-center text-slate-400 p-6">لا يوجد عمال حاليًا.</div>'}
+      </div>
+    `;
+  }
+  window.openEmployeeEditorV24=openEmployeeEditor;
+
+  function inject(){
+    const page=document.getElementById('page-weekly_hr')||document.getElementById('page-payroll')||document.getElementById('page-employees');
+    if(!page||document.getElementById('inkore_employee_manager_v24'))return;
+    const b=document.createElement('div');b.id='inkore_employee_manager_v24';
+    b.className='bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm mt-6';
+    page.appendChild(b);renderEmployeeManager();
+  }
+
+  // Make inactive workers disappear only from NEW attendance/payroll selectors.
+  // Historical attendance/payroll stays untouched.
+  window.getActiveEmployeesV24=function(){return employees().filter(e=>e.active!==false)};
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(inject,900));
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='weekly_hr'||page==='payroll'||page==='employees')setTimeout(()=>{inject();renderEmployeeManager()},150);
+    return r;
+  };
+})();
+</script>
+
 </body>
 </html>
 
