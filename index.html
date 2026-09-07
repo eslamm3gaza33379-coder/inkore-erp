@@ -4090,6 +4090,135 @@ document.addEventListener('DOMContentLoaded',()=>{
 })();
 </script>
 
+
+<script id="inkore-payroll-attendance-match-v46">
+(function(){
+'use strict';
+const P='inkore_erp_stable_v1_';
+const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+const A=k=>G(k)||[];
+const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+const M=v=>F(v)+' ج.م';
+const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const today=()=>new Date().toISOString().slice(0,10);
+
+function isoDate(v){
+  const s=String(v||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  let m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m){
+    // UI dates in this system are month/day/year.
+    const mm=m[1],dd=m[2],yy=m[3];
+    return `${yy}-${mm}-${dd}`;
+  }
+  return s.slice(0,10);
+}
+function saturday(v){
+  const d=new Date((v||today())+'T00:00:00'),day=d.getDay();
+  d.setDate(d.getDate()-(day===6?0:day+1));
+  return d.toISOString().slice(0,10);
+}
+function week(st){
+  const d=new Date(saturday(st)+'T00:00:00');
+  return Array.from({length:6},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x.toISOString().slice(0,10)});
+}
+function sameName(a,b){return String(a||'').trim().toLowerCase()===String(b||'').trim().toLowerCase()}
+function attendanceFor(emp,date){
+  return A('attendance').find(a=>{
+    const d=isoDate(a.date||a.work_date||a.day);
+    if(d!==date)return false;
+    const aid=a.employeeId??a.empId??a.employee_id??a.workerId;
+    const an=a.empName??a.employee_name??a.employeeName??a.workerName;
+    return (aid!=null && aid!=='' && String(aid)===String(emp.id)) || sameName(an,emp.name);
+  })||null;
+}
+function statusType(a){
+  const s=String(a?.status||a?.statusCode||a?.attendanceStatus||'').trim().toLowerCase();
+  if(a?.present===true||a?.isPresent===true)return 'present';
+  if(/حاضر|present|تأخير|late/.test(s))return 'present';
+  if(/نصف|half/.test(s))return 'half';
+  return s;
+}
+window.renderWeeklyHR=window.renderWeeklyHR||function(){};
+window.renderPayrollAttendanceV46=function(){
+  const body=document.getElementById('weekly_hr_table_body');
+  if(!body)return;
+  const start=saturday(document.getElementById('payroll_week_start')?.value||today());
+  const dates=week(start);
+  const es=A('employees').filter(e=>e.active!==false);
+  let totalDue=0,totalPaid=0,totalRemain=0;
+
+  body.innerHTML=es.map(e=>{
+    let present=0,half=0,late=0,ot=0;
+    dates.forEach(date=>{
+      const a=attendanceFor(e,date);
+      if(!a)return;
+      const st=statusType(a);
+      if(st==='present')present++;
+      else if(st==='half')half++;
+      late+=N(a.lateMin??a.late_minutes??a.delayMinutes);
+      ot+=N(a.ot??a.overtime??a.overtime_hours);
+    });
+
+    const weekly=N(e.weeklySalary??e.weekly_base),hours=Math.max(.5,N(e.workHoursPerDay??e.work_hours_per_day)||8);
+    const dayRate=weekly/6,hourRate=dayRate/hours;
+    const lateFactor=e.lateMultiplier==null?1:N(e.lateMultiplier);
+    const otFactor=e.otMultiplier==null?1:N(e.otMultiplier);
+    const attendanceValue=(present+half*.5)*dayRate;
+    const lateValue=(late/60)*hourRate*lateFactor;
+    const otValue=ot*hourRate*otFactor;
+    const gross=attendanceValue+otValue+N(e.holidayPay)+N(e.carryOver);
+    const deductions=lateValue+N(e.advances)+N(e.otherDeductions);
+    const net=Math.max(0,gross-deductions);
+    const paid=N(e.currentPaid),remain=net-paid;
+    totalDue+=net;totalPaid+=paid;totalRemain+=remain;
+
+    return `<tr>
+      <td class="p-3 font-black">${E(e.name)}<br><span class="text-slate-400">${E(e.role||'')}</span><div class="text-[10px] text-slate-500 mt-1">${dates[0]} → ${dates[5]}</div></td>
+      <td class="p-3">${M(weekly)}</td>
+      <td class="p-3"><b>${present}</b> حاضر / <b>${half}</b> نصف<br><span class="text-[10px]">${present+half*.5} يوم مدفوع</span></td>
+      <td class="p-3">${F(late)} د<br><span class="text-[10px]">×${F(lateFactor)}</span><div class="text-rose-600">${M(lateValue)}</div></td>
+      <td class="p-3">${F(ot)} س<br><span class="text-[10px]">×${F(otFactor)}</span><div class="text-emerald-700">+${M(otValue)}</div></td>
+      <td class="p-3 font-black text-indigo-700">${M(net)}</td>
+      <td class="p-3"><input type="number" min="0" step=".01" value="${paid}" onchange="setCurrentPaidSyncV46('${E(e.id)}',this.value)" class="w-24 border rounded p-1"></td>
+      <td class="p-3 font-bold ${remain>0?'text-rose-700':remain<0?'text-amber-700':'text-emerald-700'}">${remain>0?'متبقي '+M(remain):remain<0?'زيادة '+M(Math.abs(remain)):'خالص'}</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="8" class="p-6 text-center text-slate-400">لا يوجد عمال نشطون</td></tr>';
+
+  const cards=document.querySelectorAll('#page-weekly_hr [id*="total"],#page-weekly_hr [data-payroll-total]');
+  cards.forEach(el=>{
+    const id=el.id||'';
+    const key=el.dataset?.payrollTotal;
+    if(key==='due'||/due/i.test(id))el.textContent=M(totalDue);
+    if(key==='paid'||/paid/i.test(id))el.textContent=M(totalPaid);
+    if(key==='carry'||/carry|remain/i.test(id))el.textContent=M(totalRemain);
+  });
+};
+window.setCurrentPaidSyncV46=function(id,val){
+  const es=A('employees'),e=es.find(x=>String(x.id)===String(id));if(!e)return;
+  e.currentPaid=N(val);
+  localStorage.setItem(P+'employees',JSON.stringify(es));
+  window.renderPayrollAttendanceV46();
+  window.inkoreSyncNow&&window.inkoreSyncNow();
+};
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    const s=document.getElementById('payroll_week_start');if(s)s.value=saturday(s.value||today());
+    window.renderPayrollAttendanceV46();
+  },1200);
+});
+const oldShow=window.showPage;
+window.showPage=function(page){
+  const r=typeof oldShow==='function'?oldShow(page):undefined;
+  setTimeout(()=>{
+    if(page==='weekly_hr')window.renderPayrollAttendanceV46();
+  },200);
+  return r;
+};
+})();
+</script>
+
 </body>
 </html>
 
