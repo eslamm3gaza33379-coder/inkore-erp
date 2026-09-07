@@ -3920,6 +3920,176 @@ window.showPage=function(page){
 })();
 </script>
 
+
+<script id="inkore-attendance-payroll-sync-v45">
+(function(){
+'use strict';
+const P='inkore_erp_stable_v1_';
+const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+const A=k=>G(k)||[];
+const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+const M=v=>F(v)+' ج.م';
+const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const today=()=>new Date().toISOString().slice(0,10);
+
+function saturdayOf(v){
+  const d=new Date((v||today())+'T00:00:00'), day=d.getDay();
+  d.setDate(d.getDate()-(day===6?0:day+1));
+  return d.toISOString().slice(0,10);
+}
+function weekDates(st){
+  const d=new Date(saturdayOf(st)+'T00:00:00');
+  return Array.from({length:6},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x.toISOString().slice(0,10)});
+}
+function attFor(e,date){
+  const att=A('attendance');
+  return att.find(a=>String(a.employeeId||a.empId||a.employee_id||'')===String(e.id)&&String(a.date||a.work_date||'')===date) ||
+         att.find(a=>!a.employeeId && String(a.empName||a.employee_name||'')===String(e.name||'') && String(a.date||a.work_date||'')===date) || null;
+}
+function normalizeAttRecord(rec,e){
+  rec.employeeId=e.id;rec.empId=e.id;rec.empName=e.name;rec.work_date=rec.date;return rec;
+}
+
+// ---------- Save attendance: manual time/late/OT, linked to employee by ID + name ----------
+window.recordAttendance=function(){
+  const editId=document.getElementById('edit_att_id')?.value||'';
+  const date=document.getElementById('att_date')?.value||today();
+  const empName=document.getElementById('att_emp_select')?.value||'';
+  const status=document.getElementById('att_status')?.value||'حاضر';
+  const lateMin=N(document.getElementById('att_late_min')?.value);
+  const ot=N(document.getElementById('att_ot')?.value);
+  const e=A('employees').find(x=>String(x.name)===String(empName));
+  if(!e)return alert('أضف العامل أولاً من شاشة العمالة والرواتب.');
+
+  const list=A('attendance');
+  if(editId){
+    const idx=list.findIndex(x=>String(x.id)===String(editId));
+    if(idx<0)return alert('سجل الحضور غير موجود');
+    const r=list[idx];normalizeAttRecord(r,e);r.date=date;r.status=status;r.lateMin=lateMin;r.ot=ot;
+  }else{
+    // One record per employee/day: update existing record instead of creating duplicates.
+    const idx=list.findIndex(x=>String(x.employeeId||x.empId||'')===String(e.id)&&String(x.date||'')===date) ||
+              list.findIndex(x=>!x.employeeId&&String(x.empName||'')===String(e.name)&&String(x.date||'')===date);
+    if(idx>=0){
+      const r=list[idx];normalizeAttRecord(r,e);r.date=date;r.status=status;r.lateMin=lateMin;r.ot=ot;
+    }else{
+      list.unshift({id:Date.now()+Math.random(),date,work_date:date,employeeId:e.id,empId:e.id,empName:e.name,status,lateMin,ot});
+    }
+  }
+  S('attendance',list);
+  const lateEl=document.getElementById('att_late_min');if(lateEl)lateEl.value=0;
+  const otEl=document.getElementById('att_ot');if(otEl)otEl.value=0;
+  const edit=document.getElementById('edit_att_id');if(edit)edit.value='';
+  const btn=document.getElementById('btn_save_att');if(btn)btn.innerText='حفظ اليومية';
+  if(typeof window.renderAttendanceLog==='function')window.renderAttendanceLog();
+  renderPayrollSync();
+  if(typeof window.inkoreSyncNow==='function')window.inkoreSyncNow();
+};
+
+// ---------- Weekly grid: Saturday -> Thursday, Friday excluded ----------
+window.renderWeeklyAttendance=function(){
+  const box=document.getElementById('weekly_attendance_grid');if(!box)return;
+  const start=saturdayOf(document.getElementById('attendance_week_start')?.value||today());
+  const input=document.getElementById('attendance_week_start');if(input)input.value=start;
+  const dates=weekDates(start),days=['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
+  const emps=A('employees').filter(e=>e.active!==false);
+  box.innerHTML=`<div class="overflow-auto"><table class="w-full text-xs border"><thead class="bg-slate-100"><tr><th class="p-2 border sticky right-0 bg-slate-100">العامل</th>${days.map((d,i)=>`<th class="p-2 border min-w-[170px]">${d}<br><span class="font-mono">${dates[i]}</span></th>`).join('')}<th class="p-2 border">ملخص</th></tr></thead><tbody>${emps.map(e=>{
+    let ot=0,late=0,p=0,h=0;
+    const cells=dates.map(date=>{
+      const a=attFor(e,date)||{status:'',lateMin:0,ot:0};
+      if(['حاضر','تأخير','present','late'].includes(String(a.status)))p++;else if(['نصف يوم','half'].includes(String(a.status)))h++;
+      ot+=N(a.ot);late+=N(a.lateMin);
+      return `<td class="p-1 border"><select class="w-full border rounded p-1" onchange="saveWeeklyAttendance(${JSON.stringify(e.id)},'${date}',this.value)"><option value="">غير مسجل</option><option ${a.status==='حاضر'?'selected':''}>حاضر</option><option ${a.status==='غائب'?'selected':''}>غائب</option><option ${a.status==='نصف يوم'?'selected':''}>نصف يوم</option><option ${a.status==='إجازة'?'selected':''}>إجازة</option><option ${a.status==='تأخير'?'selected':''}>تأخير</option></select><input type="number" min="0" step="1" value="${N(a.lateMin)}" onchange="saveWeeklyAttendance(${JSON.stringify(e.id)},'${date}',null,this.value,'late')" placeholder="تأخير د" class="w-full border rounded p-1 mt-1"><input type="number" min="0" step=".25" value="${N(a.ot)}" onchange="saveWeeklyAttendance(${JSON.stringify(e.id)},'${date}',null,this.value,'ot')" placeholder="إضافي س" class="w-full border rounded p-1 mt-1"></td>`;
+    }).join('');
+    return `<tr><td class="p-2 border font-bold">${E(e.name)}</td>${cells}<td class="p-2 border">حضور ${p} — نصف ${h}<br>تأخير ${F(late)} د<br>إضافي ${F(ot)} س</td></tr>`;
+  }).join('')}</tbody></table></div><div class="mt-2 text-[11px] text-slate-500">الجمعة راحة أسبوعية ولا تدخل في الحساب.</div>`;
+};
+
+window.saveWeeklyAttendance=function(empId,date,status,val,field){
+  const es=A('employees'),e=es.find(x=>String(x.id)===String(empId));if(!e)return;
+  const list=A('attendance');
+  let a=list.find(x=>String(x.employeeId||x.empId||'')===String(empId)&&String(x.date||'')===date) ||
+          list.find(x=>!x.employeeId&&String(x.empName||'')===String(e.name)&&String(x.date||'')===date);
+  if(!a){a={id:Date.now()+Math.random(),date,work_date:date,employeeId:e.id,empId:e.id,empName:e.name,status:'حاضر',lateMin:0,ot:0};list.push(a)}
+  normalizeAttRecord(a,e);
+  if(status!==null)a.status=status||'';
+  if(field==='late')a.lateMin=N(val);
+  if(field==='ot')a.ot=N(val);
+  S('attendance',list);
+  renderWeeklyAttendance();
+  renderPayrollSync();
+  if(window.inkoreSyncNow)window.inkoreSyncNow();
+};
+
+// ---------- Payroll: current week is always Saturday -> Thursday ----------
+window.renderPayrollSync=function(){
+  const body=document.getElementById('weekly_hr_table_body');if(!body)return;
+  const start=saturdayOf(document.getElementById('payroll_week_start')?.value||today());
+  const weekEnd=weekDates(start)[5];
+  const inp=document.getElementById('payroll_week_start');if(inp)inp.value=start;
+  const es=A('employees').filter(e=>e.active!==false);
+  let totalDue=0,totalPaid=0,totalCarry=0;
+  body.innerHTML=es.map(e=>{
+    const dates=weekDates(start);let present=0,half=0,late=0,ot=0;
+    dates.forEach(d=>{const a=attFor(e,d);if(!a)return;const st=String(a.status||'');if(['حاضر','تأخير','present','late'].includes(st))present++;else if(['نصف يوم','half'].includes(st))half++;late+=N(a.lateMin);ot+=N(a.ot)});
+    const weekly=N(e.weeklySalary??e.weekly_base), hours=Math.max(.5,N(e.workHoursPerDay??e.work_hours_per_day)||8), dayRate=weekly/6, hourRate=dayRate/hours;
+    const lateRate=N(e.lateMultiplier??e.late_factor??1)||1, otRate=N(e.otMultiplier??e.ot_factor??1)||1;
+    const attendanceValue=(present+half*.5)*dayRate;
+    const lateValue=(late/60)*hourRate*lateRate;
+    const otValue=ot*hourRate*otRate;
+    const gross=attendanceValue+otValue+N(e.holidayPay)+N(e.carryOver);
+    const deductions=lateValue+N(e.advances)+N(e.otherDeductions);
+    const net=Math.max(0,gross-deductions);
+    const paid=N(e.currentPaid);
+    const diff=net-paid;
+    totalDue+=net;totalPaid+=paid;totalCarry+=diff;
+    return `<tr>
+      <td class="p-3 font-black">${E(e.name)}<br><span class="text-slate-400 font-normal">${E(e.role||'')}</span><div class="mt-1 text-[10px] text-slate-500">${start} → ${weekEnd}</div></td>
+      <td class="p-3">${M(weekly)}</td>
+      <td class="p-3"><b>${present}</b> حاضر / <b>${half}</b> نصف<br><span class="text-[10px]">من 6 أيام</span></td>
+      <td class="p-3">${F(late)} د<br><span class="text-[10px]">معامل ×${F(lateRate)}</span></td>
+      <td class="p-3">${F(ot)} س<br><span class="text-[10px]">معامل ×${F(otRate)}</span></td>
+      <td class="p-3 font-black text-indigo-700">${M(net)}<br><span class="text-[10px] text-slate-500">أساسي حضور ${M(attendanceValue)}</span></td>
+      <td class="p-3"><input type="number" min="0" step=".01" value="${paid}" onchange="setCurrentPaidSync('${E(e.id)}',this.value)" class="w-24 border rounded p-1"></td>
+      <td class="p-3 font-bold ${diff>0?'text-rose-700':diff<0?'text-amber-700':'text-emerald-700'}">${diff>0?'متبقي '+M(diff):diff<0?'زيادة '+M(Math.abs(diff)):'خالص'}</td>
+      <td class="p-3">🔒</td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="9" class="p-6 text-center text-slate-400">لا يوجد عمال نشطون</td></tr>';
+
+  const title=[...document.querySelectorAll('#page-weekly_hr h2,#page-weekly_hr h3')].find(x=>/رواتب|المرتبات/.test(x.innerText||''));if(title){const old=title.nextElementSibling;if(old&&old.dataset?.v45==='1')old.remove();const p=document.createElement('div');p.dataset.v45='1';p.className='text-xs text-slate-500 mb-2';p.textContent=`الأسبوع المحسوب: ${start} → ${weekEnd} (الجمعة راحة)`;title.insertAdjacentElement('afterend',p)}
+  const dueEls=document.querySelectorAll('#page-weekly_hr [data-payroll-total="due"],#page-weekly_hr #total_salaries_due');dueEls.forEach(x=>x.textContent=M(totalDue));
+  const paidEls=document.querySelectorAll('#page-weekly_hr [data-payroll-total="paid"],#page-weekly_hr #total_salaries_paid');paidEls.forEach(x=>x.textContent=M(totalPaid));
+  const carryEls=document.querySelectorAll('#page-weekly_hr [data-payroll-total="carry"],#page-weekly_hr #total_salaries_carry');carryEls.forEach(x=>x.textContent=M(totalCarry));
+};
+
+window.setCurrentPaidSync=function(id,val){
+  const es=A('employees'),e=es.find(x=>String(x.id)===String(id));if(!e)return;e.currentPaid=N(val);S('employees',es);renderPayrollSync();if(window.inkoreSyncNow)window.inkoreSyncNow();
+};
+
+// Force navigation to use the synced payroll renderer and weekly attendance renderer.
+const oldShow=window.showPage;
+window.showPage=function(page){
+  const r=typeof oldShow==='function'?oldShow(page):undefined;
+  setTimeout(()=>{
+    if(page==='weekly_hr')renderPayrollSync();
+    if(page==='daily_attendance')window.renderWeeklyAttendance&&window.renderWeeklyAttendance();
+  },160);
+  return r;
+};
+
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    const s=document.getElementById('attendance_week_start');if(s)s.value=saturdayOf(s.value||today());
+    const p=document.getElementById('payroll_week_start');if(p)p.value=saturdayOf(p.value||today());
+    window.renderWeeklyAttendance&&window.renderWeeklyAttendance();
+    renderPayrollSync();
+  },900);
+});
+})();
+</script>
+
 </body>
 </html>
 
