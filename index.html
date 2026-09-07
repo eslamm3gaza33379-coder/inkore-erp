@@ -3744,6 +3744,182 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{if(document.get
 })();
 </script>
 
+
+<style id="inkore-supplier-posting-final-v44">
+  .inkore-posted-ok{animation:inkorePost .5s ease}
+  @keyframes inkorePost{0%{box-shadow:0 0 0 0 rgba(16,185,129,.45)}100%{box-shadow:0 0 0 12px rgba(16,185,129,0)}}
+</style>
+<script id="inkore-supplier-posting-final-v44">
+(function(){
+'use strict';
+const P='inkore_erp_stable_v1_';
+const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+const A=k=>G(k)||[];
+const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const M=v=>F(v)+' ج.م';
+const today=()=>new Date().toISOString().slice(0,10);
+const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+function stockQty(m){return N(m?.qty??m?.currentStock??m?.stock??m?.quantity)}
+function stockPrice(m){return N(m?.purchasePrice??m?.purchase_price)}
+function supplierRowsFromUI(){
+  return [...document.querySelectorAll('#isf_lines > div')].map(r=>{
+    const id=r.querySelector('.isf_m')?.value||'';
+    const m=A('rawMaterials').find(x=>String(x.id)===String(id));
+    return {id,m,unit:r.querySelector('.isf_u')?.value||m?.unit||'متر',qty:N(r.querySelector('.isf_q')?.value),price:N(r.querySelector('.isf_p')?.value),row:r};
+  }).filter(x=>x.id&&x.qty>0);
+}
+function canonicalItemsBox(){
+  return document.getElementById('isf_lines')||document.getElementById('inkore_supplier_final_lines');
+}
+function getCurrentInvoiceRows(){
+  let rows=supplierRowsFromUI();
+  if(rows.length)return rows;
+  const box=document.getElementById('inkore_supplier_final_lines');
+  if(box){
+    rows=[...box.children].map(r=>({
+      id:r.querySelector('.isf_m,.is-mat')?.value||'',
+      m:A('rawMaterials').find(x=>String(x.id)===String(r.querySelector('.isf_m,.is-mat')?.value||'')),
+      unit:r.querySelector('.isf_u,.is-unit')?.value||'متر',
+      qty:N(r.querySelector('.isf_q,.is-qty')?.value),
+      price:N(r.querySelector('.isf_p,.is-price')?.value),
+      row:r
+    })).filter(x=>x.id&&x.qty>0);
+  }
+  return rows;
+}
+function addStockMove(material,qty,unit,price,supplier){
+  const ms=A('rawMaterials');
+  const m=ms.find(x=>String(x.id)===String(material.id));
+  if(!m)throw Error('الخامة غير موجودة في المخزون');
+  const before=stockQty(m),after=before+qty;
+  m.qty=after;m.currentStock=after;m.stock=after;m.unit=unit;m.purchasePrice=price;m.updatedAt=new Date().toISOString();
+  S('rawMaterials',ms);
+  const moves=A('stockMoves');
+  moves.unshift({
+    id:Date.now()+Math.random(),date:today(),materialId:m.id,material:m.name,
+    qty,unit,type:'توريد',direction:'in',price,total:qty*price,supplierId:supplier.id,supplierName:supplier.name,
+    refType:'supplier_invoice',note:`دخول من فاتورة توريد ${supplier.name}`
+  });
+  S('stockMoves',moves);
+}
+function refreshSupplierBalance(id){
+  const ss=A('suppliers'),idx=ss.findIndex(s=>String(s.id)===String(id));if(idx<0)return null;
+  const s=ss[idx],tx=A('supplierTransactions').filter(t=>String(t.supplierId)===String(id)&&!t.superseded);
+  let inv=0,paid=0,scrap=0,adj=0;
+  tx.forEach(t=>{
+    const typ=String(t.type||t.tx_type||''),amt=N(t.amount);
+    if(/فاتورة توريد|purchase|توريد/.test(typ))inv+=amt;
+    if(/سداد مورد|payment|سداد/.test(typ))paid+=amt;
+    if(t.referenceType==='scrap_sale'||/بيع هالك|scrap/.test(typ))scrap+=amt;
+    if(t.referenceType==='supplier_adjustment')adj+=N(t.signedAmount);
+  });
+  s.totalInvoiced=inv;
+  s.totalPaid=paid+scrap;
+  s.scrapCredits=scrap;
+  s.balanceDue=inv-paid-scrap-adj;
+  s.remainingDue=s.balanceDue>0?s.balanceDue:0;
+  s.supplierCredit=s.balanceDue<0?Math.abs(s.balanceDue):0;
+  S('suppliers',ss);
+  return s;
+}
+window.commitSupplierInvoiceAction=function(){
+  const supId=document.getElementById('sup_invoice_select')?.value||'';
+  if(!supId)return alert('اختر المورد أولاً');
+  const ss=A('suppliers'),supplier=ss.find(s=>String(s.id)===String(supId));
+  if(!supplier)return alert('المورد غير موجود');
+
+  const rows=getCurrentInvoiceRows();
+  const amountField=document.getElementById('sup_invoice_amt');
+  const manualAmount=N(amountField?.value);
+  const itemsTotal=rows.reduce((sum,x)=>sum+x.qty*x.price,0);
+  const invoiceAmount=itemsTotal>0?itemsTotal:manualAmount;
+  const paymentAmount=N(document.getElementById('sup_payment_amt')?.value);
+  const paymentSource=document.getElementById('sup_payment_source')?.value||'الصندوق (كاش)';
+
+  if(invoiceAmount<=0&&paymentAmount<=0)return alert('أدخل أصناف الفاتورة أو قيمة الفاتورة أو مبلغ السداد.');
+
+  const date=today(),tx=A('supplierTransactions');
+  if(invoiceAmount>0){
+    const invId=Date.now()+Math.random();
+    tx.unshift({
+      id:invId,date,supplierId:supplier.id,supplierName:supplier.name,
+      type:'فاتورة توريد',tx_type:'purchase',amount:invoiceAmount,
+      invoiceNumber:document.getElementById('sup_invoice_ref')?.value||'',
+      items:rows.map(x=>({materialId:x.id,materialName:x.m.name,unit:x.unit,qty:x.qty,price:x.price,total:x.qty*x.price}))
+    });
+    const ms=A('rawMaterials'),moves=A('stockMoves');
+    rows.forEach(x=>{
+      const m=ms.find(y=>String(y.id)===String(x.id));
+      if(!m)throw Error(`الخامة ${x.id} غير موجودة`);
+      const before=stockQty(m),after=before+x.qty;
+      m.qty=after;m.currentStock=after;m.stock=after;m.unit=x.unit;m.purchasePrice=x.price;m.updatedAt=new Date().toISOString();
+      moves.unshift({
+        id:Date.now()+Math.random(),date,materialId:m.id,material:m.name,qty:x.qty,unit:x.unit,
+        type:'توريد',direction:'in',price:x.price,total:x.qty*x.price,
+        supplierId:supplier.id,supplierName:supplier.name,refType:'supplier_invoice',refId:invId
+      });
+    });
+    S('rawMaterials',ms);S('stockMoves',moves);
+  }
+
+  if(paymentAmount>0){
+    if(typeof window.adjustTreasury==='function')window.adjustTreasury(paymentSource,-paymentAmount);
+    else{
+      const map={'الصندوق (كاش)':'cashbox','إنستاباي':'instapay','فودافون كاش':'vodacash','الحساب البنكي':'bankAccount'};
+      const k=map[paymentSource];if(k)S(k,N(G(k))-paymentAmount);
+    }
+    tx.unshift({
+      id:Date.now()+Math.random(),date,supplierId:supplier.id,supplierName:supplier.name,
+      type:'سداد مورد',tx_type:'payment',amount:paymentAmount,source:paymentSource,note:'سداد دفعة للمورد'
+    });
+  }
+
+  S('supplierTransactions',tx);
+  const updated=refreshSupplierBalance(supplier.id);
+
+  // Clear only input controls; nothing is deleted from saved data.
+  if(amountField)amountField.value='';
+  const pay=document.getElementById('sup_payment_amt');if(pay)pay.value='';
+  const lines=canonicalItemsBox();if(lines)lines.innerHTML='';
+  const add=document.getElementById('isf_add')||document.getElementById('isf_add_line');
+  if(add)add.click();
+
+  try{if(window.renderSuppliers)window.renderSuppliers()}catch(_){}
+  try{if(window.renderInventory)window.renderInventory()}catch(_){}
+  try{if(window.refreshTreasuryBars)window.refreshTreasuryBars()}catch(_){}
+  try{if(window.inkoreSyncNow)window.inkoreSyncNow()}catch(_){}
+
+  const msg=rows.length
+    ? `تم اعتماد فاتورة التوريد.\nالمورد: ${supplier.name}\nإجمالي الفاتورة: ${M(invoiceAmount)}\nعدد الأصناف: ${rows.length}\nوتمت إضافة الكميات إلى المخزون.`
+    : `تم اعتماد فاتورة التوريد بقيمة ${M(invoiceAmount)} للمورد ${supplier.name}.`;
+  alert(msg+(paymentAmount>0?`\nالسداد: ${M(paymentAmount)}`:'')+`\nالمستحق الحالي: ${M(updated?.remainingDue||0)}${updated?.supplierCredit?`\nرصيد دائن للمورد: ${M(updated.supplierCredit)}`:''}`);
+};
+
+function wireSupplierSubmit(){
+  const page=document.getElementById('page-suppliers');if(!page)return;
+  [...page.querySelectorAll('button')].forEach(b=>{
+    const txt=(b.innerText||'').trim();
+    const oc=b.getAttribute('onclick')||'';
+    if(/اعتماد (الحركة|الفاتورة).*المخزون|commitSupplierInvoiceAction/i.test(txt+' '+oc)){
+      b.setAttribute('onclick','commitSupplierInvoiceAction()');
+      b.classList.add('inkore-posted-ok');
+      b.title='اعتماد فاتورة التوريد + إضافة الخامات للمخزون + تحديث حساب المورد';
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded',()=>setTimeout(wireSupplierSubmit,600));
+const oldShow=window.showPage;
+window.showPage=function(page){
+  const r=typeof oldShow==='function'?oldShow(page):undefined;
+  if(page==='suppliers')setTimeout(wireSupplierSubmit,120);
+  return r;
+};
+})();
+</script>
+
 </body>
 </html>
 
