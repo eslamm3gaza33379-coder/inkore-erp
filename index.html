@@ -3401,6 +3401,42 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{normalizeInvent
 })();
 </script>
 
+
+<script id="inkore-supplier-invoice-submit-fix-v41">
+(function(){
+  'use strict';
+
+  // The visible "اعتماد الحركة" button in the original supplier card was still
+  // calling the old handler. Route it to the final supplier-invoice handler so
+  // the line items actually post to stock + supplier ledger.
+  window.commitSupplierInvoiceAction=function(){
+    if(typeof window.commitSupplierInvoiceFinal==='function'){
+      return window.commitSupplierInvoiceFinal.apply(this,arguments);
+    }
+    alert('محرك فاتورة التوريد غير جاهز بعد، أعد تحميل الصفحة.');
+  };
+
+  function relabelSupplierSubmit(){
+    const page=document.getElementById('page-suppliers'); if(!page)return;
+    const btns=[...page.querySelectorAll('button')];
+    const btn=btns.find(b=>String(b.getAttribute('onclick')||'').includes('commitSupplierInvoiceAction'));
+    if(btn){
+      btn.setAttribute('onclick','commitSupplierInvoiceAction()');
+      btn.innerHTML='<i class="fa-solid fa-box-arrow-in-down ml-1"></i> اعتماد الفاتورة وإضافة للمخزون';
+      btn.title='اعتماد الفاتورة وتسجيل الأصناف ودخولها للمخزون وتحديث حساب المورد';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(relabelSupplierSubmit,500));
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='suppliers')setTimeout(relabelSupplierSubmit,120);
+    return r;
+  };
+})();
+</script>
+
 </body>
 </html>
 
