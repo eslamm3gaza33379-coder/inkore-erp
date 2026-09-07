@@ -3437,6 +3437,178 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{normalizeInvent
 })();
 </script>
 
+
+<style id="inkore-supplier-financial-edit-v42">
+  .inkore-sup-fin-modal{position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px}
+  .inkore-sup-fin-modal>div{background:#fff;border-radius:22px;width:min(900px,100%);max-height:92vh;overflow:auto;padding:22px;box-shadow:0 25px 70px rgba(15,23,42,.25)}
+  .inkore-sup-fin-input{width:100%;border:1px solid #dbe2ea;border-radius:10px;padding:10px;margin-top:5px}
+</style>
+<script id="inkore-supplier-financial-edit-v42">
+(function(){
+  'use strict';
+  const P='inkore_erp_stable_v1_';
+  const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+  const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+  const A=k=>G(k)||[];
+  const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+  const M=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج.م';
+  const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const today=()=>new Date().toISOString().slice(0,10);
+
+  function txForSupplier(id){
+    return A('supplierTransactions').filter(t=>String(t.supplierId)===String(id));
+  }
+  function supplierCalc(id){
+    let inv=0,paid=0,scrap=0,adj=0;
+    txForSupplier(id).forEach(t=>{
+      const typ=String(t.type||t.tx_type||'');
+      const a=N(t.amount);
+      if(/فاتورة توريد|purchase|توريد/.test(typ))inv+=a;
+      else if(/سداد مورد|payment|سداد/.test(typ))paid+=a;
+      if(t.referenceType==='scrap_sale'||/بيع هالك|scrap/.test(typ))scrap+=a;
+      if(t.referenceType==='supplier_adjustment')adj+=N(t.signedAmount);
+    });
+    return {inv,paid,scrap,adj,due:Math.max(0,inv-paid-scrap-adj)};
+  }
+
+  function openSupplierFinancialEditor(id){
+    const ss=A('suppliers');
+    const s=ss.find(x=>String(x.id)===String(id));
+    if(!s)return alert('المورد غير موجود');
+
+    const tx=txForSupplier(id).filter(t=>/فاتورة توريد|purchase|توريد|سداد مورد|payment|سداد|بيع هالك|scrap|تصحيح|تسوية/.test(String(t.type||t.tx_type||'')));
+    const modal=document.createElement('div');
+    modal.className='inkore-sup-fin-modal';
+    modal.innerHTML=`
+      <div dir="rtl">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-xl font-black">تعديل الحركات المالية — ${E(s.name)}</h3>
+            <p class="text-xs text-slate-500 mt-1">هنا تعدل قيمة الحركة نفسها، والنظام يعيد حساب رصيد المورد. لا يتم حذف الحركة الأصلية.</p>
+          </div>
+          <button id="sf_close" class="bg-slate-100 px-3 py-2 rounded-lg font-bold">إغلاق</button>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          <div class="bg-indigo-50 border rounded-xl p-3">فواتير التوريد<br><b>${M(supplierCalc(id).inv)}</b></div>
+          <div class="bg-emerald-50 border rounded-xl p-3">السداد<br><b>${M(supplierCalc(id).paid)}</b></div>
+          <div class="bg-amber-50 border rounded-xl p-3">الهالك/التسويات<br><b>${M(supplierCalc(id).scrap+supplierCalc(id).adj)}</b></div>
+          <div class="bg-rose-50 border rounded-xl p-3">المستحق<br><b>${M(supplierCalc(id).due)}</b></div>
+        </div>
+
+        <div class="mt-5 overflow-auto border rounded-xl">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-100">
+              <tr><th class="p-2 border">التاريخ</th><th class="p-2 border">نوع الحركة</th><th class="p-2 border">القيمة الحالية</th><th class="p-2 border">القيمة الجديدة</th><th class="p-2 border">السبب</th><th class="p-2 border">حفظ</th></tr>
+            </thead>
+            <tbody id="sf_tx_body">
+              ${tx.map(t=>`
+                <tr data-tx="${E(t.id)}">
+                  <td class="p-2 border">${E(t.date||t.tx_date||'-')}</td>
+                  <td class="p-2 border font-bold">${E(t.type||t.tx_type||'-')}</td>
+                  <td class="p-2 border">${M(t.amount)}</td>
+                  <td class="p-2 border"><input class="sf_new_amount inkore-sup-fin-input" type="number" min="0" step=".01" value="${N(t.amount)}"></td>
+                  <td class="p-2 border"><input class="sf_reason inkore-sup-fin-input" placeholder="سبب التعديل"></td>
+                  <td class="p-2 border"><button type="button" class="sf_save bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold">تعديل</button></td>
+                </tr>`).join('') || '<tr><td colspan="6" class="p-5 text-center text-slate-400">لا توجد حركات مالية</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#sf_close').onclick=()=>modal.remove();
+
+    modal.querySelectorAll('.sf_save').forEach(btn=>{
+      btn.onclick=()=>{
+        const tr=btn.closest('tr');
+        const txId=tr?.dataset.tx;
+        const newAmount=N(tr?.querySelector('.sf_new_amount')?.value);
+        const reason=(tr?.querySelector('.sf_reason')?.value||'').trim();
+        if(!reason)return alert('اكتب سبب تعديل الحركة.');
+        const arr=A('supplierTransactions');
+        const i=arr.findIndex(x=>String(x.id)===String(txId));
+        if(i<0)return alert('الحركة غير موجودة');
+        const oldAmount=N(arr[i].amount);
+        if(Math.abs(newAmount-oldAmount)<0.01)return alert('لم يتغير المبلغ.');
+
+        // Do not silently mutate history: append a correcting entry and mark the
+        // original as superseded. This preserves an audit trail.
+        arr[i].superseded=true;
+        arr[i].supersededAt=new Date().toISOString();
+        arr.push({
+          id:Date.now()+Math.random(),
+          date:today(),
+          supplierId:s.id,
+          supplierName:s.name,
+          type:'تصحيح حركة مورد',
+          tx_type:'supplier_adjustment',
+          amount:Math.abs(newAmount-oldAmount),
+          signedAmount:newAmount-oldAmount,
+          referenceType:'supplier_adjustment',
+          referenceId:txId,
+          originalAmount:oldAmount,
+          newAmount,
+          note:reason
+        });
+        S('supplierTransactions',arr);
+
+        // Recompute from non-superseded originals + correction entries.
+        const effective=arr.filter(t=>!t.superseded && String(t.supplierId)===String(s.id));
+        let inv=0,paid=0,scrap=0,adj=0;
+        effective.forEach(t=>{
+          const typ=String(t.type||t.tx_type||''),a=N(t.amount);
+          if(/فاتورة توريد|purchase|توريد/.test(typ))inv+=a;
+          else if(/سداد مورد|payment|سداد/.test(typ))paid+=a;
+          if(t.referenceType==='scrap_sale'||/بيع هالك|scrap/.test(typ))scrap+=a;
+          if(t.referenceType==='supplier_adjustment')adj+=N(t.signedAmount);
+        });
+        s.totalInvoiced=inv;s.totalPaid=paid+scrap;s.scrapCredits=scrap;s.remainingDue=Math.max(0,inv-paid-scrap-adj);
+        const si=ss.findIndex(x=>String(x.id)===String(s.id)); if(si>=0)ss[si]=s;
+        S('suppliers',ss);
+
+        if(window.renderSuppliers)window.renderSuppliers();
+        if(window.inkoreSyncNow)window.inkoreSyncNow();
+        alert(`تم تعديل الحركة من ${M(oldAmount)} إلى ${M(newAmount)} وتسجيل السبب.\nالرصيد الجديد للمورد: ${M(s.remainingDue)}`);
+        modal.remove();
+      };
+    });
+  }
+
+  window.openSupplierFinancialEditor=openSupplierFinancialEditor;
+
+  function decorateSupplierRows(){
+    const page=document.getElementById('page-suppliers');if(!page)return;
+    page.querySelectorAll('table tbody tr').forEach(tr=>{
+      const name=tr.children[tr.children.length-1]?.textContent?.trim();
+      if(!name)return;
+      const s=A('suppliers').find(x=>String(x.name).trim()===String(name).trim());
+      if(!s)return;
+      let actions=tr.lastElementChild?.previousElementSibling;
+      // Find an actions cell (contains buttons / icons) if available.
+      [...tr.children].reverse().some(td=>{
+        if(td.querySelector('button')){actions=td;return true}
+        return false;
+      });
+      if(!actions || actions.dataset.sfv42==='1')return;
+      actions.dataset.sfv42='1';
+      const b=document.createElement('button');
+      b.type='button';b.className='text-amber-700 mx-1';b.title='تعديل الحركات المالية';b.innerHTML='<i class="fa-solid fa-file-invoice-dollar"></i>';
+      b.addEventListener('click',()=>openSupplierFinancialEditor(s.id));
+      actions.appendChild(b);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>setTimeout(decorateSupplierRows,900));
+  const oldShow=window.showPage;
+  window.showPage=function(page){
+    const r=typeof oldShow==='function'?oldShow(page):undefined;
+    if(page==='suppliers')setTimeout(decorateSupplierRows,180);
+    return r;
+  };
+})();
+</script>
+
 </body>
 </html>
 
