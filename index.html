@@ -4550,5 +4550,243 @@ window.showPage=function(page){
 };
 })();
 </script>
+
+<style id="inkore-v90-style">
+#inkore-v90-att table,#inkore-v90-pay table{min-width:1100px}
+#inkore-v90-att input,#inkore-v90-att select,#inkore-v90-pay input,#inkore-v90-pay select{min-height:38px}
+.v90-box{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:18px}
+.v90-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.v90-input{width:100%;border:1px solid #d8e0ea;border-radius:9px;padding:8px}
+@media(max-width:900px){.v90-grid{grid-template-columns:1fr 1fr}}
+</style>
+<script id="inkore-v90-reset-and-rebuild">
+(function(){
+'use strict';
+const P='inkore_erp_stable_v1_';
+const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+const A=k=>G(k)||[];
+const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+const M=v=>F(v)+' ج.م';
+const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const today=()=>new Date().toISOString().slice(0,10);
+
+function onceResetAttendancePayroll(){
+  const flag=P+'__attendance_payroll_reset_v90_done';
+  if(localStorage.getItem(flag)==='1')return;
+  // ONLY payroll/attendance data is cleared. Employee master data and all other
+  // business modules remain untouched.
+  ['attendance','payrollArchive','payrollClosings'].forEach(k=>S(k,[]));
+  // Clear transient weekly-pay fields only; do not change salary/role/name/hours/factors.
+  const es=A('employees');
+  es.forEach(e=>{e.currentPaid=0;e.carryOver=0;e.advances=0;e.holidayPay=0;e.otherDeductions=0});
+  S('employees',es);
+  localStorage.setItem(flag,'1');
+}
+
+function iso(v){
+  const s=String(v||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m?`${m[3]}-${m[1]}-${m[2]}`:s.slice(0,10);
+}
+function sat(v){
+  const d=new Date((v||today())+'T00:00:00'),day=d.getDay();
+  d.setDate(d.getDate()-(day===6?0:day+1));
+  return d.toISOString().slice(0,10);
+}
+function weekDates(st){
+  const d=new Date(sat(st)+'T00:00:00');
+  return Array.from({length:6},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x.toISOString().slice(0,10)});
+}
+function workers(){return A('employees').filter(e=>e.active!==false)}
+function worker(id){return A('employees').find(e=>String(e.id)===String(id))}
+function attFor(e,date){
+  return A('attendance').find(a=>{
+    if(iso(a.date||a.work_date||a.day)!==date)return false;
+    const id=a.employeeId??a.empId??a.employee_id;
+    const nm=a.empName??a.employeeName??a.employee_name;
+    return id!=null&&id!=='' ? String(id)===String(e.id) : String(nm||'').trim()===String(e.name||'').trim();
+  })||null;
+}
+function writeAtt(e,date,status,late,ot){
+  const list=A('attendance');
+  let i=list.findIndex(a=>iso(a.date||a.work_date)===date&&String(a.employeeId??a.empId??'')===String(e.id));
+  const r=i>=0?list[i]:{id:Date.now()+Math.random()};
+  r.date=date;r.work_date=date;r.employeeId=e.id;r.empId=e.id;r.empName=e.name;
+  r.status=status||'';r.lateMin=Math.max(0,N(late));r.ot=Math.max(0,N(ot));
+  if(i<0)list.push(r);else list[i]=r;
+  S('attendance',list);
+}
+function calc(e,start){
+  const ds=weekDates(start);let p=0,h=0,l=0,o=0;
+  ds.forEach(d=>{const a=attFor(e,d);if(!a)return;const st=String(a.status||'');if(['حاضر','تأخير','present','late'].includes(st))p++;else if(['نصف يوم','half'].includes(st))h++;l+=N(a.lateMin);o+=N(a.ot)});
+  const weekly=N(e.weeklySalary??e.weekly_base??0),hours=Math.max(.5,N(e.workHoursPerDay??e.work_hours_per_day)||8);
+  const dayRate=weekly/6,hourRate=dayRate/hours;
+  const lateFactor=e.lateMultiplier==null?1:N(e.lateMultiplier),otFactor=e.otMultiplier==null?1:N(e.otMultiplier);
+  const attendanceValue=(p+h*.5)*dayRate,lateValue=l/60*hourRate*lateFactor,otValue=o*hourRate*otFactor;
+  const holidayPay=N(e.holidayPay),advances=N(e.advances),other=N(e.otherDeductions);
+  const gross=attendanceValue+otValue+holidayPay;
+  const deductions=lateValue+advances+other;
+  const net=Math.max(0,gross-deductions),paid=Math.max(0,N(e.currentPaid));
+  return{start:sat(start),end:ds[5],dates:ds,present:p,half:h,late:l,ot:o,weekly,hours,dayRate,hourRate,lateFactor,otFactor,attendanceValue,lateValue,otValue,holidayPay,advances,other,gross,deductions,net,paid,remain:net-paid};
+}
+
+function buildAttendancePage(){
+  const page=document.getElementById('page-daily_attendance');if(!page)return;
+  page.innerHTML=`<div id="inkore-v90-att" dir="rtl">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
+      <div><h2 class="text-2xl font-black">الحضور الأسبوعي</h2><p class="text-xs text-slate-500 mt-1">الحضور هو المصدر المباشر لشيت التقفيل الأسبوعي — السبت إلى الخميس.</p></div>
+      <label class="text-xs font-bold">بداية الأسبوع<input id="v90_att_week" type="date" class="v90-input mt-1"></label>
+    </div>
+    <div class="v90-box mb-5">
+      <div class="v90-grid">
+        <label class="text-xs font-bold">التاريخ<input id="v90_att_date" type="date" class="v90-input mt-1"></label>
+        <label class="text-xs font-bold">العامل<select id="v90_att_emp" class="v90-input mt-1"></select></label>
+        <label class="text-xs font-bold">الحالة<select id="v90_att_status" class="v90-input mt-1"><option value="حاضر">حاضر</option><option value="تأخير">تأخير</option><option value="نصف يوم">نصف يوم</option><option value="غائب">غائب</option><option value="إجازة">إجازة</option></select></label>
+        <label class="text-xs font-bold">التأخير (دقيقة)<input id="v90_att_late" type="number" min="0" step="1" value="0" class="v90-input mt-1"></label>
+        <label class="text-xs font-bold">الإضافي (ساعة)<input id="v90_att_ot" type="number" min="0" step=".25" value="0" class="v90-input mt-1"></label>
+        <button id="v90_att_save" class="bg-indigo-600 text-white rounded-lg font-black px-4 py-2.5">حفظ الحضور</button>
+      </div>
+      <div id="v90_att_msg" class="text-[11px] text-slate-500 mt-3"></div>
+    </div>
+    <div class="v90-box">
+      <div id="v90_att_table" class="overflow-auto"></div>
+    </div>
+  </div>`;
+
+  const w=document.getElementById('v90_att_week');w.value=sat(today());w.onchange=renderAttendance;
+  document.getElementById('v90_att_date').value=today();
+  fillEmployees();
+  document.getElementById('v90_att_save').onclick=()=>{
+    const e=worker(document.getElementById('v90_att_emp').value);
+    if(!e)return alert('اختر العامل');
+    const date=document.getElementById('v90_att_date').value||today();
+    const status=document.getElementById('v90_att_status').value;
+    writeAtt(e,date,status,document.getElementById('v90_att_late').value,document.getElementById('v90_att_ot').value);
+    document.getElementById('v90_att_msg').textContent=`تم حفظ ${e.name} — ${date}`;
+    renderAttendance();renderPayroll();
+    window.inkoreSyncNow&&window.inkoreSyncNow();
+  };
+  renderAttendance();
+}
+function fillEmployees(){
+  const s=document.getElementById('v90_att_emp');if(!s)return;
+  s.innerHTML='<option value="">اختر العامل</option>'+workers().map(e=>`<option value="${E(e.id)}">${E(e.name)}</option>`).join('');
+}
+function renderAttendance(){
+  const host=document.getElementById('v90_att_table');if(!host)return;
+  const start=sat(document.getElementById('v90_att_week').value||today()),ds=weekDates(start),labels=['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس'];
+  document.getElementById('v90_att_week').value=start;
+  host.innerHTML=`<table class="w-full text-xs border"><thead class="bg-slate-100"><tr><th class="p-2 border">العامل</th>${labels.map((x,i)=>`<th class="p-2 border">${x}<br>${ds[i]}</th>`).join('')}<th class="p-2 border">ملخص</th></tr></thead><tbody>
+  ${workers().map(e=>{
+    let p=0,h=0,l=0,o=0;
+    const cells=ds.map(date=>{
+      const a=attFor(e,date)||{status:'',lateMin:0,ot:0};const st=a.status||'';
+      if(['حاضر','تأخير'].includes(st))p++;else if(st==='نصف يوم')h++;l+=N(a.lateMin);o+=N(a.ot);
+      return `<td class="p-1 border"><select data-s="${E(e.id)}" data-d="${date}" class="w-full border rounded p-1"><option value="">غير مسجل</option><option value="حاضر" ${st==='حاضر'?'selected':''}>حاضر</option><option value="تأخير" ${st==='تأخير'?'selected':''}>تأخير</option><option value="نصف يوم" ${st==='نصف يوم'?'selected':''}>نصف يوم</option><option value="غائب" ${st==='غائب'?'selected':''}>غائب</option><option value="إجازة" ${st==='إجازة'?'selected':''}>إجازة</option></select><input data-l="${E(e.id)}" data-d="${date}" type="number" min="0" step="1" value="${N(a.lateMin)}" class="w-full border rounded p-1 mt-1" placeholder="تأخير د"><input data-o="${E(e.id)}" data-d="${date}" type="number" min="0" step=".25" value="${N(a.ot)}" class="w-full border rounded p-1 mt-1" placeholder="إضافي س"></td>`;
+    }).join('');
+    return `<tr><td class="p-2 border font-black">${E(e.name)}<br><span class="text-slate-400">${E(e.role||'')}</span></td>${cells}<td class="p-2 border">حضور ${p} / نصف ${h}<br>تأخير ${F(l)} د<br>إضافي ${F(o)} س</td></tr>`;
+  }).join('')}</tbody></table><div class="text-[11px] text-slate-500 mt-2">الجمعة راحة أسبوعية — اليوم غير المسجل لا يدخل في المرتب.</div>`;
+  host.querySelectorAll('[data-s]').forEach(x=>x.onchange=()=>changeCell(x,'status'));
+  host.querySelectorAll('[data-l]').forEach(x=>x.onchange=()=>changeCell(x,'late'));
+  host.querySelectorAll('[data-o]').forEach(x=>x.onchange=()=>changeCell(x,'ot'));
+}
+function changeCell(el,field){
+  const e=worker(el.dataset.s||el.dataset.l||el.dataset.o),date=el.dataset.d;if(!e)return;
+  const a=attFor(e,date)||{status:'',lateMin:0,ot:0};
+  if(field==='status')a.status=el.value;
+  if(field==='late')a.lateMin=N(el.value);
+  if(field==='ot')a.ot=N(el.value);
+  writeAtt(e,date,a.status,a.lateMin,a.ot);
+  renderAttendance();renderPayroll();window.inkoreSyncNow&&window.inkoreSyncNow();
+}
+
+/* ---------- Weekly payroll ---------- */
+function buildPayrollPage(){
+  const page=document.getElementById('page-weekly_hr');if(!page)return;
+  page.innerHTML=`<div id="inkore-v90-pay" dir="rtl">
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-5"><div><h2 class="text-2xl font-black">التقفيل الأسبوعي للرواتب</h2><p id="v90_pay_range" class="text-xs text-slate-500 mt-1"></p></div><button id="v90_pay_print" class="bg-slate-900 text-white px-4 py-2 rounded-xl font-black">طباعة</button></div>
+    <div class="v90-box mb-5"><div class="grid md:grid-cols-4 gap-3 items-end text-xs"><label class="font-bold">بداية الأسبوع<input id="v90_pay_week" type="date" class="v90-input mt-1"></label><label class="font-bold">كشف عامل<select id="v90_pay_emp" class="v90-input mt-1"></select></label><button id="v90_pay_report" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black">تقرير العامل</button><button id="v90_pay_close" class="bg-emerald-600 text-white px-4 py-2 rounded-xl font-black">تقفيل الأسبوع</button></div><div id="v90_pay_msg" class="text-[11px] text-slate-500 mt-3"></div></div>
+    <div class="grid md:grid-cols-4 gap-3 mb-5"><div class="p-4 bg-indigo-50 border rounded-2xl"><span>إجمالي المستحق</span><b id="v90_due" class="block text-xl text-indigo-700">0 ج.م</b></div><div class="p-4 bg-emerald-50 border rounded-2xl"><span>المدفوع</span><b id="v90_paid" class="block text-xl text-emerald-700">0 ج.م</b></div><div class="p-4 bg-rose-50 border rounded-2xl"><span>المتبقي</span><b id="v90_remain" class="block text-xl text-rose-700">0 ج.م</b></div><div class="p-4 bg-slate-50 border rounded-2xl"><span>عدد العمال</span><b id="v90_workers" class="block text-xl">0</b></div></div>
+    <div class="v90-box"><div id="v90_pay_table" class="overflow-auto"></div></div>
+    <div class="v90-box mt-5"><h3 class="font-black text-lg mb-3">أرشيف التقفيلات</h3><div id="v90_archive" class="overflow-auto"></div></div>
+    <div id="v90_report_box" class="v90-box mt-5 hidden"></div>
+  </div>`;
+
+  const w=document.getElementById('v90_pay_week');w.value=sat(today());w.onchange=renderPayroll;
+  fillPayEmployees();
+  document.getElementById('v90_pay_report').onclick=()=>showWorkerReport(document.getElementById('v90_pay_emp').value);
+  document.getElementById('v90_pay_close').onclick=closeWeek;
+  document.getElementById('v90_pay_print').onclick=printPayroll;
+  renderPayroll();
+}
+function fillPayEmployees(){
+  const s=document.getElementById('v90_pay_emp');if(s)s.innerHTML='<option value="">اختر العامل</option>'+workers().map(e=>`<option value="${E(e.id)}">${E(e.name)}</option>`).join('');
+}
+function renderPayroll(){
+  const host=document.getElementById('v90_pay_table');if(!host)return;
+  const start=sat(document.getElementById('v90_pay_week').value||today()),es=workers();let due=0,paid=0,rem=0;
+  document.getElementById('v90_pay_week').value=start;document.getElementById('v90_pay_range').textContent=`الأسبوع: ${start} → ${weekDates(start)[5]} — الجمعة راحة`;
+  host.innerHTML=`<table class="w-full text-xs border"><thead class="bg-slate-100"><tr><th class="p-2 border">العامل</th><th class="p-2 border">الأساسي</th><th class="p-2 border">الحضور</th><th class="p-2 border">التأخير</th><th class="p-2 border">الإضافي</th><th class="p-2 border">بدل</th><th class="p-2 border">السلف</th><th class="p-2 border">خصومات</th><th class="p-2 border">الإجمالي</th><th class="p-2 border">المستحق</th><th class="p-2 border">المدفوع</th><th class="p-2 border">المتبقي</th><th class="p-2 border">إجراء</th></tr></thead><tbody>${es.map(e=>{
+    const d=calc(e,start);due+=d.net;paid+=d.paid;rem+=d.remain;
+    return `<tr><td class="p-2 border font-black">${E(e.name)}<br><span class="text-slate-400">${E(e.role||'')}</span></td><td class="p-2 border">${M(d.weekly)}</td><td class="p-2 border">${d.present} حاضر / ${d.half} نصف<br>${F(d.present+d.half*.5)} يوم</td><td class="p-2 border">${F(d.late)} د<br><span class="text-rose-600">-${M(d.lateValue)}</span><br>×${F(d.lateFactor)}</td><td class="p-2 border">${F(d.ot)} س<br><span class="text-emerald-700">+${M(d.otValue)}</span><br>×${F(d.otFactor)}</td><td class="p-2 border"><input class="v90-input" type="number" min="0" step=".01" value="${d.holidayPay}" data-field="holidayPay" data-id="${E(e.id)}"></td><td class="p-2 border"><input class="v90-input" type="number" min="0" step=".01" value="${d.advances}" data-field="advances" data-id="${E(e.id)}"></td><td class="p-2 border"><input class="v90-input" type="number" min="0" step=".01" value="${d.other}" data-field="otherDeductions" data-id="${E(e.id)}"></td><td class="p-2 border">${M(d.gross)}</td><td class="p-2 border font-black text-indigo-700">${M(d.net)}</td><td class="p-2 border"><input class="v90-input" type="number" min="0" step=".01" value="${d.paid}" data-field="currentPaid" data-id="${E(e.id)}"></td><td class="p-2 border font-black">${d.remain>0?'متبقي '+M(d.remain):d.remain<0?'زيادة '+M(-d.remain):'خالص'}</td><td class="p-2 border"><button data-close="${E(e.id)}" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-black">تقفيل</button></td></tr>`;
+  }).join('')||'<tr><td colspan="13" class="p-5 text-center text-slate-400">لا يوجد عمال نشطون</td></tr>'}</tbody></table>`;
+  document.getElementById('v90_due').textContent=M(due);document.getElementById('v90_paid').textContent=M(paid);document.getElementById('v90_remain').textContent=M(rem);document.getElementById('v90_workers').textContent=es.length;
+  host.querySelectorAll('input[data-field]').forEach(x=>x.onchange=()=>{const e=worker(x.dataset.id);if(!e)return;e[x.dataset.field]=Math.max(0,N(x.value));S('employees',A('employees'));renderPayroll();window.inkoreSyncNow&&window.inkoreSyncNow()});
+  host.querySelectorAll('[data-close]').forEach(x=>x.onclick=()=>closeEmployee(x.dataset.close,start));
+  renderArchive();
+}
+function closeEmployee(id,start){
+  const e=worker(id),d=e?calc(e,start):null;if(!e||!d)return;
+  const ar=A('payrollArchive');
+  if(ar.some(x=>String(x.employeeId)===String(id)&&iso(x.weekStart)===d.start))return alert('هذا العامل مقفول بالفعل لهذا الأسبوع.');
+  if(d.paid>d.net)return alert('المدفوع أكبر من المستحق، صحح المبلغ أولاً.');
+  if(!confirm(`تقفيل ${e.name}\n${d.start} → ${d.end}\nالمستحق ${M(d.net)}\nالمدفوع ${M(d.paid)}\nالمتبقي ${M(d.remain)}\n\nتأكيد؟`))return;
+  ar.unshift({id:Date.now()+Math.random(),employeeId:e.id,employeeName:e.name,weekStart:d.start,weekEnd:d.end,weeklySalary:d.weekly,presentDays:d.present,halfDays:d.half,lateMinutes:d.late,overtimeHours:d.ot,attendanceValue:d.attendanceValue,lateDeduction:d.lateValue,overtimeValue:d.otValue,holidayPay:d.holidayPay,advances:d.advances,otherDeductions:d.other,gross:d.gross,deductions:d.deductions,netDue:d.net,paid:d.paid,carryOver:d.remain,closedAt:new Date().toISOString(),status:'closed'});
+  S('payrollArchive',ar);
+  const es=A('employees'),ee=es.find(x=>String(x.id)===String(e.id));if(ee){ee.currentPaid=0;ee.carryOver=d.remain;ee.advances=0;ee.holidayPay=0;ee.otherDeductions=0;S('employees',es)}
+  renderPayroll();alert('تم تقفيل العامل وحفظ Snapshot للأسبوع.');
+  window.inkoreSyncNow&&window.inkoreSyncNow();
+}
+function closeWeek(){
+  const start=sat(document.getElementById('v90_pay_week').value||today()),pending=workers().filter(e=>!A('payrollArchive').some(x=>String(x.employeeId)===String(e.id)&&iso(x.weekStart)===start));
+  if(!pending.length)return alert('كل العمال مقفولين بالفعل لهذا الأسبوع.');
+  if(!confirm(`تقفيل ${pending.length} عامل للأسبوع ${start} → ${weekDates(start)[5]}؟`))return;
+  pending.forEach(e=>{const d=calc(e,start);const ar=A('payrollArchive');ar.unshift({id:Date.now()+Math.random(),employeeId:e.id,employeeName:e.name,weekStart:d.start,weekEnd:d.end,weeklySalary:d.weekly,presentDays:d.present,halfDays:d.half,lateMinutes:d.late,overtimeHours:d.ot,attendanceValue:d.attendanceValue,lateDeduction:d.lateValue,overtimeValue:d.otValue,holidayPay:d.holidayPay,advances:d.advances,otherDeductions:d.other,gross:d.gross,deductions:d.deductions,netDue:d.net,paid:d.paid,carryOver:d.remain,closedAt:new Date().toISOString(),status:'closed'});S('payrollArchive',ar)});
+  renderPayroll();alert('تم حفظ تقفيل الأسبوع في الأرشيف.');window.inkoreSyncNow&&window.inkoreSyncNow();
+}
+function renderArchive(){
+  const host=document.getElementById('v90_archive');if(!host)return;
+  const ar=A('payrollArchive').filter(x=>iso(x.weekStart)&&iso(x.weekEnd)).sort((a,b)=>new Date(b.closedAt||0)-new Date(a.closedAt||0));
+  host.innerHTML=`<table class="w-full text-xs border"><thead class="bg-slate-100"><tr><th class="p-2 border">الفترة</th><th class="p-2 border">العامل</th><th class="p-2 border">الحضور</th><th class="p-2 border">التأخير</th><th class="p-2 border">الإضافي</th><th class="p-2 border">المستحق</th><th class="p-2 border">المدفوع</th><th class="p-2 border">المتبقي</th></tr></thead><tbody>${ar.map(x=>`<tr><td class="p-2 border">${E(x.weekStart)} → ${E(x.weekEnd)}</td><td class="p-2 border font-bold">${E(x.employeeName||'-')}</td><td class="p-2 border">${F(x.presentDays)} حاضر / ${F(x.halfDays)} نصف</td><td class="p-2 border">${F(x.lateMinutes)} د</td><td class="p-2 border">${F(x.overtimeHours)} س</td><td class="p-2 border">${M(x.netDue)}</td><td class="p-2 border">${M(x.paid)}</td><td class="p-2 border">${M(x.carryOver)}</td></tr>`).join('')||'<tr><td colspan="8" class="p-5 text-center text-slate-400">لا يوجد أرشيف.</td></tr>'}</tbody></table>`;
+}
+function showWorkerReport(id){
+  const e=worker(id);if(!e)return alert('اختر العامل');
+  const start=sat(document.getElementById('v90_pay_week').value||today()),d=calc(e,start),b=document.getElementById('v90_report_box');
+  b.classList.remove('hidden');b.innerHTML=`<div class="flex justify-between"><h3 class="text-lg font-black">تقرير ${E(e.name)}</h3><button onclick="this.parentElement.parentElement.classList.add('hidden')" class="bg-slate-100 px-3 py-1 rounded">إغلاق</button></div><div class="grid md:grid-cols-4 gap-2 mt-3 text-xs"><div class="p-3 border rounded">الحضور<br><b>${d.present} / ${d.half}</b></div><div class="p-3 border rounded">التأخير<br><b>${F(d.late)} د</b></div><div class="p-3 border rounded">الإضافي<br><b>${F(d.ot)} س</b></div><div class="p-3 border rounded">المستحق<br><b>${M(d.net)}</b></div></div><div class="overflow-auto mt-3"><table class="w-full text-xs border"><thead><tr><th class="p-2 border">التاريخ</th><th class="p-2 border">الحالة</th><th class="p-2 border">تأخير</th><th class="p-2 border">إضافي</th></tr></thead><tbody>${d.dates.map(date=>{const a=attFor(e,date)||{};return`<tr><td class="p-2 border">${date}</td><td class="p-2 border">${E(a.status||'غير مسجل')}</td><td class="p-2 border">${F(a.lateMin)} د</td><td class="p-2 border">${F(a.ot)} س</td></tr>`}).join('')}</tbody></table></div>`;
+}
+function printPayroll(){
+ const start=sat(document.getElementById('v90_pay_week').value||today()),rows=workers().map(e=>{const d=calc(e,start);return`<tr><td>${E(e.name)}</td><td>${M(d.weekly)}</td><td>${F(d.present+d.half*.5)}</td><td>${F(d.late)}</td><td>${F(d.ot)}</td><td>${M(d.net)}</td><td>${M(d.paid)}</td><td>${M(d.remain)}</td></tr>`}).join('');
+ const w=window.open('','_blank','width=1200,height=850');if(!w)return;
+ w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>رواتب ${start}</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:7px;font-size:11px}th{background:#f4f6fa}</style></head><body><h1>inkore ERP</h1><h2>التقفيل الأسبوعي للرواتب</h2><p>${start} → ${weekDates(start)[5]} — الجمعة راحة</p><table><thead><tr><th>العامل</th><th>الأساسي</th><th>أيام مدفوعة</th><th>التأخير</th><th>الإضافي</th><th>المستحق</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);w.document.close();setTimeout(()=>w.print(),250)
+}
+
+function boot(){
+  onceResetAttendancePayroll();
+  buildAttendancePage();
+  buildPayrollPage();
+}
+const prevShow=window.showPage;
+window.showPage=function(page){
+  const r=typeof prevShow==='function'?prevShow(page):undefined;
+  setTimeout(()=>{if(page==='daily_attendance')buildAttendancePage();if(page==='weekly_hr')buildPayrollPage()},180);
+  return r;
+};
+document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,900));
+})();
+</script>
+
 </body>
 </html>
