@@ -1,17 +1,16 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>inkore ERP | إدارة المطبعة والمخازن والخزينة</title>
-  
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-  <style>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>inkore ERP | إدارة المطبعة والمخازن والخزينة</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet"/>
+<style>
     body { font-family: 'Cairo', sans-serif; }
     .page-view { display: none; }
     .page-view.active { display: block; }
@@ -34,7 +33,6 @@
       .no-print { display: none !important; }
     }
   </style>
-
 <script id="inkore-stable-safety">
 (function(){
   'use strict';
@@ -43,1173 +41,1073 @@
   });
 })();
 </script>
-
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col justify-between text-slate-800 antialiased selection:bg-indigo-600 selection:text-white">
-
-  <!-- ==================== نافذة تسجيل الدخول الموحدة ==================== -->
-  <div id="login-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md p-8 text-center relative overflow-hidden">
-      <div class="absolute top-0 left-0 right-0 h-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500"></div>
-      
-      <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
-        <i class="fa-solid fa-layer-group"></i>
-      </div>
-      <h2 class="text-3xl font-black text-slate-900 tracking-tight">ink<span class="text-indigo-600">ore</span> ERP</h2>
-      <p class="text-xs text-slate-400 mt-1 mb-6">المنظومة الصناعية الموحدة لإدارة تشغيل ومخازن وماليات المطبعة</p>
-
-      <div class="space-y-3.5 text-right text-xs">
-        <div id="login_error_box" class="hidden bg-rose-50 border border-rose-200 text-rose-700 font-bold p-2.5 rounded-xl text-center"></div>
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">اسم المستخدم / كود الدخول</label>
-          <input type="text" id="login_user" value="admin" autocomplete="username" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold focus:outline-indigo-500 text-slate-800">
-        </div>
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">كلمة المرور</label>
-          <div class="relative">
-            <input type="password" id="login_pass" value="" autocomplete="current-password" onkeydown="if(event.key==='Enter'){handleLogin();}" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-11 font-semibold focus:outline-indigo-500 text-slate-800">
-            <button type="button" onclick="toggleLoginPassword()" aria-label="إظهار كلمة المرور" title="إظهار/إخفاء كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base">
-              <i id="login_pass_eye" class="fa-solid fa-eye"></i>
-            </button>
-          </div>
-        </div>
-        
-        <div class="pt-2">
-          <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all">
+<!-- ==================== نافذة تسجيل الدخول الموحدة ==================== -->
+<div class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[100] flex items-center justify-center p-4" id="login-modal">
+<div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-md p-8 text-center relative overflow-hidden">
+<div class="absolute top-0 left-0 right-0 h-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500"></div>
+<div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
+<i class="fa-solid fa-layer-group"></i>
+</div>
+<h2 class="text-3xl font-black text-slate-900 tracking-tight">ink<span class="text-indigo-600">ore</span> ERP</h2>
+<p class="text-xs text-slate-400 mt-1 mb-6">المنظومة الصناعية الموحدة لإدارة تشغيل ومخازن وماليات المطبعة</p>
+<div class="space-y-3.5 text-right text-xs">
+<div class="hidden bg-rose-50 border border-rose-200 text-rose-700 font-bold p-2.5 rounded-xl text-center" id="login_error_box"></div>
+<div>
+<label class="block font-bold text-slate-700 mb-1">اسم المستخدم / كود الدخول</label>
+<input autocomplete="username" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-semibold focus:outline-indigo-500 text-slate-800" id="login_user" type="text" value="admin"/>
+</div>
+<div>
+<label class="block font-bold text-slate-700 mb-1">كلمة المرور</label>
+<div class="relative">
+<input autocomplete="current-password" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 pl-11 font-semibold focus:outline-indigo-500 text-slate-800" id="login_pass" onkeydown="if(event.key==='Enter'){handleLogin();}" type="password" value=""/>
+<button aria-label="إظهار كلمة المرور" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-base" onclick="toggleLoginPassword()" title="إظهار/إخفاء كلمة المرور" type="button">
+<i class="fa-solid fa-eye" id="login_pass_eye"></i>
+</button>
+</div>
+</div>
+<div class="pt-2">
+<button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-indigo-600/30 text-sm transition-all" onclick="handleLogin()">
             تسجيل الدخول للنظام
           </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div>
-    <!-- ==================== الشريط العلوي الرئيسي ==================== -->
-    <header class="bg-slate-900 text-white px-6 py-3 flex items-center justify-between shadow-lg sticky top-0 z-40 border-b border-slate-800">
-      <div class="flex items-center gap-3">
-        <button onclick="showPage('dashboard')" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all">
-          <i class="fa-solid fa-house"></i> الرئيسية
+</div>
+</div>
+</div>
+</div>
+<div>
+<!-- ==================== الشريط العلوي الرئيسي ==================== -->
+<header class="bg-slate-900 text-white px-6 py-3 flex items-center justify-between shadow-lg sticky top-0 z-40 border-b border-slate-800">
+<div class="flex items-center gap-3">
+<button class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3.5 py-1.5 rounded-xl flex items-center gap-2 transition-all" onclick="showPage('dashboard')">
+<i class="fa-solid fa-house"></i> الرئيسية
         </button>
-        <span class="text-xs bg-slate-800/90 text-slate-300 px-3.5 py-1.5 rounded-xl border border-slate-700 flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          المستخدم: <strong id="current_logged_user_display" class="text-white">المدير العام</strong>
-        </span>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2 cursor-pointer select-none" onclick="showPage('dashboard')">
-          <div id="header_logo_box" class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-indigo-600 text-white font-black text-sm">iK</div>
-          <span class="text-xl font-black tracking-tight">ink<span class="text-indigo-400">ore</span></span>
-        </div>
-        <button onclick="downloadSystemFile()" title="تحميل النسخة المستقلة أوفلاين" class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-1">
-          <i class="fa-solid fa-download"></i> <span>تحميل البرنامج</span>
+<span class="text-xs bg-slate-800/90 text-slate-300 px-3.5 py-1.5 rounded-xl border border-slate-700 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          المستخدم: <strong class="text-white" id="current_logged_user_display">المدير العام</strong>
+</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 cursor-pointer select-none" onclick="showPage('dashboard')">
+<div class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center bg-indigo-600 text-white font-black text-sm" id="header_logo_box">iK</div>
+<span class="text-xl font-black tracking-tight">ink<span class="text-indigo-400">ore</span></span>
+</div>
+<button class="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-1" onclick="downloadSystemFile()" title="تحميل النسخة المستقلة أوفلاين">
+<i class="fa-solid fa-download"></i> <span>تحميل البرنامج</span>
+</button>
+<button class="text-xs bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition-colors" id="nav_settings_btn" onclick="showPage('settings')" title="الإعدادات والصلاحيات">
+<i class="fa-solid fa-gear ml-1"></i> الإعدادات
         </button>
-        <button id="nav_settings_btn" onclick="showPage('settings')" title="الإعدادات والصلاحيات" class="text-xs bg-slate-800 text-slate-200 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition-colors">
-          <i class="fa-solid fa-gear ml-1"></i> الإعدادات
+<button class="text-xs bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white px-3 py-1.5 rounded-lg border border-rose-500/30 transition-colors" onclick="handleLogout()">
+<i class="fa-solid fa-arrow-right-from-bracket"></i>
+</button>
+</div>
+</header>
+<!-- ==================== 1. الشاشة الرئيسية (Dashboard) ==================== -->
+<div class="page-view active" id="page-dashboard">
+<div class="max-w-7xl mx-auto px-6 pt-8 pb-4 flex flex-col md:flex-row items-center justify-between gap-4">
+<div>
+<h1 class="text-2xl font-black text-slate-900" id="dash_title_welcome">لوحة التحكم والتشغيل المركزية</h1>
+<p class="text-xs text-slate-500 mt-1" id="dash_subtitle_welcome">المنظومة الصناعية الموحدة لإدارة تشغيل، كبس، مخازن، وماليات المطبعة</p>
+</div>
+<div class="flex flex-wrap items-center gap-2 text-xs" id="dash_cash_bars">
+<div class="bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl font-bold text-emerald-800 shadow-sm">
+            الصندوق (كاش): <span class="font-mono font-black text-sm" id="dash_cashbox">0 ج.م</span>
+</div>
+<div class="bg-sky-50 border border-sky-200 px-3.5 py-1.5 rounded-xl font-bold text-sky-800 shadow-sm">
+            إنستاباي: <span class="font-mono font-black text-sm" id="dash_instapay">0 ج.م</span>
+</div>
+<div class="bg-rose-50 border border-rose-200 px-3.5 py-1.5 rounded-xl font-bold text-rose-800 shadow-sm">
+            فودافون كاش: <span class="font-mono font-black text-sm" id="dash_vodacash">0 ج.م</span>
+</div>
+</div>
+</div>
+<main class="max-w-7xl mx-auto px-6 py-4">
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="dashboard_grid">
+<!-- كروت الشاشات الرئيسية -->
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_invoices" onclick="showPage('invoices')">
+<div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-receipt"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">أوامر الشغل والفواتير</h3>
+<p class="text-[11px] text-slate-400 mt-1">المتر الطولي، ورق الحماية، وحالات الأوردر</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_expenses" onclick="showPage('expenses')">
+<div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-money-bill-wave"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">المصروفات اليومية</h3>
+<p class="text-[11px] text-slate-400 mt-1">تسجيل الصرف وتحديد الخزينة</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_partners" onclick="showPage('partners')">
+<div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-handshake"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">الشركاء ورأس المال</h3>
+<p class="text-[11px] text-slate-400 mt-1">الحصص، المدفوع، المتبقي، وسحب الأرباح</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_assets" onclick="showPage('assets_management')">
+<div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-print"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">المعدات وأقساط الماكينات</h3>
+<p class="text-[11px] text-slate-400 mt-1">حالة الماكينة، المدفوع، وخصم رأس المال</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_electricity" onclick="showPage('electricity')">
+<div class="w-12 h-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-bolt"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">شحن عدادات الكهرباء</h3>
+<p class="text-[11px] text-slate-400 mt-1">حصر استهلاك الطاقة وتعديل الشحنات</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_reports" onclick="showPage('reports')">
+<div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-chart-pie"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">التقارير المالية الصافية</h3>
+<p class="text-[11px] text-slate-400 mt-1">الأرباح بعد خصم المصاريف، الخامات، والرواتب</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_clients" onclick="showPage('clients')">
+<div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-address-book"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">العملاء وكشف الحساب</h3>
+<p class="text-[11px] text-slate-400 mt-1">أمتار الطباعة، نوع القماش، وحالة الأوردر</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_attendance" onclick="showPage('daily_attendance')">
+<div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-clipboard-user"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">الحضور وتقارير الفترات</h3>
+<p class="text-[11px] text-slate-400 mt-1">إضافة اليوميات، التعديل، والفلترة بالمدة</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_weekly_hr" onclick="showPage('weekly_hr')">
+<div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-users-gear"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">العمالة وشيت الرواتب المباشر</h3>
+<p class="text-[11px] text-slate-400 mt-1">تعديل يدوي، مجموع المرتبات، والترحيل</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_calender" onclick="showPage('calender_press')">
+<div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-temperature-arrow-up"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">خط الكبس وسحب القماش</h3>
+<p class="text-[11px] text-slate-400 mt-1">مطابقة ورق الحماية والخصم من الأمانات</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_suppliers" onclick="showPage('suppliers')">
+<div class="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-truck-ramp-box"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">الموردين ومبيعات الهالك</h3>
+<p class="text-[11px] text-slate-400 mt-1">فواتير الخامات، السداد، وبيع عوادم الورق</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_fabric" onclick="showPage('fabric_custody')">
+<div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-boxes-packing"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">مخزن قماش العملاء (أثواب/قطع)</h3>
+<p class="text-[11px] text-slate-400 mt-1">حصر الوارد، المسحوب بالكبس، والمتبقي</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_inventory" onclick="showPage('inventory')">
+<div class="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-boxes-stacked"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">مخزن الخامات</h3>
+<p class="text-[11px] text-slate-400 mt-1">المنتجات، الأرصدة، التكلفة وحركة المخزون</p>
+</div>
+<div class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center" id="card_settings" onclick="showPage('settings')">
+<div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
+<i class="fa-solid fa-sliders"></i>
+</div>
+<h3 class="font-bold text-sm text-slate-800">الإعدادات والصلاحيات</h3>
+<p class="text-[11px] text-slate-400 mt-1">رفع اللوجو، والصلاحيات التفصيلية بالكامل</p>
+</div>
+</div>
+</main>
+</div>
+<!-- ==================== 2. أوامر الشغل والفواتير ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-invoices">
+<div class="flex items-center justify-between mb-4">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
         </button>
-        <button onclick="handleLogout()" class="text-xs bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white px-3 py-1.5 rounded-lg border border-rose-500/30 transition-colors">
-          <i class="fa-solid fa-arrow-right-from-bracket"></i>
+<button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm" onclick="printInvoicesSummaryReport()">
+<i class="fa-solid fa-print ml-1"></i> طباعة الفواتير
         </button>
-      </div>
-    </header>
-
-    <!-- ==================== 1. الشاشة الرئيسية (Dashboard) ==================== -->
-    <div id="page-dashboard" class="page-view active">
-      <div class="max-w-7xl mx-auto px-6 pt-8 pb-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-black text-slate-900" id="dash_title_welcome">لوحة التحكم والتشغيل المركزية</h1>
-          <p class="text-xs text-slate-500 mt-1" id="dash_subtitle_welcome">المنظومة الصناعية الموحدة لإدارة تشغيل، كبس، مخازن، وماليات المطبعة</p>
-        </div>
-        <div id="dash_cash_bars" class="flex flex-wrap items-center gap-2 text-xs">
-          <div class="bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl font-bold text-emerald-800 shadow-sm">
-            الصندوق (كاش): <span id="dash_cashbox" class="font-mono font-black text-sm">0 ج.م</span>
-          </div>
-          <div class="bg-sky-50 border border-sky-200 px-3.5 py-1.5 rounded-xl font-bold text-sky-800 shadow-sm">
-            إنستاباي: <span id="dash_instapay" class="font-mono font-black text-sm">0 ج.م</span>
-          </div>
-          <div class="bg-rose-50 border border-rose-200 px-3.5 py-1.5 rounded-xl font-bold text-rose-800 shadow-sm">
-            فودافون كاش: <span id="dash_vodacash" class="font-mono font-black text-sm">0 ج.م</span>
-          </div>
-        </div>
-      </div>
-
-      <main class="max-w-7xl mx-auto px-6 py-4">
-        <div id="dashboard_grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-
-          <!-- كروت الشاشات الرئيسية -->
-          <div id="card_invoices" onclick="showPage('invoices')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-receipt"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">أوامر الشغل والفواتير</h3>
-            <p class="text-[11px] text-slate-400 mt-1">المتر الطولي، ورق الحماية، وحالات الأوردر</p>
-          </div>
-
-          <div id="card_expenses" onclick="showPage('expenses')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-money-bill-wave"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">المصروفات اليومية</h3>
-            <p class="text-[11px] text-slate-400 mt-1">تسجيل الصرف وتحديد الخزينة</p>
-          </div>
-
-          <div id="card_partners" onclick="showPage('partners')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-handshake"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">الشركاء ورأس المال</h3>
-            <p class="text-[11px] text-slate-400 mt-1">الحصص، المدفوع، المتبقي، وسحب الأرباح</p>
-          </div>
-
-          <div id="card_assets" onclick="showPage('assets_management')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-print"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">المعدات وأقساط الماكينات</h3>
-            <p class="text-[11px] text-slate-400 mt-1">حالة الماكينة، المدفوع، وخصم رأس المال</p>
-          </div>
-
-          <div id="card_electricity" onclick="showPage('electricity')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-yellow-50 text-yellow-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-bolt"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">شحن عدادات الكهرباء</h3>
-            <p class="text-[11px] text-slate-400 mt-1">حصر استهلاك الطاقة وتعديل الشحنات</p>
-          </div>
-
-          <div id="card_reports" onclick="showPage('reports')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-chart-pie"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">التقارير المالية الصافية</h3>
-            <p class="text-[11px] text-slate-400 mt-1">الأرباح بعد خصم المصاريف، الخامات، والرواتب</p>
-          </div>
-
-          <div id="card_clients" onclick="showPage('clients')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-address-book"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">العملاء وكشف الحساب</h3>
-            <p class="text-[11px] text-slate-400 mt-1">أمتار الطباعة، نوع القماش، وحالة الأوردر</p>
-          </div>
-
-          <div id="card_attendance" onclick="showPage('daily_attendance')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-clipboard-user"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">الحضور وتقارير الفترات</h3>
-            <p class="text-[11px] text-slate-400 mt-1">إضافة اليوميات، التعديل، والفلترة بالمدة</p>
-          </div>
-
-          <div id="card_weekly_hr" onclick="showPage('weekly_hr')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-users-gear"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">العمالة وشيت الرواتب المباشر</h3>
-            <p class="text-[11px] text-slate-400 mt-1">تعديل يدوي، مجموع المرتبات، والترحيل</p>
-          </div>
-
-          <div id="card_calender" onclick="showPage('calender_press')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-temperature-arrow-up"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">خط الكبس وسحب القماش</h3>
-            <p class="text-[11px] text-slate-400 mt-1">مطابقة ورق الحماية والخصم من الأمانات</p>
-          </div>
-
-          <div id="card_suppliers" onclick="showPage('suppliers')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-truck-ramp-box"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">الموردين ومبيعات الهالك</h3>
-            <p class="text-[11px] text-slate-400 mt-1">فواتير الخامات، السداد، وبيع عوادم الورق</p>
-          </div>
-
-          <div id="card_fabric" onclick="showPage('fabric_custody')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-boxes-packing"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">مخزن قماش العملاء (أثواب/قطع)</h3>
-            <p class="text-[11px] text-slate-400 mt-1">حصر الوارد، المسحوب بالكبس، والمتبقي</p>
-          </div>
-
-          <div id="card_inventory" onclick="showPage('inventory')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-boxes-stacked"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">مخزن الخامات</h3>
-            <p class="text-[11px] text-slate-400 mt-1">المنتجات، الأرصدة، التكلفة وحركة المخزون</p>
-          </div>
-
-          <div id="card_settings" onclick="showPage('settings')" class="cursor-pointer group bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all text-center">
-            <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl mx-auto mb-3 group-hover:scale-110 transition-transform">
-              <i class="fa-solid fa-sliders"></i>
-            </div>
-            <h3 class="font-bold text-sm text-slate-800">الإعدادات والصلاحيات</h3>
-            <p class="text-[11px] text-slate-400 mt-1">رفع اللوجو، والصلاحيات التفصيلية بالكامل</p>
-          </div>
-
-        </div>
-      </main>
-    </div>
-
-    <!-- ==================== 2. أوامر الشغل والفواتير ==================== -->
-    <div id="page-invoices" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <div class="flex items-center justify-between mb-4">
-        <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5">
-          <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
-        </button>
-        <button onclick="printInvoicesSummaryReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm">
-          <i class="fa-solid fa-print ml-1"></i> طباعة الفواتير
-        </button>
-      </div>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">أوامر الشغل والفواتير (بالمتر الطولي وحالات التشغيل)</h2>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs mb-8">
-        <div class="lg:col-span-2 space-y-4">
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input type="hidden" id="edit_order_id" value="">
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">العميل / الشركة</label>
-              <select id="inv_client_select" class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold"></select>
-            </div>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">نوع القماش والتشغيل</label>
-              <input type="text" id="inv_service_desc" value="طباعة وكبس ميلتون بوليستر" class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold">
-            </div>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">سعر بيع المتر الطولي (ج.م)</label>
-              <input type="number" id="inv_sale_rate" value="95" oninput="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold">
-            </div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">عرض ورق الطباعة (سم)</label>
-              <select id="inv_paper_width" onchange="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold">
-                <option value="152">152 سم — Standard</option>
-                <option value="162">162 سم — Standard</option>
-                <option value="182">182 سم — Standard</option>
-              </select>
-            </div>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">الكمية بالمتر الطولي (متر)</label>
-              <input type="number" id="inv_linear_meters" value="150" oninput="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-black text-indigo-700 text-sm">
-            </div>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">استهلاك الحبر اليدوي (ml)</label>
-              <input type="number" id="inv_ink_ml" value="2500" min="0" oninput="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold text-rose-600">
-            </div>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">هالك ورق محسوب بالتكلفة (متر)</label>
-              <input type="number" id="inv_waste_paper_m" value="0" min="0" step="0.01" oninput="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold text-amber-700">
-            </div>
-            <div class="flex flex-col justify-center bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-              <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
-                <input type="checkbox" id="inv_need_protect_paper" onchange="calcLinearJobInvoice()" checked class="w-4 h-4 text-indigo-600 rounded">
-                <span>استهلاك ورق حماية</span>
-              </label>
-              <span id="protect_paper_display" class="text-[11px] text-teal-700 font-bold mt-1">مطابق للسحب: 150 متر طولي</span><span id="inv_cost_preview" class="text-[11px] text-indigo-700 font-bold mt-1 block"></span>
-            </div>
-          </div>
-
-          <div class="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 space-y-2">
-            <h4 class="font-bold text-indigo-950 flex items-center gap-1.5">
-              <i class="fa-solid fa-list-check text-indigo-600"></i> مسار وحالة تنفيذ الأوردر (يظهر للعميل)
+</div>
+<h2 class="text-2xl font-black text-slate-900 mb-6">أوامر الشغل والفواتير (بالمتر الطولي وحالات التشغيل)</h2>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-xs mb-8">
+<div class="lg:col-span-2 space-y-4">
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-3">
+<input id="edit_order_id" type="hidden" value=""/>
+<div>
+<label class="block font-bold text-slate-600 mb-1">العميل / الشركة</label>
+<select class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold" id="inv_client_select"></select>
+</div>
+<div>
+<label class="block font-bold text-slate-600 mb-1">نوع القماش والتشغيل</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold" id="inv_service_desc" type="text" value="طباعة وكبس ميلتون بوليستر"/>
+</div>
+<div>
+<label class="block font-bold text-slate-600 mb-1">سعر بيع المتر الطولي (ج.م)</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold" id="inv_sale_rate" oninput="calcLinearJobInvoice()" type="number" value="95"/>
+</div>
+</div>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-3">
+<div>
+<label class="block font-bold text-slate-600 mb-1">عرض ورق الطباعة (سم)</label>
+<select class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold" id="inv_paper_width" onchange="calcLinearJobInvoice()">
+<option value="152">152 سم — Standard</option>
+<option value="162">162 سم — Standard</option>
+<option value="182">182 سم — Standard</option>
+</select>
+</div>
+<div>
+<label class="block font-bold text-slate-600 mb-1">الكمية بالمتر الطولي (متر)</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-black text-indigo-700 text-sm" id="inv_linear_meters" oninput="calcLinearJobInvoice()" type="number" value="150"/>
+</div>
+<div>
+<label class="block font-bold text-slate-600 mb-1">استهلاك الحبر اليدوي (ml)</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold text-rose-600" id="inv_ink_ml" min="0" oninput="calcLinearJobInvoice()" type="number" value="2500"/>
+</div>
+<div>
+<label class="block font-bold text-slate-600 mb-1">هالك ورق محسوب بالتكلفة (متر)</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold text-amber-700" id="inv_waste_paper_m" min="0" oninput="calcLinearJobInvoice()" step="0.01" type="number" value="0"/>
+</div>
+<div class="flex flex-col justify-center bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+<label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+<input checked="" class="w-4 h-4 text-indigo-600 rounded" id="inv_need_protect_paper" onchange="calcLinearJobInvoice()" type="checkbox"/>
+<span>استهلاك ورق حماية</span>
+</label>
+<span class="text-[11px] text-teal-700 font-bold mt-1" id="protect_paper_display">مطابق للسحب: 150 متر طولي</span><span class="text-[11px] text-indigo-700 font-bold mt-1 block" id="inv_cost_preview"></span>
+</div>
+</div>
+<div class="bg-indigo-50/70 p-4 rounded-2xl border border-indigo-200 space-y-2">
+<h4 class="font-bold text-indigo-950 flex items-center gap-1.5">
+<i class="fa-solid fa-list-check text-indigo-600"></i> مسار وحالة تنفيذ الأوردر (يظهر للعميل)
             </h4>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
-                <input type="checkbox" id="step_design" checked> <span>1. التصميم</span>
-              </label>
-              <label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
-                <input type="checkbox" id="step_print" checked> <span>2. طباعة الورق</span>
-              </label>
-              <label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
-                <input type="checkbox" id="step_press"> <span>3. كبس القماش</span>
-              </label>
-              <label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
-                <input type="checkbox" id="step_delivered"> <span>4. تم التسليم</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
-          <div class="space-y-3">
-            <h3 class="font-bold text-slate-800 border-b pb-2">سداد الفاتورة وتوزيع الخزائن</h3>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">كاش (يدخل الصندوق)</label>
-              <input type="number" id="inv_pay_cash" value="0" oninput="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2 rounded-lg font-mono">
-            </div>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">إنستاباي</label>
-              <input type="number" id="inv_pay_insta" value="0" oninput="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2 rounded-lg font-mono">
-            </div>
-            <div>
-              <label class="block font-bold text-slate-600 mb-1">فودافون كاش / محفظة</label>
-              <input type="number" id="inv_pay_voda" value="0" oninput="calcLinearJobInvoice()" class="w-full bg-slate-50 border p-2 rounded-lg font-mono">
-            </div>
-            <div class="pt-2 border-t">
-              <label class="block font-bold text-slate-600 mb-1">الخصم (ج.م)</label>
-              <input type="number" id="inv_discount" value="0" min="0" oninput="calcLinearJobInvoice()" class="w-full bg-amber-50 border border-amber-200 p-2 rounded-lg font-mono font-bold text-amber-700">
-            </div>
-            <div class="pt-2 border-t space-y-1">
-              <div class="flex justify-between font-bold text-slate-700"><span>إجمالي الفاتورة:</span><span id="inv_disp_total" class="font-mono text-sm">0 ج.م</span></div>
-              <div class="flex justify-between font-bold text-emerald-600"><span>المسدد:</span><span id="inv_disp_paid" class="font-mono text-sm">0 ج.م</span></div>
-              <div class="flex justify-between font-bold text-rose-600 text-sm border-t pt-1"><span>المتبقي دين:</span><span id="inv_disp_due" class="font-mono font-black">0 ج.م</span></div>
-            </div>
-          </div>
-          <button id="btn_save_order" onclick="commitLinearInvoice()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow transition-colors">
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+<label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
+<input checked="" id="step_design" type="checkbox"/> <span>1. التصميم</span>
+</label>
+<label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
+<input checked="" id="step_print" type="checkbox"/> <span>2. طباعة الورق</span>
+</label>
+<label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
+<input id="step_press" type="checkbox"/> <span>3. كبس القماش</span>
+</label>
+<label class="flex items-center gap-1.5 bg-white p-2 rounded-lg border cursor-pointer font-bold">
+<input id="step_delivered" type="checkbox"/> <span>4. تم التسليم</span>
+</label>
+</div>
+</div>
+</div>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+<div class="space-y-3">
+<h3 class="font-bold text-slate-800 border-b pb-2">سداد الفاتورة وتوزيع الخزائن</h3>
+<div>
+<label class="block font-bold text-slate-600 mb-1">كاش (يدخل الصندوق)</label>
+<input class="w-full bg-slate-50 border p-2 rounded-lg font-mono" id="inv_pay_cash" oninput="calcLinearJobInvoice()" type="number" value="0"/>
+</div>
+<div>
+<label class="block font-bold text-slate-600 mb-1">إنستاباي</label>
+<input class="w-full bg-slate-50 border p-2 rounded-lg font-mono" id="inv_pay_insta" oninput="calcLinearJobInvoice()" type="number" value="0"/>
+</div>
+<div>
+<label class="block font-bold text-slate-600 mb-1">فودافون كاش / محفظة</label>
+<input class="w-full bg-slate-50 border p-2 rounded-lg font-mono" id="inv_pay_voda" oninput="calcLinearJobInvoice()" type="number" value="0"/>
+</div>
+<div class="pt-2 border-t">
+<label class="block font-bold text-slate-600 mb-1">الخصم (ج.م)</label>
+<input class="w-full bg-amber-50 border border-amber-200 p-2 rounded-lg font-mono font-bold text-amber-700" id="inv_discount" min="0" oninput="calcLinearJobInvoice()" type="number" value="0"/>
+</div>
+<div class="pt-2 border-t space-y-1">
+<div class="flex justify-between font-bold text-slate-700"><span>إجمالي الفاتورة:</span><span class="font-mono text-sm" id="inv_disp_total">0 ج.م</span></div>
+<div class="flex justify-between font-bold text-emerald-600"><span>المسدد:</span><span class="font-mono text-sm" id="inv_disp_paid">0 ج.م</span></div>
+<div class="flex justify-between font-bold text-rose-600 text-sm border-t pt-1"><span>المتبقي دين:</span><span class="font-mono font-black" id="inv_disp_due">0 ج.م</span></div>
+</div>
+</div>
+<button class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow transition-colors" id="btn_save_order" onclick="commitLinearInvoice()">
             اعتماد وحفظ الفاتورة
           </button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 text-slate-600 border-b">
-            <tr>
-              <th class="p-3">التاريخ</th>
-              <th class="p-3 font-mono">رقم الأمر</th>
-              <th class="p-3">العميل</th>
-              <th class="p-3 font-mono">عرض الورق</th>
-              <th class="p-3 font-mono">المتر الطولي</th>
-              <th class="p-3 font-mono">ورق الحماية</th>
-              <th class="p-3">حالة الأوردر</th>
-              <th class="p-3 font-mono">الإجمالي</th>
-              <th class="p-3 font-mono text-emerald-600">المسدد</th>
-              <th class="p-3 font-mono font-bold text-rose-600">المتبقي دين</th>
-              <th class="p-3 text-center">تعديل</th>
-              <th class="p-3 text-center">حذف</th>
-            </tr>
-          </thead>
-          <tbody id="orders_table_body" class="divide-y divide-slate-100 font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 3. المصروفات اليومية ==================== -->
-    <div id="page-expenses" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+</div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 text-slate-600 border-b">
+<tr>
+<th class="p-3">التاريخ</th>
+<th class="p-3 font-mono">رقم الأمر</th>
+<th class="p-3">العميل</th>
+<th class="p-3 font-mono">عرض الورق</th>
+<th class="p-3 font-mono">المتر الطولي</th>
+<th class="p-3 font-mono">ورق الحماية</th>
+<th class="p-3">حالة الأوردر</th>
+<th class="p-3 font-mono">الإجمالي</th>
+<th class="p-3 font-mono text-emerald-600">المسدد</th>
+<th class="p-3 font-mono font-bold text-rose-600">المتبقي دين</th>
+<th class="p-3 text-center">تعديل</th>
+<th class="p-3 text-center">حذف</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 font-medium" id="orders_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 3. المصروفات اليومية ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-expenses">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">إدارة المصروفات اليومية والتشغيلية</h2>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
-        <input type="hidden" id="edit_exp_id" value="">
-        <h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل مصروف جديد / تعديل مصروف</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <div>
-            <label class="block font-bold mb-1">التاريخ</label>
-            <input type="date" id="exp_date" value="2026-09-02" class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">المبلغ (ج.م)</label>
-            <input type="number" id="exp_amount" placeholder="المبلغ" class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">البيان (جبنا بيه إيه)</label>
-            <input type="text" id="exp_desc" placeholder="بيان الصرف" class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">الخزينة المخصوم منها</label>
-            <select id="exp_source" class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold">
-              <option value="الصندوق (كاش)">الصندوق (كاش)</option>
-              <option value="إنستاباي">إنستاباي</option>
-              <option value="فودافون كاش">فودافون كاش</option>
-            </select>
-          </div>
-          <div class="flex items-end">
-            <button id="btn_save_exp" onclick="saveExpenseRecord()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg shadow-sm">
+<h2 class="text-2xl font-black text-slate-900 mb-6">إدارة المصروفات اليومية والتشغيلية</h2>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
+<input id="edit_exp_id" type="hidden" value=""/>
+<h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل مصروف جديد / تعديل مصروف</h3>
+<div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+<div>
+<label class="block font-bold mb-1">التاريخ</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold" id="exp_date" type="date" value="2026-09-02"/>
+</div>
+<div>
+<label class="block font-bold mb-1">المبلغ (ج.م)</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-mono font-bold" id="exp_amount" placeholder="المبلغ" type="number"/>
+</div>
+<div>
+<label class="block font-bold mb-1">البيان (جبنا بيه إيه)</label>
+<input class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold" id="exp_desc" placeholder="بيان الصرف" type="text"/>
+</div>
+<div>
+<label class="block font-bold mb-1">الخزينة المخصوم منها</label>
+<select class="w-full bg-slate-50 border p-2.5 rounded-lg font-bold" id="exp_source">
+<option value="الصندوق (كاش)">الصندوق (كاش)</option>
+<option value="إنستاباي">إنستاباي</option>
+<option value="فودافون كاش">فودافون كاش</option>
+</select>
+</div>
+<div class="flex items-end">
+<button class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg shadow-sm" id="btn_save_exp" onclick="saveExpenseRecord()">
               حفظ المصروف
             </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3">التاريخ</th>
-              <th class="p-3">المبلغ</th>
-              <th class="p-3">البيان</th>
-              <th class="p-3">الخزينة</th>
-              <th class="p-3 text-center">تعديل</th>
-              <th class="p-3 text-center">حذف</th>
-            </tr>
-          </thead>
-          <tbody id="expenses_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 4. الشركاء ورأس المال ==================== -->
-    <div id="page-partners" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+</div>
+</div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3">التاريخ</th>
+<th class="p-3">المبلغ</th>
+<th class="p-3">البيان</th>
+<th class="p-3">الخزينة</th>
+<th class="p-3 text-center">تعديل</th>
+<th class="p-3 text-center">حذف</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="expenses_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 4. الشركاء ورأس المال ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-partners">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">إدارة الشركاء، رأس المال، والمسحوبات</h2>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
-        <input type="hidden" id="edit_partner_id" value="">
-        <h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
-          <i class="fa-solid fa-handshake text-emerald-600"></i> تسجيل / تعديل بيانات شريك
+<h2 class="text-2xl font-black text-slate-900 mb-6">إدارة الشركاء، رأس المال، والمسحوبات</h2>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
+<input id="edit_partner_id" type="hidden" value=""/>
+<h3 class="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
+<i class="fa-solid fa-handshake text-emerald-600"></i> تسجيل / تعديل بيانات شريك
         </h3>
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <input type="text" id="part_name" placeholder="اسم الشريك" class="border p-2.5 rounded-lg font-bold">
-          <input type="number" id="part_share" placeholder="النسبة المئوية (%)" class="border p-2.5 rounded-lg font-mono font-bold">
-          <input type="number" id="part_agreed" placeholder="رأس المال المفروض يدفعه" class="border p-2.5 rounded-lg font-mono font-bold">
-          <input type="number" id="part_paid" placeholder="المدفوع الفعلي" class="border p-2.5 rounded-lg font-mono font-bold">
-          <button id="btn_save_partner" onclick="savePartnerRecord()" class="bg-emerald-600 text-white font-bold py-2.5 rounded-lg">حفظ الشريك</button>
-        </div>
-      </div>
-
-      <div class="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 mb-6 text-xs">
-        <h4 class="font-bold text-emerald-950 mb-2">إيداع دفعة رأس مال أو سحب أرباح:</h4>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <select id="part_action_select" class="bg-white border p-2.5 rounded-lg font-bold"></select>
-          <select id="part_action_type" class="bg-white border p-2.5 rounded-lg font-bold">
-            <option value="سحب أرباح">سحب أرباح تحت الحساب (خصم من أرباحه)</option>
-            <option value="دفع دفعة رأس مال">دفع دفعة من رأس المال المتبقي عليه (إيداع بالصندوق)</option>
-          </select>
-          <input type="number" id="part_action_amt" placeholder="المبلغ (ج.م)" class="bg-white border p-2.5 rounded-lg font-mono font-bold">
-          <button onclick="commitPartnerFinanceAction()" class="bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-lg">اعتماد الحركة</button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3.5">الشريك</th>
-              <th class="p-3.5 font-mono">النسبة</th>
-              <th class="p-3.5 font-mono">المتفق عليه</th>
-              <th class="p-3.5 font-mono text-emerald-700">المدفوع</th>
-              <th class="p-3.5 font-mono text-rose-600">المتبقي عليه</th>
-              <th class="p-3.5 font-mono text-indigo-700">نصيبه من الأرباح</th>
-              <th class="p-3.5 font-mono text-rose-500">المسحوبات</th>
-              <th class="p-3.5 font-mono font-black text-emerald-600">صافي ربحه المتبقي</th>
-              <th class="p-3.5 text-center">تعديل</th>
-              <th class="p-3.5 text-center">حذف</th>
-            </tr>
-          </thead>
-          <tbody id="partners_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 5. المعدات والماكينات ==================== -->
-    <div id="page-assets_management" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+<div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+<input class="border p-2.5 rounded-lg font-bold" id="part_name" placeholder="اسم الشريك" type="text"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="part_share" placeholder="النسبة المئوية (%)" type="number"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="part_agreed" placeholder="رأس المال المفروض يدفعه" type="number"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="part_paid" placeholder="المدفوع الفعلي" type="number"/>
+<button class="bg-emerald-600 text-white font-bold py-2.5 rounded-lg" id="btn_save_partner" onclick="savePartnerRecord()">حفظ الشريك</button>
+</div>
+</div>
+<div class="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 mb-6 text-xs">
+<h4 class="font-bold text-emerald-950 mb-2">إيداع دفعة رأس مال أو سحب أرباح:</h4>
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+<select class="bg-white border p-2.5 rounded-lg font-bold" id="part_action_select"></select>
+<select class="bg-white border p-2.5 rounded-lg font-bold" id="part_action_type">
+<option value="سحب أرباح">سحب أرباح تحت الحساب (خصم من أرباحه)</option>
+<option value="دفع دفعة رأس مال">دفع دفعة من رأس المال المتبقي عليه (إيداع بالصندوق)</option>
+</select>
+<input class="bg-white border p-2.5 rounded-lg font-mono font-bold" id="part_action_amt" placeholder="المبلغ (ج.م)" type="number"/>
+<button class="bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-lg" onclick="commitPartnerFinanceAction()">اعتماد الحركة</button>
+</div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3.5">الشريك</th>
+<th class="p-3.5 font-mono">النسبة</th>
+<th class="p-3.5 font-mono">المتفق عليه</th>
+<th class="p-3.5 font-mono text-emerald-700">المدفوع</th>
+<th class="p-3.5 font-mono text-rose-600">المتبقي عليه</th>
+<th class="p-3.5 font-mono text-indigo-700">نصيبه من الأرباح</th>
+<th class="p-3.5 font-mono text-rose-500">المسحوبات</th>
+<th class="p-3.5 font-mono font-black text-emerald-600">صافي ربحه المتبقي</th>
+<th class="p-3.5 text-center">تعديل</th>
+<th class="p-3.5 text-center">حذف</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="partners_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 5. المعدات والماكينات ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-assets_management">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">المعدات وأقساط الماكينات</h2>
-
-      <div class="bg-white p-5 rounded-2xl border mb-6 text-xs">
-        <input type="hidden" id="edit_asset_id" value="">
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <input type="text" id="asset_name" placeholder="اسم الماكينة" class="border p-2.5 rounded-lg font-bold">
-          <input type="number" id="asset_price" placeholder="سعر الماكينة" class="border p-2.5 rounded-lg font-mono">
-          <input type="number" id="asset_paid" placeholder="المدفوع مقدماً" class="border p-2.5 rounded-lg font-mono">
-          <select id="asset_pay_source" class="border p-2.5 rounded-lg font-bold">
-            <option value="الصندوق (كاش)">دفع من: الصندوق (كاش)</option>
-            <option value="إنستاباي">دفع من: إنستاباي</option>
-            <option value="فودافون كاش">دفع من: فودافون كاش</option>
-            <option value="بدون خصم">بدون خصم من الخزينة (تسجيل فقط)</option>
-          </select>
-          <button id="btn_save_asset" onclick="saveAssetRecord()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-lg">حفظ الماكينة</button>
-        </div>
-      </div>
-
-      <div id="assets_list_container" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs"></div>
-    </div>
-
-    <!-- ==================== 6. شحن عدادات الكهرباء ==================== -->
-    <div id="page-electricity" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+<h2 class="text-2xl font-black text-slate-900 mb-6">المعدات وأقساط الماكينات</h2>
+<div class="bg-white p-5 rounded-2xl border mb-6 text-xs">
+<input id="edit_asset_id" type="hidden" value=""/>
+<div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+<input class="border p-2.5 rounded-lg font-bold" id="asset_name" placeholder="اسم الماكينة" type="text"/>
+<input class="border p-2.5 rounded-lg font-mono" id="asset_price" placeholder="سعر الماكينة" type="number"/>
+<input class="border p-2.5 rounded-lg font-mono" id="asset_paid" placeholder="المدفوع مقدماً" type="number"/>
+<select class="border p-2.5 rounded-lg font-bold" id="asset_pay_source">
+<option value="الصندوق (كاش)">دفع من: الصندوق (كاش)</option>
+<option value="إنستاباي">دفع من: إنستاباي</option>
+<option value="فودافون كاش">دفع من: فودافون كاش</option>
+<option value="بدون خصم">بدون خصم من الخزينة (تسجيل فقط)</option>
+</select>
+<button class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-lg" id="btn_save_asset" onclick="saveAssetRecord()">حفظ الماكينة</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs" id="assets_list_container"></div>
+</div>
+<!-- ==================== 6. شحن عدادات الكهرباء ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-electricity">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">شحن عدادات الكهرباء واستهلاك الطاقة</h2>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
-        <input type="hidden" id="edit_elec_id" value="">
-        <h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل شحنة كارت جديدة / تعديل شحنة</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <input type="text" id="elec_location" placeholder="مكان العداد (مثال: عداد الكالندر)" class="border p-2.5 rounded-lg font-bold">
-          <input type="number" id="elec_amount" placeholder="المبلغ (ج.م)" class="border p-2.5 rounded-lg font-mono font-bold text-yellow-700">
-          <input type="date" id="elec_date" value="2026-09-02" class="border p-2.5 rounded-lg font-bold">
-          <select id="elec_source" class="border p-2.5 rounded-lg font-bold">
-            <option value="الصندوق (كاش)">الصندوق (كاش)</option>
-            <option value="إنستاباي">إنستاباي</option>
-            <option value="فودافون كاش">فودافون كاش</option>
-          </select>
-          <button id="btn_save_elec" onclick="saveElectricityRecord()" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2.5 rounded-lg shadow-sm">حفظ الشحنة</button>
-        </div>
-      </div>
-
-      <div class="bg-yellow-50/70 p-4 rounded-2xl border border-yellow-200 mb-6 text-xs flex flex-wrap items-center gap-3">
-        <span class="font-bold text-yellow-950">فلترة الشحنات بالفترة:</span>
-        <span>من:</span><input type="date" id="elec_from_date" class="bg-white border p-1.5 rounded-lg font-bold">
-        <span>إلى:</span><input type="date" id="elec_to_date" class="bg-white border p-1.5 rounded-lg font-bold">
-        <button onclick="renderElectricityTable()" class="bg-slate-900 text-white font-bold px-4 py-1.5 rounded-lg">تطبيق الفلترة</button>
-        <button onclick="document.getElementById('elec_from_date').value='';document.getElementById('elec_to_date').value='';renderElectricityTable();" class="bg-slate-200 text-slate-700 font-bold px-4 py-1.5 rounded-lg">إلغاء الفلترة</button>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3.5">التاريخ</th>
-              <th class="p-3.5">مكان العداد</th>
-              <th class="p-3.5 font-mono">المبلغ</th>
-              <th class="p-3.5">الخزينة المخصوم منها</th>
-              <th class="p-3.5 text-center">تعديل</th>
-              <th class="p-3.5 text-center">مسح (حذف)</th>
-            </tr>
-          </thead>
-          <tbody id="elec_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 7. التقارير المالية وصافي الأرباح ==================== -->
-    <div id="page-reports" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+<h2 class="text-2xl font-black text-slate-900 mb-6">شحن عدادات الكهرباء واستهلاك الطاقة</h2>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
+<input id="edit_elec_id" type="hidden" value=""/>
+<h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل شحنة كارت جديدة / تعديل شحنة</h3>
+<div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+<input class="border p-2.5 rounded-lg font-bold" id="elec_location" placeholder="مكان العداد (مثال: عداد الكالندر)" type="text"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold text-yellow-700" id="elec_amount" placeholder="المبلغ (ج.م)" type="number"/>
+<input class="border p-2.5 rounded-lg font-bold" id="elec_date" type="date" value="2026-09-02"/>
+<select class="border p-2.5 rounded-lg font-bold" id="elec_source">
+<option value="الصندوق (كاش)">الصندوق (كاش)</option>
+<option value="إنستاباي">إنستاباي</option>
+<option value="فودافون كاش">فودافون كاش</option>
+</select>
+<button class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2.5 rounded-lg shadow-sm" id="btn_save_elec" onclick="saveElectricityRecord()">حفظ الشحنة</button>
+</div>
+</div>
+<div class="bg-yellow-50/70 p-4 rounded-2xl border border-yellow-200 mb-6 text-xs flex flex-wrap items-center gap-3">
+<span class="font-bold text-yellow-950">فلترة الشحنات بالفترة:</span>
+<span>من:</span><input class="bg-white border p-1.5 rounded-lg font-bold" id="elec_from_date" type="date"/>
+<span>إلى:</span><input class="bg-white border p-1.5 rounded-lg font-bold" id="elec_to_date" type="date"/>
+<button class="bg-slate-900 text-white font-bold px-4 py-1.5 rounded-lg" onclick="renderElectricityTable()">تطبيق الفلترة</button>
+<button class="bg-slate-200 text-slate-700 font-bold px-4 py-1.5 rounded-lg" onclick="document.getElementById('elec_from_date').value='';document.getElementById('elec_to_date').value='';renderElectricityTable();">إلغاء الفلترة</button>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3.5">التاريخ</th>
+<th class="p-3.5">مكان العداد</th>
+<th class="p-3.5 font-mono">المبلغ</th>
+<th class="p-3.5">الخزينة المخصوم منها</th>
+<th class="p-3.5 text-center">تعديل</th>
+<th class="p-3.5 text-center">مسح (حذف)</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="elec_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 7. التقارير المالية وصافي الأرباح ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-reports">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-black text-slate-900">التقرير المالي وصافي الأرباح (بعد خصم كافة الخوارج)</h2>
-        <button onclick="printNetFinancialReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm">
-          <i class="fa-solid fa-print ml-1"></i> طباعة التقرير المالي المعتمد
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-2xl font-black text-slate-900">التقرير المالي وصافي الأرباح (بعد خصم كافة الخوارج)</h2>
+<button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm" onclick="printNetFinancialReport()">
+<i class="fa-solid fa-print ml-1"></i> طباعة التقرير المالي المعتمد
         </button>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-xs font-bold">
-        <div class="bg-white p-4 rounded-2xl border shadow-sm"><span class="text-slate-400 block mb-1">المبيعات الإجمالية</span><p id="fin_sales" class="text-xl font-black font-mono">0 ج.م</p></div>
-        <div class="bg-white p-4 rounded-2xl border shadow-sm"><span class="text-rose-500 block mb-1">إجمالي الخوارج (خامات + مصاريف + كهرباء + رواتب)</span><p id="fin_expenses" class="text-xl font-black font-mono text-rose-600">0 ج.م</p></div>
-        <div class="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl shadow-sm"><span class="text-emerald-800 block mb-1">صافي الربح الفعلي الحقيقي</span><p id="fin_net_profit" class="text-xl font-black font-mono text-emerald-700">0 ج.م</p></div>
-        <div class="bg-white p-4 rounded-2xl border shadow-sm"><span class="text-rose-600 block mb-1">دين بالسوق (لم يحصل بعد)</span><p id="fin_uncollected" class="text-xl font-black font-mono text-rose-700">0 ج.م</p></div>
-      </div>
-
-      <div class="bg-slate-900 text-white p-5 rounded-2xl mb-6 shadow-sm">
-        <div class="flex flex-wrap items-end justify-between gap-4">
-          <div><h3 class="font-black text-lg">تقفيل الخزينة والأرباح</h3><p class="text-slate-300 text-[11px] mt-1">التقفيل لا يضيف رأس المال كربح؛ الأرباح تحسب من النشاط بعد التكاليف، وسحب الشركاء يظهر كسحب أرباح.</p></div>
-          <div class="flex flex-wrap gap-2 text-xs">
-            <div class="bg-white/10 rounded-xl p-3">إجمالي الخزائن<br><b id="fin_total_treasury" class="text-base">0 ج.م</b></div>
-            <div class="bg-white/10 rounded-xl p-3">الصندوق<br><b id="fin_cash_balance" class="text-base">0 ج.م</b></div>
-            <div class="bg-white/10 rounded-xl p-3">إنستاباي<br><b id="fin_insta_balance" class="text-base">0 ج.م</b></div>
-            <div class="bg-white/10 rounded-xl p-3">فودافون كاش<br><b id="fin_voda_balance" class="text-base">0 ج.م</b></div>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4 text-slate-900">
-          <div><label class="block text-white font-bold mb-1">رصيد الصندوق الفعلي المعدود</label><input type="number" id="cash_counted" class="w-full p-2.5 rounded-lg" placeholder="عدّ الكاش فعلياً"></div>
-          <div class="bg-white/10 text-white rounded-xl p-3"><span class="text-slate-300">فرق الصندوق</span><b id="cash_difference" class="block text-lg">0 ج.م</b></div>
-          <div><label class="block text-white font-bold mb-1">ملاحظات التقفيل</label><input type="text" id="cash_close_note" class="w-full p-2.5 rounded-lg" placeholder="مثال: مطابق للموجود"></div>
-          <button onclick="closeTreasury()" class="bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl px-4 py-2.5">اعتماد تقفيل الخزينة</button>
-        </div>
-        <div class="mt-4 bg-white/10 rounded-xl p-3 text-xs">
-          <div class="flex flex-wrap gap-4">
-            <span>إجمالي الأرباح القابلة للتوزيع: <b id="fin_distributable_profit">0 ج.م</b></span>
-            <span>إجمالي سحوبات الأرباح: <b id="fin_partner_withdrawals">0 ج.م</b></span>
-            <span>المتبقي للشركاء حسب النسب: <b id="fin_partner_profit_remaining">0 ج.م</b></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-2xl border shadow-sm mb-6 text-xs">
-        <div class="flex flex-wrap items-end gap-3">
-          <div><label class="block font-bold mb-1">تقرير العامل</label><select id="att_report_emp" class="border p-2.5 rounded-lg font-bold"></select></div>
-          <div><label class="block font-bold mb-1">من</label><input type="date" id="att_report_from" class="border p-2.5 rounded-lg"></div>
-          <div><label class="block font-bold mb-1">إلى</label><input type="date" id="att_report_to" class="border p-2.5 rounded-lg"></div>
-          <button onclick="showEmployeeAttendanceReport()" class="bg-teal-700 text-white font-bold px-5 py-2.5 rounded-lg">عرض تقرير العامل</button>
-          <button onclick="printEmployeeAttendanceReport()" class="bg-slate-900 text-white font-bold px-5 py-2.5 rounded-lg">طباعة</button>
-        </div>
-        <div id="employee_att_report" class="mt-4"></div>
-      </div>
-
-      <div class="bg-white rounded-2xl border overflow-hidden text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3">التاريخ</th>
-              <th class="p-3">الأمر</th>
-              <th class="p-3">العميل</th>
-              <th class="p-3 font-mono">المتر الطولي</th>
-              <th class="p-3 font-mono">قيمة البيع</th>
-              <th class="p-3 font-mono text-emerald-600">صافي الربح</th>
-              <th class="p-3 font-mono">المسدد</th>
-              <th class="p-3 font-mono text-rose-600">المتبقي دين</th>
-            </tr>
-          </thead>
-          <tbody id="reports_orders_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 8. العملاء وكشوف الحسابات ==================== -->
-    <div id="page-clients" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-xs font-bold">
+<div class="bg-white p-4 rounded-2xl border shadow-sm"><span class="text-slate-400 block mb-1">المبيعات الإجمالية</span><p class="text-xl font-black font-mono" id="fin_sales">0 ج.م</p></div>
+<div class="bg-white p-4 rounded-2xl border shadow-sm"><span class="text-rose-500 block mb-1">إجمالي الخوارج (خامات + مصاريف + كهرباء + رواتب)</span><p class="text-xl font-black font-mono text-rose-600" id="fin_expenses">0 ج.م</p></div>
+<div class="bg-emerald-50 border border-emerald-300 p-4 rounded-2xl shadow-sm"><span class="text-emerald-800 block mb-1">صافي الربح الفعلي الحقيقي</span><p class="text-xl font-black font-mono text-emerald-700" id="fin_net_profit">0 ج.م</p></div>
+<div class="bg-white p-4 rounded-2xl border shadow-sm"><span class="text-rose-600 block mb-1">دين بالسوق (لم يحصل بعد)</span><p class="text-xl font-black font-mono text-rose-700" id="fin_uncollected">0 ج.م</p></div>
+</div>
+<div class="bg-slate-900 text-white p-5 rounded-2xl mb-6 shadow-sm">
+<div class="flex flex-wrap items-end justify-between gap-4">
+<div><h3 class="font-black text-lg">تقفيل الخزينة والأرباح</h3><p class="text-slate-300 text-[11px] mt-1">التقفيل لا يضيف رأس المال كربح؛ الأرباح تحسب من النشاط بعد التكاليف، وسحب الشركاء يظهر كسحب أرباح.</p></div>
+<div class="flex flex-wrap gap-2 text-xs">
+<div class="bg-white/10 rounded-xl p-3">إجمالي الخزائن<br/><b class="text-base" id="fin_total_treasury">0 ج.م</b></div>
+<div class="bg-white/10 rounded-xl p-3">الصندوق<br/><b class="text-base" id="fin_cash_balance">0 ج.م</b></div>
+<div class="bg-white/10 rounded-xl p-3">إنستاباي<br/><b class="text-base" id="fin_insta_balance">0 ج.م</b></div>
+<div class="bg-white/10 rounded-xl p-3">فودافون كاش<br/><b class="text-base" id="fin_voda_balance">0 ج.م</b></div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4 text-slate-900">
+<div><label class="block text-white font-bold mb-1">رصيد الصندوق الفعلي المعدود</label><input class="w-full p-2.5 rounded-lg" id="cash_counted" placeholder="عدّ الكاش فعلياً" type="number"/></div>
+<div class="bg-white/10 text-white rounded-xl p-3"><span class="text-slate-300">فرق الصندوق</span><b class="block text-lg" id="cash_difference">0 ج.م</b></div>
+<div><label class="block text-white font-bold mb-1">ملاحظات التقفيل</label><input class="w-full p-2.5 rounded-lg" id="cash_close_note" placeholder="مثال: مطابق للموجود" type="text"/></div>
+<button class="bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-xl px-4 py-2.5" onclick="closeTreasury()">اعتماد تقفيل الخزينة</button>
+</div>
+<div class="mt-4 bg-white/10 rounded-xl p-3 text-xs">
+<div class="flex flex-wrap gap-4">
+<span>إجمالي الأرباح القابلة للتوزيع: <b id="fin_distributable_profit">0 ج.م</b></span>
+<span>إجمالي سحوبات الأرباح: <b id="fin_partner_withdrawals">0 ج.م</b></span>
+<span>المتبقي للشركاء حسب النسب: <b id="fin_partner_profit_remaining">0 ج.م</b></span>
+</div>
+</div>
+</div>
+<div class="bg-white p-4 rounded-2xl border shadow-sm mb-6 text-xs">
+<div class="flex flex-wrap items-end gap-3">
+<div><label class="block font-bold mb-1">تقرير العامل</label><select class="border p-2.5 rounded-lg font-bold" id="att_report_emp"></select></div>
+<div><label class="block font-bold mb-1">من</label><input class="border p-2.5 rounded-lg" id="att_report_from" type="date"/></div>
+<div><label class="block font-bold mb-1">إلى</label><input class="border p-2.5 rounded-lg" id="att_report_to" type="date"/></div>
+<button class="bg-teal-700 text-white font-bold px-5 py-2.5 rounded-lg" onclick="showEmployeeAttendanceReport()">عرض تقرير العامل</button>
+<button class="bg-slate-900 text-white font-bold px-5 py-2.5 rounded-lg" onclick="printEmployeeAttendanceReport()">طباعة</button>
+</div>
+<div class="mt-4" id="employee_att_report"></div>
+</div>
+<div class="bg-white rounded-2xl border overflow-hidden text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3">التاريخ</th>
+<th class="p-3">الأمر</th>
+<th class="p-3">العميل</th>
+<th class="p-3 font-mono">المتر الطولي</th>
+<th class="p-3 font-mono">قيمة البيع</th>
+<th class="p-3 font-mono text-emerald-600">صافي الربح</th>
+<th class="p-3 font-mono">المسدد</th>
+<th class="p-3 font-mono text-rose-600">المتبقي دين</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="reports_orders_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 8. العملاء وكشوف الحسابات ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-clients">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">سجل العملاء والشركات</h2>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
-        <input type="hidden" id="edit_cli_id" value="">
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <input type="text" id="new_cli_name" placeholder="اسم العميل أو المؤسسة" class="border p-2.5 rounded-lg font-bold">
-          <input type="text" id="new_cli_code" placeholder="الكود (CL-101)" class="border p-2.5 rounded-lg font-mono font-bold">
-          <input type="text" id="new_cli_phone" placeholder="رقم الهاتف" class="border p-2.5 rounded-lg font-mono">
-          <button id="btn_save_cli" onclick="addNewClientRecord()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-lg shadow-sm">حفظ العميل</button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3.5">الكود</th>
-              <th class="p-3.5">الاسم</th>
-              <th class="p-3.5">الهاتف</th>
-              <th class="p-3.5">المديونية</th>
-              <th class="p-3.5 text-center">كشف الحساب المفصل</th>
-              <th class="p-3.5 text-center">تعديل</th>
-              <th class="p-3.5 text-center">حذف</th>
-            </tr>
-          </thead>
-          <tbody id="clients_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 9. الحضور والغياب اليومي ==================== -->
-    <div id="page-daily_attendance" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+<h2 class="text-2xl font-black text-slate-900 mb-6">سجل العملاء والشركات</h2>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
+<input id="edit_cli_id" type="hidden" value=""/>
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+<input class="border p-2.5 rounded-lg font-bold" id="new_cli_name" placeholder="اسم العميل أو المؤسسة" type="text"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="new_cli_code" placeholder="الكود (CL-101)" type="text"/>
+<input class="border p-2.5 rounded-lg font-mono" id="new_cli_phone" placeholder="رقم الهاتف" type="text"/>
+<button class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-lg shadow-sm" id="btn_save_cli" onclick="addNewClientRecord()">حفظ العميل</button>
+</div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3.5">الكود</th>
+<th class="p-3.5">الاسم</th>
+<th class="p-3.5">الهاتف</th>
+<th class="p-3.5">المديونية</th>
+<th class="p-3.5 text-center">كشف الحساب المفصل</th>
+<th class="p-3.5 text-center">تعديل</th>
+<th class="p-3.5 text-center">حذف</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="clients_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 9. الحضور والغياب اليومي ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-daily_attendance">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">دفتر الحضور والغياب اليومي والتقارير</h2>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
-        <input type="hidden" id="edit_att_id" value="">
-        <h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل يومية جديدة / تعديل حضور عامل</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <input type="date" id="att_date" value="2026-09-02" class="border p-2.5 rounded-lg font-bold">
-          <select id="att_emp_select" class="border p-2.5 rounded-lg font-bold"></select>
-          <select id="att_status" class="border p-2.5 rounded-lg font-bold">
-            <option value="حاضر">حاضر (يوم كامل)</option>
-            <option value="تأخير">تأخير</option>
-            <option value="إجازة بإذن">إجازة بإذن</option>
-            <option value="غائب بدون إذن">غائب بدون إذن</option>
-          </select>
-          <input type="number" id="att_late_min" value="0" placeholder="دقائق التأخير" class="border p-2.5 rounded-lg font-mono">
-          <input type="number" id="att_ot" value="0" step="0.5" placeholder="ساعات إضافي" class="border p-2.5 rounded-lg font-mono font-bold">
-        </div>
-        <button id="btn_save_att" onclick="recordAttendance()" class="mt-3 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-sm">حفظ اليومية</button>
-      </div>
-
-      <div class="bg-teal-50/70 p-4 rounded-2xl border border-teal-200 mb-6 text-xs flex flex-wrap items-center gap-3">
-        <span class="font-bold text-teal-950">فلترة تقرير الحضور بالمدة:</span>
-        <span>من:</span><input type="date" id="att_filter_from" class="bg-white border p-1.5 rounded-lg font-bold">
-        <span>إلى:</span><input type="date" id="att_filter_to" class="bg-white border p-1.5 rounded-lg font-bold">
-        <button onclick="renderAttendanceLog()" class="bg-teal-700 text-white font-bold px-4 py-1.5 rounded-lg">تطبيق الفلترة</button>
-        <button onclick="document.getElementById('att_filter_from').value='';document.getElementById('att_filter_to').value='';renderAttendanceLog();" class="bg-slate-200 text-slate-700 font-bold px-4 py-1.5 rounded-lg">إلغاء الفلترة</button>
-      </div>
-
-      <div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm mb-6 text-xs">
-        <h3 class="font-black text-slate-800 mb-3">تقرير تفصيلي باسم العامل</h3>
-        <div class="flex flex-wrap items-end gap-3">
-          <div><label class="block font-bold mb-1">العامل</label><select id="att_report_emp_page" class="border p-2.5 rounded-lg font-bold"></select></div>
-          <div><label class="block font-bold mb-1">من</label><input type="date" id="att_report_from_page" class="border p-2.5 rounded-lg"></div>
-          <div><label class="block font-bold mb-1">إلى</label><input type="date" id="att_report_to_page" class="border p-2.5 rounded-lg"></div>
-          <button onclick="showEmployeeAttendanceReportPage()" class="bg-teal-700 text-white font-bold px-5 py-2.5 rounded-lg">عرض التقرير</button>
-          <button onclick="printEmployeeAttendanceReportPage()" class="bg-slate-900 text-white font-bold px-5 py-2.5 rounded-lg">طباعة</button>
-        </div>
-        <div id="employee_att_report_page" class="mt-4"></div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3">التاريخ</th>
-              <th class="p-3">العامل</th>
-              <th class="p-3">الحالة</th>
-              <th class="p-3">دقائق التأخير</th>
-              <th class="p-3 font-mono">الإضافي</th>
-              <th class="p-3 text-center">تعديل</th>
-              <th class="p-3 text-center">مسح</th>
-            </tr>
-          </thead>
-          <tbody id="attendance_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 10. العمالة وشيت الرواتب المباشر مع شريط المجاميع ==================== -->
-    
-    <!-- ==================== 10. شيت التقفيل الأسبوعي الجديد ==================== -->
-    <div id="page-weekly_hr" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+<h2 class="text-2xl font-black text-slate-900 mb-6">دفتر الحضور والغياب اليومي والتقارير</h2>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
+<input id="edit_att_id" type="hidden" value=""/>
+<h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل يومية جديدة / تعديل حضور عامل</h3>
+<div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+<input class="border p-2.5 rounded-lg font-bold" id="att_date" type="date" value="2026-09-02"/>
+<select class="border p-2.5 rounded-lg font-bold" id="att_emp_select"></select>
+<select class="border p-2.5 rounded-lg font-bold" id="att_status">
+<option value="حاضر">حاضر (يوم كامل)</option>
+<option value="تأخير">تأخير</option>
+<option value="إجازة بإذن">إجازة بإذن</option>
+<option value="غائب بدون إذن">غائب بدون إذن</option>
+</select>
+<input class="border p-2.5 rounded-lg font-mono" id="att_late_min" placeholder="دقائق التأخير" type="number" value="0"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="att_ot" placeholder="ساعات إضافي" step="0.5" type="number" value="0"/>
+</div>
+<button class="mt-3 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-sm" id="btn_save_att" onclick="recordAttendance()">حفظ اليومية</button>
+</div>
+<div class="bg-teal-50/70 p-4 rounded-2xl border border-teal-200 mb-6 text-xs flex flex-wrap items-center gap-3">
+<span class="font-bold text-teal-950">فلترة تقرير الحضور بالمدة:</span>
+<span>من:</span><input class="bg-white border p-1.5 rounded-lg font-bold" id="att_filter_from" type="date"/>
+<span>إلى:</span><input class="bg-white border p-1.5 rounded-lg font-bold" id="att_filter_to" type="date"/>
+<button class="bg-teal-700 text-white font-bold px-4 py-1.5 rounded-lg" onclick="renderAttendanceLog()">تطبيق الفلترة</button>
+<button class="bg-slate-200 text-slate-700 font-bold px-4 py-1.5 rounded-lg" onclick="document.getElementById('att_filter_from').value='';document.getElementById('att_filter_to').value='';renderAttendanceLog();">إلغاء الفلترة</button>
+</div>
+<div class="bg-white p-4 rounded-2xl border border-teal-200 shadow-sm mb-6 text-xs">
+<h3 class="font-black text-slate-800 mb-3">تقرير تفصيلي باسم العامل</h3>
+<div class="flex flex-wrap items-end gap-3">
+<div><label class="block font-bold mb-1">العامل</label><select class="border p-2.5 rounded-lg font-bold" id="att_report_emp_page"></select></div>
+<div><label class="block font-bold mb-1">من</label><input class="border p-2.5 rounded-lg" id="att_report_from_page" type="date"/></div>
+<div><label class="block font-bold mb-1">إلى</label><input class="border p-2.5 rounded-lg" id="att_report_to_page" type="date"/></div>
+<button class="bg-teal-700 text-white font-bold px-5 py-2.5 rounded-lg" onclick="showEmployeeAttendanceReportPage()">عرض التقرير</button>
+<button class="bg-slate-900 text-white font-bold px-5 py-2.5 rounded-lg" onclick="printEmployeeAttendanceReportPage()">طباعة</button>
+</div>
+<div class="mt-4" id="employee_att_report_page"></div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3">التاريخ</th>
+<th class="p-3">العامل</th>
+<th class="p-3">الحالة</th>
+<th class="p-3">دقائق التأخير</th>
+<th class="p-3 font-mono">الإضافي</th>
+<th class="p-3 text-center">تعديل</th>
+<th class="p-3 text-center">مسح</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="attendance_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 10. العمالة وشيت الرواتب المباشر مع شريط المجاميع ==================== -->
+<!-- ==================== 10. شيت التقفيل الأسبوعي الجديد ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-weekly_hr">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div>
-          <h2 class="text-2xl font-black text-slate-900">شيت التقفيل الأسبوعي للرواتب، السُلف وبدلات الإجازات</h2>
-          <p id="payroll_week_label_clean" class="text-xs text-slate-500 mt-1">الأسبوع: السبت → الخميس — الجمعة راحة أسبوعية</p>
-        </div>
-        <button type="button" onclick="printPayrollClean()" class="bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl">
-          <i class="fa-solid fa-print ml-1"></i> طباعة شيت الرواتب
+<div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+<div>
+<h2 class="text-2xl font-black text-slate-900">شيت التقفيل الأسبوعي للرواتب، السُلف وبدلات الإجازات</h2>
+<p class="text-xs text-slate-500 mt-1" id="payroll_week_label_clean">الأسبوع: السبت → الخميس — الجمعة راحة أسبوعية</p>
+</div>
+<button class="bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl" onclick="printPayrollClean()" type="button">
+<i class="fa-solid fa-print ml-1"></i> طباعة شيت الرواتب
         </button>
-      </div>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-5">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end text-xs">
-          <label class="font-bold">
+</div>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-5">
+<div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end text-xs">
+<label class="font-bold">
             بداية أسبوع المرتب
-            <input type="date" id="payroll_week_start_clean" class="w-full border p-2.5 rounded-lg mt-1">
-          </label>
-          <label class="font-bold">
+            <input class="w-full border p-2.5 rounded-lg mt-1" id="payroll_week_start_clean" type="date"/>
+</label>
+<label class="font-bold">
             كشف عامل محدد
-            <select id="payroll_report_emp_clean" class="w-full border p-2.5 rounded-lg mt-1"></select>
-          </label>
-          <button type="button" id="payroll_refresh_clean" class="bg-indigo-600 text-white font-black px-4 py-2.5 rounded-lg">تحديث الحساب</button>
-          <button type="button" id="payroll_report_clean_btn" class="bg-white border border-indigo-200 text-indigo-700 font-black px-4 py-2.5 rounded-lg">تقرير العامل</button>
-          <button type="button" id="payroll_close_all_clean" class="bg-emerald-600 text-white font-black px-4 py-2.5 rounded-lg">تقفيل الأسبوع</button>
-        </div>
-        <div id="payroll_clean_status" class="text-[11px] text-slate-500 mt-3"></div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
-        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl">
-          <span class="text-xs font-bold text-indigo-900">إجمالي المستحق</span>
-          <div id="payroll_total_due_clean" class="text-2xl font-black text-indigo-700 mt-1">0 ج.م</div>
-        </div>
-        <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl">
-          <span class="text-xs font-bold text-emerald-900">إجمالي المدفوع فعليًا</span>
-          <div id="payroll_total_paid_clean" class="text-2xl font-black text-emerald-700 mt-1">0 ج.م</div>
-        </div>
-        <div class="bg-rose-50 border border-rose-200 p-4 rounded-2xl">
-          <span class="text-xs font-bold text-rose-900">إجمالي المتبقي</span>
-          <div id="payroll_total_remain_clean" class="text-2xl font-black text-rose-700 mt-1">0 ج.م</div>
-        </div>
-        <div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-          <span class="text-xs font-bold text-slate-700">عدد العمال</span>
-          <div id="payroll_workers_clean" class="text-2xl font-black text-slate-900 mt-1">0</div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-auto shadow-sm">
-        <table class="w-full text-right text-xs" style="min-width:1500px">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3">اسم العامل</th>
-              <th class="p-3">الأساسي الأسبوعي</th>
-              <th class="p-3">أيام الحضور</th>
-              <th class="p-3">التأخير</th>
-              <th class="p-3">الإضافي</th>
-              <th class="p-3">بدل الإجازة</th>
-              <th class="p-3">السُلف</th>
-              <th class="p-3">خصومات أخرى</th>
-              <th class="p-3">إجمالي قبل الخصم</th>
-              <th class="p-3 text-indigo-700">المستحق</th>
-              <th class="p-3">المدفوع</th>
-              <th class="p-3">المتبقي / الزيادة</th>
-              <th class="p-3">الحالة</th>
-              <th class="p-3">إجراء</th>
-            </tr>
-          </thead>
-          <tbody id="weekly_hr_table_body_clean" class="divide-y"></tbody>
-        </table>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm mt-5 p-5">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div>
-            <h3 class="font-black text-lg">أرشيف التقفيلات الأسبوعية</h3>
-            <p class="text-[11px] text-slate-500">الأسبوع المقفول يصبح Snapshot مستقل؛ لا يتغير بتعديل حضور الأسبوع الجديد.</p>
-          </div>
-          <button type="button" id="payroll_archive_refresh_clean" class="bg-slate-100 px-3 py-2 rounded-lg text-xs font-bold">تحديث الأرشيف</button>
-        </div>
-        <div class="overflow-auto">
-          <table class="w-full text-xs" style="min-width:900px">
-            <thead class="bg-slate-100">
-              <tr>
-                <th class="p-3">الفترة</th><th class="p-3">العامل</th><th class="p-3">الحضور</th><th class="p-3">التأخير</th>
-                <th class="p-3">الإضافي</th><th class="p-3">المستحق</th><th class="p-3">المدفوع</th><th class="p-3">المتبقي</th><th class="p-3">طباعة</th>
-              </tr>
-            </thead>
-            <tbody id="payroll_archive_body_clean"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="payroll_employee_report_clean" class="hidden bg-white border border-indigo-200 rounded-2xl p-5 mt-5"></div>
-    </div>
-
-    <!-- ==================== 11. خط الكبس وسحب القماش من المخزن ==================== -->
-    <div id="page-calender_press" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+            <select class="w-full border p-2.5 rounded-lg mt-1" id="payroll_report_emp_clean"></select>
+</label>
+<button class="bg-indigo-600 text-white font-black px-4 py-2.5 rounded-lg" id="payroll_refresh_clean" type="button">تحديث الحساب</button>
+<button class="bg-white border border-indigo-200 text-indigo-700 font-black px-4 py-2.5 rounded-lg" id="payroll_report_clean_btn" type="button">تقرير العامل</button>
+<button class="bg-emerald-600 text-white font-black px-4 py-2.5 rounded-lg" id="payroll_close_all_clean" type="button">تقفيل الأسبوع</button>
+</div>
+<div class="text-[11px] text-slate-500 mt-3" id="payroll_clean_status"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
+<div class="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl">
+<span class="text-xs font-bold text-indigo-900">إجمالي المستحق</span>
+<div class="text-2xl font-black text-indigo-700 mt-1" id="payroll_total_due_clean">0 ج.م</div>
+</div>
+<div class="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl">
+<span class="text-xs font-bold text-emerald-900">إجمالي المدفوع فعليًا</span>
+<div class="text-2xl font-black text-emerald-700 mt-1" id="payroll_total_paid_clean">0 ج.م</div>
+</div>
+<div class="bg-rose-50 border border-rose-200 p-4 rounded-2xl">
+<span class="text-xs font-bold text-rose-900">إجمالي المتبقي</span>
+<div class="text-2xl font-black text-rose-700 mt-1" id="payroll_total_remain_clean">0 ج.م</div>
+</div>
+<div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl">
+<span class="text-xs font-bold text-slate-700">عدد العمال</span>
+<div class="text-2xl font-black text-slate-900 mt-1" id="payroll_workers_clean">0</div>
+</div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-auto shadow-sm">
+<table class="w-full text-right text-xs" style="min-width:1500px">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3">اسم العامل</th>
+<th class="p-3">الأساسي الأسبوعي</th>
+<th class="p-3">أيام الحضور</th>
+<th class="p-3">التأخير</th>
+<th class="p-3">الإضافي</th>
+<th class="p-3">بدل الإجازة</th>
+<th class="p-3">السُلف</th>
+<th class="p-3">خصومات أخرى</th>
+<th class="p-3">إجمالي قبل الخصم</th>
+<th class="p-3 text-indigo-700">المستحق</th>
+<th class="p-3">المدفوع</th>
+<th class="p-3">المتبقي / الزيادة</th>
+<th class="p-3">الحالة</th>
+<th class="p-3">إجراء</th>
+</tr>
+</thead>
+<tbody class="divide-y" id="weekly_hr_table_body_clean"></tbody>
+</table>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm mt-5 p-5">
+<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+<div>
+<h3 class="font-black text-lg">أرشيف التقفيلات الأسبوعية</h3>
+<p class="text-[11px] text-slate-500">الأسبوع المقفول يصبح Snapshot مستقل؛ لا يتغير بتعديل حضور الأسبوع الجديد.</p>
+</div>
+<button class="bg-slate-100 px-3 py-2 rounded-lg text-xs font-bold" id="payroll_archive_refresh_clean" type="button">تحديث الأرشيف</button>
+</div>
+<div class="overflow-auto">
+<table class="w-full text-xs" style="min-width:900px">
+<thead class="bg-slate-100">
+<tr>
+<th class="p-3">الفترة</th><th class="p-3">العامل</th><th class="p-3">الحضور</th><th class="p-3">التأخير</th>
+<th class="p-3">الإضافي</th><th class="p-3">المستحق</th><th class="p-3">المدفوع</th><th class="p-3">المتبقي</th><th class="p-3">طباعة</th>
+</tr>
+</thead>
+<tbody id="payroll_archive_body_clean"></tbody>
+</table>
+</div>
+</div>
+<div class="hidden bg-white border border-indigo-200 rounded-2xl p-5 mt-5" id="payroll_employee_report_clean"></div>
+</div>
+<!-- ==================== 11. خط الكبس وسحب القماش من المخزن ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-calender_press">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">خط الكبس ومطابقة ورق الحماية وسحب القماش من المخزن</h2>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs space-y-3">
-        <h3 class="font-bold text-slate-800 text-sm border-b pb-2 flex items-center gap-2">
-          <i class="fa-solid fa-temperature-three-quarters text-amber-600"></i> كارت تشغيل الكالندر (مطابقة ورق الحماية والضغوط اليدوية)
+<h2 class="text-2xl font-black text-slate-900 mb-6">خط الكبس ومطابقة ورق الحماية وسحب القماش من المخزن</h2>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs space-y-3">
+<h3 class="font-bold text-slate-800 text-sm border-b pb-2 flex items-center gap-2">
+<i class="fa-solid fa-temperature-three-quarters text-amber-600"></i> كارت تشغيل الكالندر (مطابقة ورق الحماية والضغوط اليدوية)
         </h3>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div>
-            <label class="block font-bold mb-1">العميل صاحب القماش</label>
-            <select id="cal_client_select" class="w-full border p-2.5 rounded-lg font-bold"></select>
-          </div>
-          <div>
-            <label class="block font-bold mb-1">اسم الخامة</label>
-            <input type="text" id="cal_fabric_name" placeholder="اسم الخامة (مثال: ميلتون)" class="w-full border p-2.5 rounded-lg font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">أمتار الورق المسحوبة (متر)</label>
-            <input type="number" id="cal_paper_m" value="150" placeholder="أمتار الورق" oninput="calcCalenderShrinkage()" class="w-full border p-2.5 rounded-lg font-mono font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">ورق الحماية المستهلك (مطابق)</label>
-            <input type="number" id="cal_protect_m" value="150" class="w-full bg-slate-100 border p-2.5 rounded-lg font-mono font-bold text-teal-700" readonly>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <div>
-            <label class="block font-bold mb-1">أمتار القماش الخارج بعد الكبس</label>
-            <input type="number" id="cal_fabric_out" value="142" placeholder="القماش الخارج" oninput="calcCalenderShrinkage()" class="w-full border p-2.5 rounded-lg font-mono font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">درجة الحرارة (°C)</label>
-            <input type="number" id="cal_temp" value="205" placeholder="الحرارة" class="w-full border p-2.5 rounded-lg font-mono font-bold text-rose-600">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">ضغط درفيل 1 (Feed)</label>
-            <input type="number" id="cal_r1" step="0.1" value="3.5" placeholder="درفيل 1" class="w-full border p-2.5 rounded-lg font-mono font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">ضغط درفيل 2 (Main)</label>
-            <input type="number" id="cal_r2" step="0.1" value="5.0" placeholder="درفيل 2" class="w-full border p-2.5 rounded-lg font-mono font-bold text-indigo-700">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">ضغط درفيل 3 (Tension)</label>
-            <input type="number" id="cal_r3" step="0.1" value="3.0" placeholder="درفيل 3" class="w-full border p-2.5 rounded-lg font-mono font-bold">
-          </div>
-        </div>
-        <div class="flex justify-between items-center pt-2">
-          <div id="cal_shrink_display" class="font-bold text-rose-600 text-xs">نسبة الانكماش: 5.3% انكماش</div>
-          <button onclick="commitCalenderOperation()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2 rounded-xl shadow">
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+<div>
+<label class="block font-bold mb-1">العميل صاحب القماش</label>
+<select class="w-full border p-2.5 rounded-lg font-bold" id="cal_client_select"></select>
+</div>
+<div>
+<label class="block font-bold mb-1">اسم الخامة</label>
+<input class="w-full border p-2.5 rounded-lg font-bold" id="cal_fabric_name" placeholder="اسم الخامة (مثال: ميلتون)" type="text"/>
+</div>
+<div>
+<label class="block font-bold mb-1">أمتار الورق المسحوبة (متر)</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold" id="cal_paper_m" oninput="calcCalenderShrinkage()" placeholder="أمتار الورق" type="number" value="150"/>
+</div>
+<div>
+<label class="block font-bold mb-1">ورق الحماية المستهلك (مطابق)</label>
+<input class="w-full bg-slate-100 border p-2.5 rounded-lg font-mono font-bold text-teal-700" id="cal_protect_m" readonly="" type="number" value="150"/>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+<div>
+<label class="block font-bold mb-1">أمتار القماش الخارج بعد الكبس</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold" id="cal_fabric_out" oninput="calcCalenderShrinkage()" placeholder="القماش الخارج" type="number" value="142"/>
+</div>
+<div>
+<label class="block font-bold mb-1">درجة الحرارة (°C)</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold text-rose-600" id="cal_temp" placeholder="الحرارة" type="number" value="205"/>
+</div>
+<div>
+<label class="block font-bold mb-1">ضغط درفيل 1 (Feed)</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold" id="cal_r1" placeholder="درفيل 1" step="0.1" type="number" value="3.5"/>
+</div>
+<div>
+<label class="block font-bold mb-1">ضغط درفيل 2 (Main)</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold text-indigo-700" id="cal_r2" placeholder="درفيل 2" step="0.1" type="number" value="5.0"/>
+</div>
+<div>
+<label class="block font-bold mb-1">ضغط درفيل 3 (Tension)</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold" id="cal_r3" placeholder="درفيل 3" step="0.1" type="number" value="3.0"/>
+</div>
+</div>
+<div class="flex justify-between items-center pt-2">
+<div class="font-bold text-rose-600 text-xs" id="cal_shrink_display">نسبة الانكماش: 5.3% انكماش</div>
+<button class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2 rounded-xl shadow" onclick="commitCalenderOperation()">
             حفظ وخصم القماش من المخزن
           </button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
-        <div class="p-4 border-b font-bold text-slate-800">سجل الكبس المجمع لكل عميل (اضغط على العميل لعرض كافة عملياته):</div>
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3.5">اسم العميل</th>
-              <th class="p-3.5 font-mono">إجمالي العمليات</th>
-              <th class="p-3.5 font-mono">إجمالي أمتار الورق</th>
-              <th class="p-3.5 font-mono">ورق الحماية المطابق</th>
-              <th class="p-3.5 font-mono">القماش الخارج</th>
-              <th class="p-3.5 text-center">عرض خامات وضغوط العميل</th>
-            </tr>
-          </thead>
-          <tbody id="calender_grouped_tbody" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- نافذة تفاصيل كبس العميل المجمع (Modal) -->
-    <div id="client_calender_modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-      <div class="bg-white w-full max-w-4xl rounded-3xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto text-xs">
-        <div class="flex justify-between items-center pb-3 border-b mb-4">
-          <h3 class="font-black text-slate-900 text-sm">سجل خامات وضغوط الكبس للعميل: <span id="modal_cal_cname" class="text-indigo-600"></span></h3>
-          <button onclick="closeCalenderModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl">إغلاق</button>
-        </div>
-        <table class="w-full text-right border border-slate-200">
-          <thead class="bg-slate-100">
-            <tr>
-              <th class="p-2.5 border">التاريخ</th>
-              <th class="p-2.5 border">الخامة</th>
-              <th class="p-2.5 border font-mono">أمتار الورق</th>
-              <th class="p-2.5 border font-mono">ورق الحماية</th>
-              <th class="p-2.5 border font-mono">القماش الخارج</th>
-              <th class="p-2.5 border font-mono">الانكماش</th>
-              <th class="p-2.5 border font-mono">الحرارة</th>
-              <th class="p-2.5 border font-mono">الضغوط (R1-R2-R3)</th>
-            </tr>
-          </thead>
-          <tbody id="modal_cal_tbody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 12. الموردين ومبيعات الهالك ==================== -->
-    <div id="page-suppliers" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+</div>
+</div>
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm text-xs">
+<div class="p-4 border-b font-bold text-slate-800">سجل الكبس المجمع لكل عميل (اضغط على العميل لعرض كافة عملياته):</div>
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3.5">اسم العميل</th>
+<th class="p-3.5 font-mono">إجمالي العمليات</th>
+<th class="p-3.5 font-mono">إجمالي أمتار الورق</th>
+<th class="p-3.5 font-mono">ورق الحماية المطابق</th>
+<th class="p-3.5 font-mono">القماش الخارج</th>
+<th class="p-3.5 text-center">عرض خامات وضغوط العميل</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="calender_grouped_tbody"></tbody>
+</table>
+</div>
+</div>
+<!-- نافذة تفاصيل كبس العميل المجمع (Modal) -->
+<div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4" id="client_calender_modal">
+<div class="bg-white w-full max-w-4xl rounded-3xl shadow-2xl p-6 max-h-[85vh] overflow-y-auto text-xs">
+<div class="flex justify-between items-center pb-3 border-b mb-4">
+<h3 class="font-black text-slate-900 text-sm">سجل خامات وضغوط الكبس للعميل: <span class="text-indigo-600" id="modal_cal_cname"></span></h3>
+<button class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl" onclick="closeCalenderModal()">إغلاق</button>
+</div>
+<table class="w-full text-right border border-slate-200">
+<thead class="bg-slate-100">
+<tr>
+<th class="p-2.5 border">التاريخ</th>
+<th class="p-2.5 border">الخامة</th>
+<th class="p-2.5 border font-mono">أمتار الورق</th>
+<th class="p-2.5 border font-mono">ورق الحماية</th>
+<th class="p-2.5 border font-mono">القماش الخارج</th>
+<th class="p-2.5 border font-mono">الانكماش</th>
+<th class="p-2.5 border font-mono">الحرارة</th>
+<th class="p-2.5 border font-mono">الضغوط (R1-R2-R3)</th>
+</tr>
+</thead>
+<tbody id="modal_cal_tbody"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 12. الموردين ومبيعات الهالك ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-suppliers">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">إدارة الموردين، الخامات، ومبيعات الهالك</h2>
-      <div class="flex justify-end -mt-3 mb-5"><button onclick="printSupplierReport()" class="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl"><i class="fa-solid fa-print ml-1"></i> طباعة تقرير الموردين</button></div>
-
-      <div class="bg-white p-5 rounded-2xl border mb-6 text-xs">
-        <input type="hidden" id="edit_sup_id" value="">
-        <h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل شركة توريد جديدة / تعديل مورد</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <input type="text" id="sup_name" placeholder="اسم المورد" class="border p-2.5 rounded-lg font-bold">
-          <input type="text" id="sup_material" placeholder="الخامة الموردة" class="border p-2.5 rounded-lg">
-          <input type="number" id="sup_rate" placeholder="سعر الخامة الافتراضي" class="border p-2.5 rounded-lg font-mono">
-          <button id="btn_save_sup" onclick="saveSupplierRecord()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-lg shadow-sm">حفظ المورد</button>
-        </div>
-      </div>
-
-      <!-- كارت إضافة فاتورة توريد وسداد -->
-      <div class="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 shadow-sm mb-6 text-xs">
-        <h4 class="font-bold text-orange-950 mb-2">تسجيل فاتورة توريد جديدة أو سداد دفعة للمورد:</h4>
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <select id="sup_invoice_select" class="border p-2.5 rounded-lg font-bold"></select>
-          <input type="number" id="sup_invoice_amt" placeholder="قيمة فاتورة توريد جديدة" class="border p-2.5 rounded-lg font-mono font-bold">
-          <input type="number" id="sup_payment_amt" placeholder="دفعة سداد للمورد" class="border p-2.5 rounded-lg font-mono font-bold text-emerald-700">
-          <select id="sup_payment_source" class="border p-2.5 rounded-lg font-bold">
-            <option value="الصندوق (كاش)">السداد من: الصندوق (كاش)</option>
-            <option value="إنستاباي">السداد من: إنستاباي</option>
-            <option value="فودافون كاش">السداد من: فودافون كاش</option>
-          </select>
-        </div>
-        <button onclick="commitSupplierInvoiceAction()" class="mt-3 bg-orange-700 text-white font-bold px-6 py-2.5 rounded-lg shadow-sm">اعتماد الحركة</button>
-      </div>
-
-      <!-- كارت بيع الهالك والعوادم -->
-      <div class="bg-amber-50/70 p-5 rounded-2xl border border-amber-200 shadow-sm mb-6 text-xs">
-        <h4 class="font-bold text-amber-950 mb-2">بيع هالك وعوادم طباعة (ورق مستعمل، كرتون):</h4>
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <select id="scrap_buyer_select" class="border p-2.5 rounded-lg font-bold"></select>
-          <input type="number" id="scrap_weight" placeholder="الوزن المباع كجم" class="border p-2.5 rounded-lg font-mono font-bold">
-          <input type="number" id="scrap_price_kg" value="8" placeholder="سعر الكيلو" class="border p-2.5 rounded-lg font-mono font-bold">
-          <select id="scrap_action_type" class="border p-2.5 rounded-lg font-bold">
-            <option value="إيداع بالصندوق كاش">إيداع نقدي بالصندوق (كاش)</option>
-            <option value="تحويل إنستاباي">تحويل إنستاباي</option>
-            <option value="خصم من رصيد المورد">خصم من رصيد المورد</option>
-          </select>
-          <button onclick="commitScrapSale()" class="bg-amber-700 text-white font-bold py-2.5 rounded-lg shadow-sm">اعتماد بيع الهالك</button>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border overflow-hidden text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3.5">اسم المورد</th>
-              <th class="p-3.5">الخامات الموردة</th>
-              <th class="p-3.5 font-mono">إجمالي المطالبات</th>
-              <th class="p-3.5 font-mono text-emerald-600">المسدد له</th>
-              <th class="p-3.5 font-mono font-bold text-rose-600">المتبقي له (دين)</th>
-              <th class="p-3.5 text-center">تعديل</th>
-              <th class="p-3.5 text-center">حذف</th>
-            </tr>
-          </thead>
-          <tbody id="suppliers_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 13. مخزن قماش العملاء المطور ==================== -->
-    <div id="page-fabric_custody" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+<h2 class="text-2xl font-black text-slate-900 mb-6">إدارة الموردين، الخامات، ومبيعات الهالك</h2>
+<div class="flex justify-end -mt-3 mb-5"><button class="bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl" onclick="printSupplierReport()"><i class="fa-solid fa-print ml-1"></i> طباعة تقرير الموردين</button></div>
+<div class="bg-white p-5 rounded-2xl border mb-6 text-xs">
+<input id="edit_sup_id" type="hidden" value=""/>
+<h3 class="font-bold text-slate-800 mb-3 text-sm">تسجيل شركة توريد جديدة / تعديل مورد</h3>
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+<input class="border p-2.5 rounded-lg font-bold" id="sup_name" placeholder="اسم المورد" type="text"/>
+<input class="border p-2.5 rounded-lg" id="sup_material" placeholder="الخامة الموردة" type="text"/>
+<input class="border p-2.5 rounded-lg font-mono" id="sup_rate" placeholder="سعر الخامة الافتراضي" type="number"/>
+<button class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-lg shadow-sm" id="btn_save_sup" onclick="saveSupplierRecord()">حفظ المورد</button>
+</div>
+</div>
+<!-- كارت إضافة فاتورة توريد وسداد -->
+<div class="bg-orange-50/70 p-5 rounded-2xl border border-orange-200 shadow-sm mb-6 text-xs">
+<h4 class="font-bold text-orange-950 mb-2">تسجيل فاتورة توريد جديدة أو سداد دفعة للمورد:</h4>
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+<select class="border p-2.5 rounded-lg font-bold" id="sup_invoice_select"></select>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="sup_invoice_amt" placeholder="قيمة فاتورة توريد جديدة" type="number"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold text-emerald-700" id="sup_payment_amt" placeholder="دفعة سداد للمورد" type="number"/>
+<select class="border p-2.5 rounded-lg font-bold" id="sup_payment_source">
+<option value="الصندوق (كاش)">السداد من: الصندوق (كاش)</option>
+<option value="إنستاباي">السداد من: إنستاباي</option>
+<option value="فودافون كاش">السداد من: فودافون كاش</option>
+</select>
+</div>
+<button class="mt-3 bg-orange-700 text-white font-bold px-6 py-2.5 rounded-lg shadow-sm" onclick="commitSupplierInvoiceAction()">اعتماد الحركة</button>
+</div>
+<!-- كارت بيع الهالك والعوادم -->
+<div class="bg-amber-50/70 p-5 rounded-2xl border border-amber-200 shadow-sm mb-6 text-xs">
+<h4 class="font-bold text-amber-950 mb-2">بيع هالك وعوادم طباعة (ورق مستعمل، كرتون):</h4>
+<div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+<select class="border p-2.5 rounded-lg font-bold" id="scrap_buyer_select"></select>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="scrap_weight" placeholder="الوزن المباع كجم" type="number"/>
+<input class="border p-2.5 rounded-lg font-mono font-bold" id="scrap_price_kg" placeholder="سعر الكيلو" type="number" value="8"/>
+<select class="border p-2.5 rounded-lg font-bold" id="scrap_action_type">
+<option value="إيداع بالصندوق كاش">إيداع نقدي بالصندوق (كاش)</option>
+<option value="تحويل إنستاباي">تحويل إنستاباي</option>
+<option value="خصم من رصيد المورد">خصم من رصيد المورد</option>
+</select>
+<button class="bg-amber-700 text-white font-bold py-2.5 rounded-lg shadow-sm" onclick="commitScrapSale()">اعتماد بيع الهالك</button>
+</div>
+</div>
+<div class="bg-white rounded-2xl border overflow-hidden text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3.5">اسم المورد</th>
+<th class="p-3.5">الخامات الموردة</th>
+<th class="p-3.5 font-mono">إجمالي المطالبات</th>
+<th class="p-3.5 font-mono text-emerald-600">المسدد له</th>
+<th class="p-3.5 font-mono font-bold text-rose-600">المتبقي له (دين)</th>
+<th class="p-3.5 text-center">تعديل</th>
+<th class="p-3.5 text-center">حذف</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="suppliers_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 13. مخزن قماش العملاء المطور ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-fabric_custody">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">مخزن أمانات أقمشة العملاء (أثواب رولات أو قطع مقصوصة)</h2>
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
-        <input type="hidden" id="edit_fab_id" value="">
-        <h3 class="font-bold text-slate-800 mb-3 text-sm">+ استلام أمانة قماش جديدة / تعديل أمانة</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-6 gap-3">
-          <div>
-            <label class="block font-bold mb-1">العميل</label>
-            <select id="fab_cli_select" class="w-full border p-2.5 rounded-lg font-bold"></select>
-          </div>
-          <div>
-            <label class="block font-bold mb-1">نوع الاستلام</label>
-            <select id="fab_intake_type" onchange="toggleFabricIntakeType()" class="w-full border p-2.5 rounded-lg font-bold">
-              <option value="ثوب">أثواب رولات كاملة</option>
-              <option value="قطع">قطع مقصوصة مفردة</option>
-            </select>
-          </div>
-          <div>
-            <label class="block font-bold mb-1">نوع الخامة</label>
-            <input type="text" id="fab_type" placeholder="مثال: ميلتون" class="w-full border p-2.5 rounded-lg font-bold">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">اللون</label>
-            <input type="text" id="fab_color" placeholder="اللون" class="w-full border p-2.5 rounded-lg font-bold">
-          </div>
-          <div id="box_fab_rolls">
-            <label class="block font-bold mb-1">عدد الأثواب</label>
-            <input type="number" id="fab_rolls" placeholder="الأثواب" class="w-full border p-2.5 rounded-lg font-mono">
-          </div>
-          <div id="box_fab_pieces" style="display:none;">
-            <label class="block font-bold mb-1">عدد القطع</label>
-            <input type="number" id="fab_pieces" placeholder="القطع" class="w-full border p-2.5 rounded-lg font-mono font-bold text-indigo-700">
-          </div>
-          <div>
-            <label class="block font-bold mb-1">إجمالي الأمتار</label>
-            <input type="number" id="fab_meters" placeholder="الأمتار" class="w-full border p-2.5 rounded-lg font-mono font-bold">
-          </div>
-        </div>
-        <button id="btn_save_fab" onclick="saveFabricBatch()" class="mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-sm">
+<h2 class="text-2xl font-black text-slate-900 mb-6">مخزن أمانات أقمشة العملاء (أثواب رولات أو قطع مقصوصة)</h2>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-6 text-xs">
+<input id="edit_fab_id" type="hidden" value=""/>
+<h3 class="font-bold text-slate-800 mb-3 text-sm">+ استلام أمانة قماش جديدة / تعديل أمانة</h3>
+<div class="grid grid-cols-1 sm:grid-cols-6 gap-3">
+<div>
+<label class="block font-bold mb-1">العميل</label>
+<select class="w-full border p-2.5 rounded-lg font-bold" id="fab_cli_select"></select>
+</div>
+<div>
+<label class="block font-bold mb-1">نوع الاستلام</label>
+<select class="w-full border p-2.5 rounded-lg font-bold" id="fab_intake_type" onchange="toggleFabricIntakeType()">
+<option value="ثوب">أثواب رولات كاملة</option>
+<option value="قطع">قطع مقصوصة مفردة</option>
+</select>
+</div>
+<div>
+<label class="block font-bold mb-1">نوع الخامة</label>
+<input class="w-full border p-2.5 rounded-lg font-bold" id="fab_type" placeholder="مثال: ميلتون" type="text"/>
+</div>
+<div>
+<label class="block font-bold mb-1">اللون</label>
+<input class="w-full border p-2.5 rounded-lg font-bold" id="fab_color" placeholder="اللون" type="text"/>
+</div>
+<div id="box_fab_rolls">
+<label class="block font-bold mb-1">عدد الأثواب</label>
+<input class="w-full border p-2.5 rounded-lg font-mono" id="fab_rolls" placeholder="الأثواب" type="number"/>
+</div>
+<div id="box_fab_pieces" style="display:none;">
+<label class="block font-bold mb-1">عدد القطع</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold text-indigo-700" id="fab_pieces" placeholder="القطع" type="number"/>
+</div>
+<div>
+<label class="block font-bold mb-1">إجمالي الأمتار</label>
+<input class="w-full border p-2.5 rounded-lg font-mono font-bold" id="fab_meters" placeholder="الأمتار" type="number"/>
+</div>
+</div>
+<button class="mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-sm" id="btn_save_fab" onclick="saveFabricBatch()">
           حفظ واستلام الأمانة
         </button>
-      </div>
-
-      <div class="bg-white rounded-2xl border overflow-hidden text-xs">
-        <table class="w-full text-right">
-          <thead class="bg-slate-100 border-b">
-            <tr>
-              <th class="p-3">الكود</th>
-              <th class="p-3">العميل</th>
-              <th class="p-3">النوع</th>
-              <th class="p-3">الخامة واللون</th>
-              <th class="p-3 font-mono">الكمية (أثواب / قطع)</th>
-              <th class="p-3 font-mono">الوارد الكلي</th>
-              <th class="p-3 font-mono text-rose-600">المسحوب بالكبس</th>
-              <th class="p-3 font-mono font-bold text-emerald-600">المتبقي أمانة</th>
-              <th class="p-3 text-center">تعديل</th>
-              <th class="p-3 text-center">حذف</th>
-            </tr>
-          </thead>
-          <tbody id="fabric_table_body" class="divide-y font-medium"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ==================== 14. الإعدادات وتوزيع الصلاحيات ==================== -->
-    <div id="page-settings" class="page-view max-w-7xl mx-auto px-6 py-8">
-      <button onclick="showPage('dashboard')" class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3">
-        <i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
+</div>
+<div class="bg-white rounded-2xl border overflow-hidden text-xs">
+<table class="w-full text-right">
+<thead class="bg-slate-100 border-b">
+<tr>
+<th class="p-3">الكود</th>
+<th class="p-3">العميل</th>
+<th class="p-3">النوع</th>
+<th class="p-3">الخامة واللون</th>
+<th class="p-3 font-mono">الكمية (أثواب / قطع)</th>
+<th class="p-3 font-mono">الوارد الكلي</th>
+<th class="p-3 font-mono text-rose-600">المسحوب بالكبس</th>
+<th class="p-3 font-mono font-bold text-emerald-600">المتبقي أمانة</th>
+<th class="p-3 text-center">تعديل</th>
+<th class="p-3 text-center">حذف</th>
+</tr>
+</thead>
+<tbody class="divide-y font-medium" id="fabric_table_body"></tbody>
+</table>
+</div>
+</div>
+<!-- ==================== 14. الإعدادات وتوزيع الصلاحيات ==================== -->
+<div class="page-view max-w-7xl mx-auto px-6 py-8" id="page-settings">
+<button class="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1.5 mb-3" onclick="showPage('dashboard')">
+<i class="fa-solid fa-arrow-right"></i> العودة للرئيسية
       </button>
-
-      <h2 class="text-2xl font-black text-slate-900 mb-6">إعدادات المنظومة، رفع الشعار، وتوزيع الصلاحيات</h2>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs mb-8">
-        <!-- بيانات المنشأة ورفع اللوجو -->
-        <div class="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
-          <h3 class="font-bold text-slate-800 border-b pb-2">بيانات المؤسسة والشعار</h3>
-          <div><label class="block font-bold mb-1">اسم المطبعة</label><input type="text" id="set_comp_name" class="border w-full p-2.5 rounded-lg font-bold"></div>
-          <div>
-            <label class="block font-bold mb-1">رفع صورة الشعار (Logo)</label>
-            <div class="flex items-center gap-3 mt-1">
-              <input type="file" id="set_comp_logo_file" accept="image/*" onchange="handleLogoUpload(event)" class="text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-bold">
-              <div id="logo_preview_box" class="w-14 h-14 border rounded-xl flex items-center justify-center bg-slate-50 overflow-hidden">
-                <span class="text-[10px] text-slate-400">معاينة</span>
-              </div>
-            </div>
-          </div>
-          <div><label class="block font-bold mb-1">العنوان والمنطقة الصناعية</label><input type="text" id="set_comp_address" class="border w-full p-2.5 rounded-lg"></div>
-          <div><label class="block font-bold mb-1">الهاتف والواتساب</label><input type="text" id="set_comp_phone" class="border w-full p-2.5 rounded-lg font-mono"></div>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 border-t">
-            <div><label class="block font-bold mb-1">تكلفة اللتر حبر (ج.م)</label><input type="number" id="set_ink_cost_per_liter" class="border w-full p-2.5 rounded-lg font-mono"></div>
-            <div><label class="block font-bold mb-1">152 سم — سعر المتر</label><input type="number" step="0.01" id="set_paper_cost_152" class="border w-full p-2.5 rounded-lg font-mono"></div>
-            <div><label class="block font-bold mb-1">162 سم — سعر المتر</label><input type="number" step="0.01" id="set_paper_cost_162" class="border w-full p-2.5 rounded-lg font-mono"></div>
-            <div><label class="block font-bold mb-1">182 سم — سعر المتر</label><input type="number" step="0.01" id="set_paper_cost_182" class="border w-full p-2.5 rounded-lg font-mono"></div>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
-            <div><label class="block font-bold mb-1">سعر متر الورق الهالك (ج.م)</label><input type="number" step="0.01" min="0" id="set_waste_paper_cost" class="border w-full p-2.5 rounded-lg font-mono font-bold" placeholder="مثال: 4.50"></div>
-            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] text-slate-600 font-bold flex items-center">يُستخدم في حساب تكلفة الخامات فقط عند تسجيل كمية هالك ورق في أمر الشغل، ولا يدخل ورق الحماية في الربح.</div>
-          </div>
-          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-900 font-bold">سعر الورق يتم اختياره تلقائياً داخل أمر الشغل حسب العرض 152 / 162 / 182 سم، ولا يمكن اعتماد أمر بدون تحديد العرض.</div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">
-            <div><label class="block font-bold mb-1">بادئة رقم الفاتورة</label><input type="text" id="set_invoice_prefix" maxlength="10" class="border w-full p-2.5 rounded-lg font-mono font-bold" placeholder="INK-"></div>
-            <div><label class="block font-bold mb-1">حد تنبيه المخزون الافتراضي</label><input type="number" min="0" id="set_default_min_stock" class="border w-full p-2.5 rounded-lg font-mono" placeholder="10"></div>
-            <div><label class="block font-bold mb-1">صيغة التاريخ في التقارير</label><select id="set_date_format" class="border w-full p-2.5 rounded-lg"><option value="iso">YYYY-MM-DD</option><option value="ar">DD/MM/YYYY</option></select></div>
-          </div>
-          <button onclick="saveCompanyProfile()" class="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-lg shadow-sm">حفظ بيانات المطبعة</button>
-          <div class="flex flex-wrap gap-2 pt-3 border-t"><button onclick="exportInkoreBackup()" class="bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg"><i class="fa-solid fa-download ml-1"></i> تصدير نسخة احتياطية</button><label class="bg-slate-800 text-white font-bold px-4 py-2 rounded-lg cursor-pointer"><i class="fa-solid fa-upload ml-1"></i> استيراد نسخة<input type="file" accept="application/json" onchange="importInkoreBackup(event)" class="hidden"></label></div>
-        </div>
-
-        <!-- إضافة مستخدم ومصفوفة الصلاحيات المخصصة -->
-        <div class="bg-white p-6 rounded-2xl border shadow-sm space-y-3">
-          <h3 class="font-bold text-slate-800 border-b pb-2">إضافة مستخدم ومطابقة الصلاحيات</h3>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block font-bold mb-1">اسم المستخدم</label>
-              <input type="text" id="new_u_name" placeholder="اسم الدخول" class="border w-full p-2 rounded-lg font-bold">
-            </div>
-            <div>
-              <label class="block font-bold mb-1">كلمة المرور</label>
-              <div class="relative"><input type="password" id="new_u_pass" placeholder="كلمة مرور قوية" class="border w-full p-2 pl-10 rounded-lg font-bold"><button type="button" onclick="toggleNewUserPassword()" class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500"><i id="new_u_pass_eye" class="fa-solid fa-eye"></i></button></div>
-            </div>
-          </div>
-          <div>
-            <label class="block font-bold mb-1">نوع الحساب</label>
-            <select id="new_u_type" onchange="toggleCustomPermsUI()" class="border w-full p-2 rounded-lg font-bold">
-              <option value="custom">موظف (تحديد الشاشات المصرح بها بالأسفل)</option>
-              <option value="client">عميل (مطابقة باسمه فقط وحجب باقي المنظومة)</option>
-              <option value="admin">مدير عام (تحكم شامل)</option>
-            </select>
-          </div>
-
-          <div id="client_match_container" class="hidden">
-            <label class="block font-bold mb-1">مطابقة اسم العميل بالضبط</label>
-            <select id="new_u_client_match" class="border w-full p-2 rounded-lg font-bold"></select>
-          </div>
-
-          <div id="custom_perms_container" class="border border-slate-200 p-3 rounded-xl bg-slate-50 space-y-2 text-[11px]">
-            <span class="font-black block mb-1 text-slate-800">اختر الشاشات المصرح لهذا الموظف برؤيتها:</span>
-            <div class="grid grid-cols-2 gap-2">
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_invoices" checked> <span>أوامر الشغل والفواتير</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_expenses"> <span>المصروفات اليومية</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_partners"> <span>الشركاء ورأس المال</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_assets"> <span>المعدات والماكينات</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_electricity"> <span>شحن عدادات الكهرباء</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_reports"> <span>التقارير المالية الصافية</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_clients" checked> <span>العملاء وكشوف الحساب</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_attendance" checked> <span>الحضور والغياب</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_weekly_hr"> <span>العمالة وشيت الرواتب</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_calender" checked> <span>خط الكبس الحراري</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_suppliers"> <span>الموردين ومبيعات الهالك</span></label>
-              <label class="flex items-center gap-1.5"><input type="checkbox" id="perm_fabric" checked> <span>مخزن قماش العملاء</span></label>
-            </div>
-          </div>
-
-          <button onclick="addNewSystemUser()" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-lg mt-2 shadow-sm">
+<h2 class="text-2xl font-black text-slate-900 mb-6">إعدادات المنظومة، رفع الشعار، وتوزيع الصلاحيات</h2>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs mb-8">
+<!-- بيانات المنشأة ورفع اللوجو -->
+<div class="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
+<h3 class="font-bold text-slate-800 border-b pb-2">بيانات المؤسسة والشعار</h3>
+<div><label class="block font-bold mb-1">اسم المطبعة</label><input class="border w-full p-2.5 rounded-lg font-bold" id="set_comp_name" type="text"/></div>
+<div>
+<label class="block font-bold mb-1">رفع صورة الشعار (Logo)</label>
+<div class="flex items-center gap-3 mt-1">
+<input accept="image/*" class="text-xs text-slate-500 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:text-indigo-700 file:font-bold" id="set_comp_logo_file" onchange="handleLogoUpload(event)" type="file"/>
+<div class="w-14 h-14 border rounded-xl flex items-center justify-center bg-slate-50 overflow-hidden" id="logo_preview_box">
+<span class="text-[10px] text-slate-400">معاينة</span>
+</div>
+</div>
+</div>
+<div><label class="block font-bold mb-1">العنوان والمنطقة الصناعية</label><input class="border w-full p-2.5 rounded-lg" id="set_comp_address" type="text"/></div>
+<div><label class="block font-bold mb-1">الهاتف والواتساب</label><input class="border w-full p-2.5 rounded-lg font-mono" id="set_comp_phone" type="text"/></div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 border-t">
+<div><label class="block font-bold mb-1">تكلفة اللتر حبر (ج.م)</label><input class="border w-full p-2.5 rounded-lg font-mono" id="set_ink_cost_per_liter" type="number"/></div>
+<div><label class="block font-bold mb-1">152 سم — سعر المتر</label><input class="border w-full p-2.5 rounded-lg font-mono" id="set_paper_cost_152" step="0.01" type="number"/></div>
+<div><label class="block font-bold mb-1">162 سم — سعر المتر</label><input class="border w-full p-2.5 rounded-lg font-mono" id="set_paper_cost_162" step="0.01" type="number"/></div>
+<div><label class="block font-bold mb-1">182 سم — سعر المتر</label><input class="border w-full p-2.5 rounded-lg font-mono" id="set_paper_cost_182" step="0.01" type="number"/></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
+<div><label class="block font-bold mb-1">سعر متر الورق الهالك (ج.م)</label><input class="border w-full p-2.5 rounded-lg font-mono font-bold" id="set_waste_paper_cost" min="0" placeholder="مثال: 4.50" step="0.01" type="number"/></div>
+<div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] text-slate-600 font-bold flex items-center">يُستخدم في حساب تكلفة الخامات فقط عند تسجيل كمية هالك ورق في أمر الشغل، ولا يدخل ورق الحماية في الربح.</div>
+</div>
+<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-900 font-bold">سعر الورق يتم اختياره تلقائياً داخل أمر الشغل حسب العرض 152 / 162 / 182 سم، ولا يمكن اعتماد أمر بدون تحديد العرض.</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">
+<div><label class="block font-bold mb-1">بادئة رقم الفاتورة</label><input class="border w-full p-2.5 rounded-lg font-mono font-bold" id="set_invoice_prefix" maxlength="10" placeholder="INK-" type="text"/></div>
+<div><label class="block font-bold mb-1">حد تنبيه المخزون الافتراضي</label><input class="border w-full p-2.5 rounded-lg font-mono" id="set_default_min_stock" min="0" placeholder="10" type="number"/></div>
+<div><label class="block font-bold mb-1">صيغة التاريخ في التقارير</label><select class="border w-full p-2.5 rounded-lg" id="set_date_format"><option value="iso">YYYY-MM-DD</option><option value="ar">DD/MM/YYYY</option></select></div>
+</div>
+<button class="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-lg shadow-sm" onclick="saveCompanyProfile()">حفظ بيانات المطبعة</button>
+<div class="flex flex-wrap gap-2 pt-3 border-t"><button class="bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg" onclick="exportInkoreBackup()"><i class="fa-solid fa-download ml-1"></i> تصدير نسخة احتياطية</button><label class="bg-slate-800 text-white font-bold px-4 py-2 rounded-lg cursor-pointer"><i class="fa-solid fa-upload ml-1"></i> استيراد نسخة<input accept="application/json" class="hidden" onchange="importInkoreBackup(event)" type="file"/></label></div>
+</div>
+<!-- إضافة مستخدم ومصفوفة الصلاحيات المخصصة -->
+<div class="bg-white p-6 rounded-2xl border shadow-sm space-y-3">
+<h3 class="font-bold text-slate-800 border-b pb-2">إضافة مستخدم ومطابقة الصلاحيات</h3>
+<div class="grid grid-cols-2 gap-2">
+<div>
+<label class="block font-bold mb-1">اسم المستخدم</label>
+<input class="border w-full p-2 rounded-lg font-bold" id="new_u_name" placeholder="اسم الدخول" type="text"/>
+</div>
+<div>
+<label class="block font-bold mb-1">كلمة المرور</label>
+<div class="relative"><input class="border w-full p-2 pl-10 rounded-lg font-bold" id="new_u_pass" placeholder="كلمة مرور قوية" type="password"/><button class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500" onclick="toggleNewUserPassword()" type="button"><i class="fa-solid fa-eye" id="new_u_pass_eye"></i></button></div>
+</div>
+</div>
+<div>
+<label class="block font-bold mb-1">نوع الحساب</label>
+<select class="border w-full p-2 rounded-lg font-bold" id="new_u_type" onchange="toggleCustomPermsUI()">
+<option value="custom">موظف (تحديد الشاشات المصرح بها بالأسفل)</option>
+<option value="client">عميل (مطابقة باسمه فقط وحجب باقي المنظومة)</option>
+<option value="admin">مدير عام (تحكم شامل)</option>
+</select>
+</div>
+<div class="hidden" id="client_match_container">
+<label class="block font-bold mb-1">مطابقة اسم العميل بالضبط</label>
+<select class="border w-full p-2 rounded-lg font-bold" id="new_u_client_match"></select>
+</div>
+<div class="border border-slate-200 p-3 rounded-xl bg-slate-50 space-y-2 text-[11px]" id="custom_perms_container">
+<span class="font-black block mb-1 text-slate-800">اختر الشاشات المصرح لهذا الموظف برؤيتها:</span>
+<div class="grid grid-cols-2 gap-2">
+<label class="flex items-center gap-1.5"><input checked="" id="perm_invoices" type="checkbox"/> <span>أوامر الشغل والفواتير</span></label>
+<label class="flex items-center gap-1.5"><input id="perm_expenses" type="checkbox"/> <span>المصروفات اليومية</span></label>
+<label class="flex items-center gap-1.5"><input id="perm_partners" type="checkbox"/> <span>الشركاء ورأس المال</span></label>
+<label class="flex items-center gap-1.5"><input id="perm_assets" type="checkbox"/> <span>المعدات والماكينات</span></label>
+<label class="flex items-center gap-1.5"><input id="perm_electricity" type="checkbox"/> <span>شحن عدادات الكهرباء</span></label>
+<label class="flex items-center gap-1.5"><input id="perm_reports" type="checkbox"/> <span>التقارير المالية الصافية</span></label>
+<label class="flex items-center gap-1.5"><input checked="" id="perm_clients" type="checkbox"/> <span>العملاء وكشوف الحساب</span></label>
+<label class="flex items-center gap-1.5"><input checked="" id="perm_attendance" type="checkbox"/> <span>الحضور والغياب</span></label>
+<label class="flex items-center gap-1.5"><input id="perm_weekly_hr" type="checkbox"/> <span>العمالة وشيت الرواتب</span></label>
+<label class="flex items-center gap-1.5"><input checked="" id="perm_calender" type="checkbox"/> <span>خط الكبس الحراري</span></label>
+<label class="flex items-center gap-1.5"><input id="perm_suppliers" type="checkbox"/> <span>الموردين ومبيعات الهالك</span></label>
+<label class="flex items-center gap-1.5"><input checked="" id="perm_fabric" type="checkbox"/> <span>مخزن قماش العملاء</span></label>
+</div>
+</div>
+<button class="w-full bg-slate-900 hover:bg-black text-white font-bold py-2.5 rounded-lg mt-2 shadow-sm" onclick="addNewSystemUser()">
             حفظ وتفعيل المستخدم بالصلاحيات المحددة
           </button>
-
-          <div class="border-t pt-3">
-            <h4 class="font-bold text-slate-800 mb-2">المستخدمون الحاليون</h4>
-            <div id="users_list_container" class="space-y-1.5"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- مساحة الطباعة لجميع التقارير والفواتير المعتمدة -->
-  <div id="printable_canvas" class="hidden"></div>
-
-  <footer class="py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white no-print">
-    منظومة <strong class="text-slate-700">inkore Enterprise ERP</strong> الصناعية لمطابع السبلميشن &copy; 2026
+<div class="border-t pt-3">
+<h4 class="font-bold text-slate-800 mb-2">المستخدمون الحاليون</h4>
+<div class="space-y-1.5" id="users_list_container"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- مساحة الطباعة لجميع التقارير والفواتير المعتمدة -->
+<div class="hidden" id="printable_canvas"></div>
+<footer class="py-4 text-center text-xs text-slate-400 border-t border-slate-200 bg-white no-print">
+    منظومة <strong class="text-slate-700">inkore Enterprise ERP</strong> الصناعية لمطابع السبلميشن © 2026
   </footer>
-
-  <!-- ==================== المحرك البرمجي الشامل وقاعدة البيانات ==================== -->
-  <script>
+<!-- ==================== المحرك البرمجي الشامل وقاعدة البيانات ==================== -->
+<script>
     const defaultDB = {
   "currentUser": {
     "username": "",
@@ -3250,7 +3148,6 @@ function todayStr() {
   window.addEventListener('load',()=>{injectInventoryPage();injectAttendanceGrid();injectPayrollDetails();injectTreasuryReport();injectSettingsExtras();setInvoiceSeqDisplay();renderWeeklyAttendance();populatePayrollDetailSelect();addPrints();invoiceCalc();});
 })();
 </script>
-
 <script id="inkore-cloud-sync-final">
 (function(){
 'use strict';
@@ -3277,8 +3174,6 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{if(creds())pull
 setInterval(()=>{if(!creds()||document.hidden||busy)return; if(localStorage.getItem(DIRTY)==='1')push(false); else if(Date.now()-lastPull>15000)pull(false)},6000);
 })();
 </script>
-
-
 <style id="inkore-final-master-style">
   .inkore-modal{position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px}
   .inkore-modal>div{background:#fff;border-radius:22px;width:min(1000px,100%);max-height:92vh;overflow:auto;box-shadow:0 25px 80px rgba(15,23,42,.25)}
@@ -3421,8 +3316,6 @@ window.showPage=function(page){const r=typeof prevShow==='function'?prevShow(pag
 document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{normalizeInventory();injectNotifications();hideSupplierPanelsOutsideSupplierPage();buildSupplierItems();injectSettings();},800));
 })();
 </script>
-
-
 <script id="inkore-supplier-invoice-submit-fix-v41">
 (function(){
   'use strict';
@@ -3457,14 +3350,12 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{normalizeInvent
   };
 })();
 </script>
-
-
 <style id="inkore-supplier-financial-edit-v42">
   .inkore-sup-fin-modal{position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px}
   .inkore-sup-fin-modal>div{background:#fff;border-radius:22px;width:min(900px,100%);max-height:92vh;overflow:auto;padding:22px;box-shadow:0 25px 70px rgba(15,23,42,.25)}
   .inkore-sup-fin-input{width:100%;border:1px solid #dbe2ea;border-radius:10px;padding:10px;margin-top:5px}
 </style>
-<script id="inkore-supplier-financial-edit-v42">
+<script id="inkore-supplier-financial-edit-v42-copy2">
 (function(){
   'use strict';
   const P='inkore_erp_stable_v1_';
@@ -3629,13 +3520,11 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{normalizeInvent
   };
 })();
 </script>
-
-
 <style id="inkore-supplier-fin-edit-v43">
 .inkore-sf43{position:fixed;inset:0;background:rgba(15,23,42,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px}
 .inkore-sf43>div{background:#fff;width:min(980px,100%);max-height:92vh;overflow:auto;border-radius:22px;padding:22px;box-shadow:0 25px 80px rgba(15,23,42,.3)}
 </style>
-<script id="inkore-supplier-fin-edit-v43">
+<script id="inkore-supplier-fin-edit-v43-copy2">
 (function(){
 'use strict';
 const P='inkore_erp_stable_v1_';
@@ -3764,13 +3653,11 @@ window.openSupplierFinancialEditorV43=openSupplierFinancialEditorV43;
 document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{if(document.getElementById('suppliers_table_body'))window.renderSuppliers()},700));
 })();
 </script>
-
-
 <style id="inkore-supplier-posting-final-v44">
   .inkore-posted-ok{animation:inkorePost .5s ease}
   @keyframes inkorePost{0%{box-shadow:0 0 0 0 rgba(16,185,129,.45)}100%{box-shadow:0 0 0 12px rgba(16,185,129,0)}}
 </style>
-<script id="inkore-supplier-posting-final-v44">
+<script id="inkore-supplier-posting-final-v44-copy2">
 (function(){
 'use strict';
 const P='inkore_erp_stable_v1_';
@@ -3940,19 +3827,11 @@ window.showPage=function(page){
 };
 })();
 </script>
-
-
-
-
-
-
-
-
 <style id="inkore-attendance-payroll-consolidated-v51">
   #inkore_attendance_consolidated_v51 table{min-width:1180px}
   #inkore_attendance_consolidated_v51 input,#inkore_attendance_consolidated_v51 select{min-height:38px}
 </style>
-<script id="inkore-attendance-payroll-consolidated-v51">
+<script id="inkore-attendance-payroll-consolidated-v51-copy2">
 (function(){
 'use strict';
 const P='inkore_erp_stable_v1_';
@@ -4140,14 +4019,12 @@ function removeTestArchive(){
 document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{removeTestArchive();fixDailyDate();installAttendance();renderPayroll()},800));
 })();
 </script>
-
-
 <style id="inkore-attendance-weekly-closing-v60">
   #inkore_awc_status{font-size:11px;margin-top:8px;color:#64748b}
   #inkore_awc_table table{min-width:1150px}
   #inkore_awc_table input,#inkore_awc_table select{min-height:38px}
 </style>
-<script id="inkore-attendance-weekly-closing-v60">
+<script id="inkore-attendance-weekly-closing-v60-copy2">
 (function(){
 'use strict';
 
@@ -4365,13 +4242,11 @@ window.showPage=function(page){
 };
 })();
 </script>
-
-
 <style id="inkore-payroll-clean-v70">
   #page-weekly_hr .inkore-p70-input{width:100%;border:1px solid #dbe2ea;border-radius:9px;padding:7px}
   #page-weekly_hr .p70-pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:800}
 </style>
-<script id="inkore-payroll-clean-v70">
+<script id="inkore-payroll-clean-v70-copy2">
 (function(){
 'use strict';
 const P='inkore_erp_stable_v1_';
@@ -4487,7 +4362,193 @@ const oldShow=window.showPage;
 window.showPage=function(page){const r=typeof oldShow==='function'?oldShow(page):undefined;if(page==='weekly_hr')setTimeout(()=>{boot()},220);return r};
 })();
 </script>
+<style id="inkore-payroll-v80-style">
+  #page-weekly_hr .p80-input{width:100%;border:1px solid #d7dee8;border-radius:9px;padding:7px 9px;min-height:38px}
+  #page-weekly_hr .p80-card{border:1px solid #e2e8f0;border-radius:14px;background:#fff}
+  #page-weekly_hr .p80-badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800}
+</style>
+<script id="inkore-payroll-v80-authority">
+(function(){
+'use strict';
 
+const P='inkore_erp_stable_v1_';
+const G=k=>{try{return JSON.parse(localStorage.getItem(P+k)||'null')}catch(_){return null}};
+const S=(k,v)=>localStorage.setItem(P+k,JSON.stringify(v));
+const A=k=>G(k)||[];
+const N=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+const F=v=>N(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+const M=v=>F(v)+' ج.م';
+const E=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const today=()=>new Date().toISOString().slice(0,10);
+
+function iso(v){
+  const s=String(v||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
+  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m?`${m[3]}-${m[1]}-${m[2]}`:s.slice(0,10);
+}
+function sat(v){
+  const d=new Date((v||today())+'T00:00:00'),day=d.getDay();
+  d.setDate(d.getDate()-(day===6?0:day+1));
+  return d.toISOString().slice(0,10);
+}
+function weekDates(start){
+  const d=new Date(sat(start)+'T00:00:00');
+  return Array.from({length:6},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x.toISOString().slice(0,10)});
+}
+function workers(){return A('employees').filter(e=>e.active!==false)}
+function worker(id){return A('employees').find(e=>String(e.id)===String(id))}
+function attendanceFor(e,date){
+  const list=A('attendance');
+  return list.find(a=>{
+    if(iso(a.date??a.work_date??a.day)!==date)return false;
+    const aid=a.employeeId??a.empId??a.employee_id??a.workerId;
+    const nm=a.empName??a.employeeName??a.employee_name??a.workerName;
+    return (aid!=null&&aid!=='') ? String(aid)===String(e.id) : String(nm||'').trim()===String(e.name||'').trim();
+  })||null;
+}
+function calc(e,start){
+  const ds=weekDates(start); let p=0,h=0,late=0,ot=0;
+  ds.forEach(d=>{
+    const a=attendanceFor(e,d); if(!a)return;
+    const st=String(a.status||'').trim();
+    if(['حاضر','تأخير','present','late'].includes(st))p++;
+    else if(['نصف يوم','half'].includes(st))h++;
+    late+=N(a.lateMin??a.late_minutes??a.delayMinutes);
+    ot+=N(a.ot??a.overtime??a.overtime_hours);
+  });
+  const weekly=N(e.weeklySalary??e.weekly_base??e.salary??0);
+  const hours=Math.max(.5,N(e.workHoursPerDay??e.work_hours_per_day)||8);
+  const dayRate=weekly/6, hourRate=dayRate/hours;
+  const lm=e.lateMultiplier==null?1:N(e.lateMultiplier);
+  const om=e.otMultiplier==null?1:N(e.otMultiplier);
+  const attendanceValue=(p+h*.5)*dayRate;
+  const lateValue=late/60*hourRate*lm;
+  const otValue=ot*hourRate*om;
+  const holidayPay=N(e.holidayPay);
+  const advances=N(e.advances);
+  const other=N(e.otherDeductions);
+  const gross=attendanceValue+otValue+holidayPay;
+  const deductions=lateValue+advances+other;
+  const net=Math.max(0,gross-deductions);
+  const paid=Math.max(0,N(e.currentPaid??0));
+  return {start:sat(start),end:ds[5],dates:ds,present:p,half:h,late,ot,weekly,hours,dayRate,hourRate,lm,om,attendanceValue,lateValue,otValue,holidayPay,advances,other,gross,deductions,net,paid,remain:net-paid};
+}
+function treasuryPay(amount){
+  if(amount<=0)return true;
+  try{
+    if(typeof window.adjustTreasury==='function'){ window.adjustTreasury('الصندوق (كاش)',-amount); return true; }
+    const cur=N(G('cashbox')); if(cur<amount)return false;
+    S('cashbox',cur-amount); return true;
+  }catch(_){return false}
+}
+
+/* Remove legacy dynamically injected payroll blocks from this page only. */
+function scrubLegacy(){
+  const page=document.getElementById('page-weekly_hr');if(!page)return;
+  ['#payroll_details_box','#payroll_archive_body','#payroll_archive_table','#payroll_legacy_box','#inkore_payroll_clean_v50','#inkore_payroll_clean_v40'].forEach(sel=>page.querySelectorAll(sel).forEach(x=>x.remove()));
+  page.querySelectorAll('[data-legacy-payroll="1"]').forEach(x=>x.remove());
+}
+
+/* Make the old table renderer inert by redirecting its expected legacy target nowhere. */
+function renderAuthority(){
+  const body=document.getElementById('weekly_hr_table_body_clean');if(!body)return;
+  const input=document.getElementById('payroll_week_start_clean');
+  const start=sat(input?.value||today()); if(input)input.value=start;
+  const ds=weekDates(start), es=workers();
+  const rep=document.getElementById('payroll_report_emp_clean');
+  if(rep)rep.innerHTML='<option value="">اختر العامل</option>'+es.map(e=>`<option value="${E(e.id)}">${E(e.name)}</option>`).join('');
+
+  let due=0,paid=0,remain=0;
+  body.innerHTML=es.map(e=>{
+    const d=calc(e,start);due+=d.net;paid+=d.paid;remain+=d.remain;
+    const state=d.remain>0?'متبقي':d.remain<0?'زيادة':'خالص';
+    return `<tr>
+      <td class="p-3 font-black">${E(e.name)}<br><span class="text-slate-400 font-normal">${E(e.role||'')}</span></td>
+      <td class="p-3">${M(d.weekly)}</td>
+      <td class="p-3">${d.present} حاضر / ${d.half} نصف<br><span class="text-[10px]">${F(d.present+d.half*.5)} يوم مدفوع</span></td>
+      <td class="p-3">${F(d.late)} د<br><span class="text-[10px]">×${F(d.lm)}</span><div class="text-rose-600">-${M(d.lateValue)}</div></td>
+      <td class="p-3">${F(d.ot)} س<br><span class="text-[10px]">×${F(d.om)}</span><div class="text-emerald-700">+${M(d.otValue)}</div></td>
+      <td class="p-3"><input class="p80-input" type="number" min="0" step=".01" value="${d.holidayPay}" data-v80="${E(e.id)}:holidayPay"></td>
+      <td class="p-3"><input class="p80-input" type="number" min="0" step=".01" value="${d.advances}" data-v80="${E(e.id)}:advances"></td>
+      <td class="p-3"><input class="p80-input" type="number" min="0" step=".01" value="${d.other}" data-v80="${E(e.id)}:otherDeductions"></td>
+      <td class="p-3">${M(d.gross)}</td>
+      <td class="p-3 font-black text-indigo-700">${M(d.net)}</td>
+      <td class="p-3"><input class="p80-input" type="number" min="0" step=".01" value="${d.paid}" data-v80="${E(e.id)}:currentPaid"></td>
+      <td class="p-3 font-bold ${d.remain>0?'text-rose-700':d.remain<0?'text-amber-700':'text-emerald-700'}">${state}<br>${M(Math.abs(d.remain))}</td>
+      <td class="p-3"><span class="p80-badge ${d.remain===0?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'}">${d.remain===0?'مغلق':'مفتوح'}</span></td>
+      <td class="p-3"><button type="button" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-black" data-v80-close="${E(e.id)}">تقفيل العامل</button></td>
+    </tr>`;
+  }).join('')||'<tr><td colspan="14" class="p-6 text-center text-slate-400">لا يوجد عمال نشطون</td></tr>';
+
+  document.getElementById('payroll_total_due_clean').textContent=M(due);
+  document.getElementById('payroll_total_paid_clean').textContent=M(paid);
+  document.getElementById('payroll_total_remain_clean').textContent=M(remain);
+  document.getElementById('payroll_workers_clean').textContent=es.length;
+  document.getElementById('payroll_week_label_clean').textContent=`الأسبوع: ${start} → ${ds[5]} — الجمعة راحة`;
+  const status=document.getElementById('payroll_clean_status');if(status)status.textContent='الحساب مأخوذ من سجل الحضور لنفس العامل ونفس تواريخ الأسبوع فقط.';
+
+  body.querySelectorAll('[data-v80]').forEach(input=>{
+    input.onchange=()=>{
+      const [id,field]=String(input.dataset.v80).split(':');
+      const es2=A('employees'),e2=es2.find(x=>String(x.id)===String(id));if(!e2)return;
+      e2[field]=Math.max(0,N(input.value));S('employees',es2);renderAuthority();
+      if(window.inkoreSyncNow)window.inkoreSyncNow();
+    };
+  });
+  body.querySelectorAll('[data-v80-close]').forEach(b=>b.onclick=()=>closeEmployee(b.dataset.v80Close,start));
+  renderArchive();
+}
+function closeEmployee(id,start){
+  const e=worker(id);if(!e)return;
+  const d=calc(e,start);
+  const ar=A('payrollArchive');
+  if(ar.some(x=>String(x.employeeId)===String(id)&&iso(x.weekStart)===d.start))return alert('العامل مقفول بالفعل لهذا الأسبوع.');
+  if(d.paid>d.net)return alert('المدفوع أكبر من المستحق. صحح المبلغ قبل التقفيل.');
+  if(!confirm(`تقفيل ${e.name}\n${d.start} → ${d.end}\nالمستحق: ${M(d.net)}\nالمدفوع: ${M(d.paid)}\nالمتبقي: ${M(d.remain)}\n\nتأكيد؟`))return;
+  if(d.paid>0 && !treasuryPay(d.paid))return alert('رصيد الصندوق غير كافٍ لتسجيل هذا الدفع.');
+  ar.unshift({id:Date.now()+Math.random(),employeeId:e.id,employeeName:e.name,weekStart:d.start,weekEnd:d.end,
+    weeklySalary:d.weekly,presentDays:d.present,halfDays:d.half,lateMinutes:d.late,overtimeHours:d.ot,
+    attendanceValue:d.attendanceValue,lateDeduction:d.lateValue,overtimeValue:d.otValue,
+    holidayPay:d.holidayPay,advances:d.advances,otherDeductions:d.other,gross:d.gross,
+    deductions:d.deductions,netDue:d.net,paid:d.paid,carryOver:d.remain,closedAt:new Date().toISOString(),status:'closed'});
+  S('payrollArchive',ar);
+  const es=A('employees'),ee=es.find(x=>String(x.id)===String(e.id));if(ee){ee.currentPaid=0;ee.carryOver=d.remain;ee.advances=0;ee.holidayPay=0;ee.otherDeductions=0;S('employees',es)}
+  renderAuthority();alert('تم تقفيل العامل وحفظ Snapshot مستقل للأسبوع.');
+  if(window.inkoreSyncNow)window.inkoreSyncNow();
+}
+function renderArchive(){
+  const body=document.getElementById('payroll_archive_body_clean');if(!body)return;
+  const ar=A('payrollArchive').filter(x=>iso(x.weekStart)&&iso(x.weekEnd)).sort((a,b)=>new Date(b.closedAt||0)-new Date(a.closedAt||0));
+  body.innerHTML=ar.map(x=>`<tr>
+    <td class="p-3">${E(x.weekStart)} → ${E(x.weekEnd)}</td><td class="p-3 font-bold">${E(x.employeeName||'-')}</td>
+    <td class="p-3">${F(x.presentDays||0)} حاضر / ${F(x.halfDays||0)} نصف</td><td class="p-3">${F(x.lateMinutes||0)} د</td>
+    <td class="p-3">${F(x.overtimeHours||0)} س</td><td class="p-3">${M(x.netDue)}</td><td class="p-3">${M(x.paid)}</td>
+    <td class="p-3">${M(x.carryOver)}</td><td class="p-3"><button onclick="printPayrollArchiveV80('${E(x.id)}')" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg">طباعة</button></td>
+  </tr>`).join('')||'<tr><td colspan="9" class="p-5 text-center text-slate-400">لا توجد تقفيلات محفوظة</td></tr>';
+}
+window.printPayrollArchiveV80=function(id){
+  const x=A('payrollArchive').find(v=>String(v.id)===String(id));if(!x)return;
+  const w=window.open('','_blank','width=1000,height=850');if(!w)return;
+  w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>تقفيل ${E(x.employeeName)}</title><style>body{font-family:Arial;padding:25px}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #ddd;padding:8px;font-size:12px}th{background:#f4f6fa}.g{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.b{border:1px solid #ddd;padding:10px}</style></head><body><h1>inkore ERP</h1><h2>تقفيل راتب أسبوعي</h2><div class="g"><div class="b">العامل<br><b>${E(x.employeeName)}</b></div><div class="b">الفترة<br><b>${E(x.weekStart)} → ${E(x.weekEnd)}</b></div><div class="b">المستحق<br><b>${M(x.netDue)}</b></div><div class="b">المدفوع<br><b>${M(x.paid)}</b></div></div><table><tr><th>الحضور</th><th>التأخير</th><th>الإضافي</th><th>المتبقي</th></tr><tr><td>${F(x.presentDays)} حاضر / ${F(x.halfDays)} نصف</td><td>${F(x.lateMinutes)} د</td><td>${F(x.overtimeHours)} س</td><td>${M(x.carryOver)}</td></tr></table><div style="margin-top:55px;display:grid;grid-template-columns:1fr 1fr;gap:60px"><div style="border-top:1px solid;text-align:center;padding-top:8px">توقيع العامل</div><div style="border-top:1px solid;text-align:center;padding-top:8px">اعتماد الحسابات</div></div></body></html>`);
+  w.document.close();setTimeout(()=>w.print(),250);
+};
+
+/* Explicit authority marker + startup. */
+function startV80(){
+  scrubLegacy();
+  const note=document.getElementById('payroll_clean_status');
+  if(note)note.dataset.v80='1';
+  renderAuthority();
+}
+document.addEventListener('DOMContentLoaded',()=>setTimeout(startV80,650));
+const oldShow=window.showPage;
+window.showPage=function(page){
+  const r=typeof oldShow==='function'?oldShow(page):undefined;
+  if(page==='weekly_hr')setTimeout(startV80,180);
+  return r;
+};
+})();
+</script>
 </body>
 </html>
-
